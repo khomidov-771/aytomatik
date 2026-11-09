@@ -1,0 +1,16 @@
+﻿.git
+.tools
+node_modules
+**/node_modules
+**/.next
+**/test-results
+**/playwright-report
+**/coverage
+**/dist
+**/pgdata-e2e
+.env
+.env.*
+!.env.example
+*.log
+*.exe
+.DS_Store
