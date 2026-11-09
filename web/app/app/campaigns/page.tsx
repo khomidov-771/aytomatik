@@ -1,0 +1,8 @@
+"use client";
+import Link from "next/link";
+import { Bot, Layers3, Plus } from "lucide-react";
+import { useApi } from "@/hooks/use-api";
+import type { Automation } from "@/lib/types";
+import { EmptyState, ErrorState, LoadingState, PageHeader, StatusPill } from "@/components/ui";
+
+export default function CampaignsPage(){const{data,loading,error,reload}=useApi<{items:Automation[]}>("/automations");if(loading)return<LoadingState/>;if(error)return<ErrorState message={error} retry={reload}/>;const groups=Object.entries((data?.items??[]).reduce<Record<string,Automation[]>>((acc,item)=>{const key=item.account_username??"Akkaunt";(acc[key]??=[]).push(item);return acc},{}));return<><PageHeader eyebrow="Jamlanmalar" title="Kampaniyalar" description="MVP’da kampaniya akkaunt bo‘yicha guruhlangan avtomatlashtirish qoidalaridir." action={<Link className="btn primary" href="/app/automations/new"><Plus/>Yangi qoida</Link>}/>{groups.length===0?<EmptyState title="Kampaniya yo‘q" text="Qoida yaratilgach u Instagram akkaunti bo‘yicha shu yerda guruhlanadi."/>:<div className="campaign-grid">{groups.map(([account,rules])=><article className="panel campaign-card" key={account}><div className="campaign-heading"><span><Layers3/></span><div><h2>@{account}</h2><p>{rules.length} ta avtomatlashtirish</p></div><StatusPill status={rules.some(rule=>rule.is_active)?"active":"paused"}/></div><div className="simple-list">{rules.map(rule=><Link href={`/app/automations/${rule.id}`} className="list-row" key={rule.id}><span className="row-icon"><Bot/></span><div><strong>{rule.name}</strong><small>{rule.keywords.join(", ")}</small></div><StatusPill status={rule.is_active?"active":"paused"}/></Link>)}</div></article>)}</div>}</>}

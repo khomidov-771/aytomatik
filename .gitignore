@@ -1,0 +1,15 @@
+.env
+.env.local
+.next/
+node_modules/
+coverage/
+dist/
+web/test-results/
+web/playwright-report/
+*.exe
+*.log
+.tools/
+.idea/
+.vscode/
+.DS_Store
+

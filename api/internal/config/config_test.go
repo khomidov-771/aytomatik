@@ -1,0 +1,110 @@
+package config
+
+import (
+	"encoding/base64"
+	"strings"
+	"testing"
+)
+
+func baseEnv(t *testing.T) {
+	t.Helper()
+	t.Setenv("DATABASE_URL", "postgres://test/test")
+	t.Setenv("APP_ENV", "development")
+	t.Setenv("INSTAGRAM_PROVIDER", "mock")
+	t.Setenv("MAIL_PROVIDER", "log")
+	t.Setenv("TOKEN_ENCRYPTION_KEY", "")
+}
+
+func validProductionEnv(t *testing.T) {
+	t.Helper()
+	baseEnv(t)
+	t.Setenv("APP_ENV", "production")
+	t.Setenv("APP_URL", "https://automate.example.com")
+	t.Setenv("API_URL", "https://automate.example.com")
+	t.Setenv("ALLOWED_ORIGINS", "https://automate.example.com")
+	t.Setenv("COOKIE_SECURE", "true")
+	t.Setenv("SESSION_SECRET", strings.Repeat("s", 32))
+	t.Setenv("TOKEN_ENCRYPTION_KEY", base64.StdEncoding.EncodeToString([]byte(strings.Repeat("k", 32))))
+	t.Setenv("MAIL_PROVIDER", "smtp")
+	t.Setenv("MAIL_FROM", "IDS <noreply@example.com>")
+	t.Setenv("MAIL_SMTP_HOST", "smtp.example.com")
+	t.Setenv("MAIL_SMTP_STARTTLS", "true")
+	t.Setenv("BILLING_MODE", "disabled")
+}
+
+func TestDevelopmentAllowsExplicitLogMailer(t *testing.T) {
+	baseEnv(t)
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("development config rejected: %v", err)
+	}
+	if cfg.MailProvider != "log" || len(cfg.EncryptionKey) != 32 {
+		t.Fatalf("unexpected development config: %#v", cfg)
+	}
+}
+
+func TestProductionRequiresSecureSMTP(t *testing.T) {
+	baseEnv(t)
+	t.Setenv("APP_ENV", "production")
+	t.Setenv("SESSION_SECRET", strings.Repeat("s", 32))
+	t.Setenv("TOKEN_ENCRYPTION_KEY", base64.StdEncoding.EncodeToString([]byte(strings.Repeat("k", 32))))
+	if _, err := Load(); err == nil || !strings.Contains(err.Error(), "MAIL_PROVIDER=smtp") {
+		t.Fatalf("production log mailer must be rejected, got %v", err)
+	}
+	t.Setenv("MAIL_PROVIDER", "smtp")
+	t.Setenv("MAIL_FROM", "IDS <noreply@example.com>")
+	t.Setenv("MAIL_SMTP_HOST", "smtp.example.com")
+	t.Setenv("MAIL_SMTP_STARTTLS", "false")
+	if _, err := Load(); err == nil || !strings.Contains(err.Error(), "STARTTLS") {
+		t.Fatalf("production plaintext SMTP must be rejected, got %v", err)
+	}
+}
+
+func TestProductionRejectsDemoBilling(t *testing.T) {
+	baseEnv(t)
+	t.Setenv("APP_ENV", "production")
+	t.Setenv("SESSION_SECRET", strings.Repeat("s", 32))
+	t.Setenv("TOKEN_ENCRYPTION_KEY", base64.StdEncoding.EncodeToString([]byte(strings.Repeat("k", 32))))
+	t.Setenv("MAIL_PROVIDER", "smtp")
+	t.Setenv("MAIL_FROM", "IDS <noreply@example.com>")
+	t.Setenv("MAIL_SMTP_HOST", "smtp.example.com")
+	t.Setenv("MAIL_SMTP_STARTTLS", "true")
+	t.Setenv("BILLING_MODE", "manual_demo")
+	if _, err := Load(); err == nil || !strings.Contains(err.Error(), "BILLING_MODE=disabled") {
+		t.Fatalf("production demo billing must be rejected, got %v", err)
+	}
+}
+
+func TestProductionRequiresSecurePublicURLsAndCookie(t *testing.T) {
+	validProductionEnv(t)
+	t.Setenv("COOKIE_SECURE", "false")
+	if _, err := Load(); err == nil || !strings.Contains(err.Error(), "COOKIE_SECURE") {
+		t.Fatalf("production insecure cookie must be rejected, got %v", err)
+	}
+
+	t.Setenv("COOKIE_SECURE", "true")
+	t.Setenv("APP_URL", "http://automate.example.com")
+	if _, err := Load(); err == nil || !strings.Contains(err.Error(), "HTTPS") {
+		t.Fatalf("production HTTP public URL must be rejected, got %v", err)
+	}
+
+	t.Setenv("APP_URL", "https://automate.example.com")
+	t.Setenv("ALLOWED_ORIGINS", "https://automate.example.com/path")
+	if _, err := Load(); err == nil || !strings.Contains(err.Error(), "ALLOWED_ORIGINS") {
+		t.Fatalf("production origin with path must be rejected, got %v", err)
+	}
+}
+
+func TestUnifiedMetaRequiresConfigurationID(t *testing.T) {
+	baseEnv(t)
+	t.Setenv("INSTAGRAM_PROVIDER", "meta")
+	t.Setenv("META_APP_ID", "app-id")
+	t.Setenv("META_APP_SECRET", "app-secret")
+	t.Setenv("META_WEBHOOK_VERIFY_TOKEN", "verify-token")
+	t.Setenv("META_WEBHOOK_APP_SECRET", "webhook-secret")
+	t.Setenv("META_LOGIN_MODE", "unified")
+	t.Setenv("META_LOGIN_CONFIG_ID", "")
+	if _, err := Load(); err == nil || !strings.Contains(err.Error(), "META_LOGIN_CONFIG_ID") {
+		t.Fatalf("unified login without configuration id must be rejected, got %v", err)
+	}
+}

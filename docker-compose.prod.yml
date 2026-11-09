@@ -1,0 +1,108 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-ids_automate}
+      POSTGRES_USER: ${POSTGRES_USER:-ids}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+    volumes:
+      - ids_postgres_prod:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-ids} -d ${POSTGRES_DB:-ids_automate}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks: [backend]
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - ids_redis_prod:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks: [backend]
+
+  api:
+    build:
+      context: ./api
+    restart: unless-stopped
+    env_file: .env.production
+    environment:
+      APP_ENV: production
+      APP_URL: https://${IDS_DOMAIN:?IDS_DOMAIN is required}
+      API_URL: https://${IDS_DOMAIN:?IDS_DOMAIN is required}
+      DATABASE_URL: postgres://${POSTGRES_USER:-ids}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-ids_automate}?sslmode=disable
+      REDIS_URL: redis://redis:6379/0
+      COOKIE_SECURE: "true"
+      ALLOWED_ORIGINS: https://${IDS_DOMAIN}
+      META_REDIRECT_URI: https://${IDS_DOMAIN}/api/v1/instagram/callback
+      TRUSTED_PROXY_CIDRS: 172.16.0.0/12
+      BILLING_MODE: disabled
+    expose: ["8080"]
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/healthz"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+    networks: [frontend, backend]
+
+  web:
+    build:
+      context: .
+      dockerfile: web/Dockerfile
+    restart: unless-stopped
+    expose: ["3000"]
+    depends_on:
+      api: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+    networks: [frontend]
+
+  nginx:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    environment:
+      IDS_DOMAIN: ${IDS_DOMAIN:?IDS_DOMAIN is required}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deploy/nginx/default.conf.template:/etc/nginx/templates/default.conf.template:ro
+      - letsencrypt:/etc/letsencrypt:ro
+      - certbot_webroot:/var/www/certbot:ro
+    depends_on:
+      api: { condition: service_healthy }
+      web: { condition: service_healthy }
+    networks: [frontend]
+
+  certbot:
+    image: certbot/certbot:latest
+    profiles: ["certificates"]
+    ports:
+      - "80:80"
+    volumes:
+      - letsencrypt:/etc/letsencrypt
+      - certbot_webroot:/var/www/certbot
+
+volumes:
+  ids_postgres_prod:
+  ids_redis_prod:
+  letsencrypt:
+  certbot_webroot:
+
+networks:
+  frontend:
+  backend:
+    internal: true

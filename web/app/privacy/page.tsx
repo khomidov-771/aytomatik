@@ -1,0 +1,5 @@
+import { PublicHeader } from "@/components/public-header";
+
+export default function PrivacyPage() {
+  return <div className="marketing-page"><PublicHeader/><main><section className="marketing-section legal-copy"><span className="section-label">Maxfiylik</span><h1>Maxfiylik siyosati</h1><p>Oxirgi yangilanish: 2026-yil 9-noyabr.</p><h2>Saqlanadigan ma’lumotlar</h2><p>Hisob profili, workspace a’zoligi, avtomatlashtirish qoidalari, redaktlangan webhook hodisalari, Inbox xabarlari va audit yozuvlari saqlanadi.</p><h2>Instagram ma’lumotlari</h2><p>Instagram paroli olinmaydi. OAuth access tokenlari serverda AES-256-GCM bilan shifrlanadi va interfeysda ko‘rsatilmaydi.</p><h2>Xavfsizlik</h2><p>Sessiyalar HttpOnly cookie, CSRF himoyasi va rolga asoslangan ruxsatlar bilan boshqariladi. Secret va bir martalik tokenlar loglarga yozilmaydi.</p><h2>O‘chirish so‘rovi</h2><p>Workspace egasi sozlamalar sahifasida ma’lumotni o‘chirish uchun manual ko‘rib chiqish so‘rovini yaratishi mumkin.</p></section></main></div>;
+}
