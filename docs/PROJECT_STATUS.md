@@ -1,6 +1,6 @@
 # Project status
 
-Tekshiruv: 2026-11-11. Branch: `main`, commit `8c15cde`. Holat repository kodi, shu muhitda bajarilgan testlar va production serverdagi endpoint/container tekshiruvlariga asoslangan.
+Tekshiruv: 2026-11-11. Branch: `main`; audit hujjatlari commit `4218851`, production’ga deploy qilingan Google OAuth kod commit `8c15cde`. Holat repository kodi, shu muhitda bajarilgan testlar va production serverdagi endpoint/container tekshiruvlariga asoslangan.
 
 ## Umumiy natija
 
@@ -100,7 +100,7 @@ Google OIDC controlled test haqiqiy Google akkaunti yoki live Google service dey
 - `https://instagram.schat.uz/` va `/healthz`: HTTP 200.
 - API, web va PostgreSQL konteynerlari ishlayapti; PostgreSQL migration ro‘yxatida `006_google_oauth.sql` mavjud.
 - `GET /api/v1/auth/google/status`: HTTP 200, `{"enabled":false}`. Credentialsiz `POST /api/v1/auth/google/start`: HTTP 503 — server sozlanmaganini ochiq bildiradi.
-- GitHub `main` va production repo commit: `8c15cde` (`Add secure Google OIDC sign-in`). Web va API image’lari shu koddan deploy qilindi.
+- Production web/API image’lari `8c15cde` (`Add secure Google OIDC sign-in`) commitidan deploy qilindi. Audit hujjatlari `4218851` commitida GitHub `main`ga push qilindi; bu hujjat o‘zgarishi runtime image’larni o‘zgartirmaydi.
 - Deployning birinchi urinishida Compose `.env.production` faylini `--env-file` bilan yuklamagani uchun API database environment qiymatlarisiz qayta yaratilib restart loopga tushdi. Production DB konteyneriga tegilmagan. To‘g‘ri `.env.production`ni Compose’ga bergach API tiklandi; health va Google status endpointlari qayta tekshirildi.
 - Server `.env.production` ichida Google Client ID va Client Secret qiymatlari yo‘q. Haqiqiy Google consent/signup/login hali bajarilmagan.
 - Server Git working tree’dagi `.env.production`, compose va boshqa untracked operator fayllari saqlandi; ular tozalanmadi yoki tracked nusxa bilan almashtirilmadi.
