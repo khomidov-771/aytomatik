@@ -9,7 +9,7 @@ import (
 func baseEnv(t *testing.T) {
 	t.Helper()
 	t.Setenv("DATABASE_URL", "postgres://test/test")
-	t.Setenv("APP_ENV", "development")
+	t.Setenv("APP_ENV", "test")
 	t.Setenv("INSTAGRAM_PROVIDER", "mock")
 	t.Setenv("MAIL_PROVIDER", "log")
 	t.Setenv("TOKEN_ENCRYPTION_KEY", "")
@@ -29,7 +29,18 @@ func validProductionEnv(t *testing.T) {
 	t.Setenv("MAIL_FROM", "IDS <noreply@example.com>")
 	t.Setenv("MAIL_SMTP_HOST", "smtp.example.com")
 	t.Setenv("MAIL_SMTP_STARTTLS", "true")
-	t.Setenv("BILLING_MODE", "disabled")
+	setMetaEnv(t)
+}
+
+func setMetaEnv(t *testing.T) {
+	t.Helper()
+	t.Setenv("INSTAGRAM_PROVIDER", "meta")
+	t.Setenv("META_APP_ID", "app-id")
+	t.Setenv("META_APP_SECRET", "app-secret")
+	t.Setenv("META_WEBHOOK_VERIFY_TOKEN", "verify-token")
+	t.Setenv("META_WEBHOOK_APP_SECRET", "webhook-secret")
+	t.Setenv("META_LOGIN_MODE", "unified")
+	t.Setenv("META_LOGIN_CONFIG_ID", "config-id")
 }
 
 func TestDevelopmentAllowsExplicitLogMailer(t *testing.T) {
@@ -46,6 +57,7 @@ func TestDevelopmentAllowsExplicitLogMailer(t *testing.T) {
 func TestProductionRequiresSecureSMTP(t *testing.T) {
 	baseEnv(t)
 	t.Setenv("APP_ENV", "production")
+	setMetaEnv(t)
 	t.Setenv("SESSION_SECRET", strings.Repeat("s", 32))
 	t.Setenv("TOKEN_ENCRYPTION_KEY", base64.StdEncoding.EncodeToString([]byte(strings.Repeat("k", 32))))
 	if _, err := Load(); err == nil || !strings.Contains(err.Error(), "MAIL_PROVIDER=smtp") {
@@ -60,18 +72,26 @@ func TestProductionRequiresSecureSMTP(t *testing.T) {
 	}
 }
 
-func TestProductionRejectsDemoBilling(t *testing.T) {
+func TestMockProviderIsTestOnly(t *testing.T) {
 	baseEnv(t)
-	t.Setenv("APP_ENV", "production")
-	t.Setenv("SESSION_SECRET", strings.Repeat("s", 32))
-	t.Setenv("TOKEN_ENCRYPTION_KEY", base64.StdEncoding.EncodeToString([]byte(strings.Repeat("k", 32))))
-	t.Setenv("MAIL_PROVIDER", "smtp")
-	t.Setenv("MAIL_FROM", "IDS <noreply@example.com>")
-	t.Setenv("MAIL_SMTP_HOST", "smtp.example.com")
-	t.Setenv("MAIL_SMTP_STARTTLS", "true")
-	t.Setenv("BILLING_MODE", "manual_demo")
-	if _, err := Load(); err == nil || !strings.Contains(err.Error(), "BILLING_MODE=disabled") {
-		t.Fatalf("production demo billing must be rejected, got %v", err)
+	t.Setenv("APP_ENV", "development")
+	if _, err := Load(); err == nil || !strings.Contains(err.Error(), "test-only") {
+		t.Fatalf("development mock provider must be rejected, got %v", err)
+	}
+}
+
+func TestDevelopmentCanRunWithMetaIntegrationUnconfigured(t *testing.T) {
+	baseEnv(t)
+	t.Setenv("APP_ENV", "development")
+	t.Setenv("INSTAGRAM_PROVIDER", "meta")
+	t.Setenv("META_APP_ID", "")
+	t.Setenv("META_APP_SECRET", "")
+	t.Setenv("META_WEBHOOK_VERIFY_TOKEN", "")
+	t.Setenv("META_WEBHOOK_APP_SECRET", "")
+	t.Setenv("META_LOGIN_MODE", "unified")
+	t.Setenv("META_LOGIN_CONFIG_ID", "")
+	if _, err := Load(); err != nil {
+		t.Fatalf("development UI should run while Meta integration stays blocked: %v", err)
 	}
 }
 
@@ -96,12 +116,7 @@ func TestProductionRequiresSecurePublicURLsAndCookie(t *testing.T) {
 }
 
 func TestUnifiedMetaRequiresConfigurationID(t *testing.T) {
-	baseEnv(t)
-	t.Setenv("INSTAGRAM_PROVIDER", "meta")
-	t.Setenv("META_APP_ID", "app-id")
-	t.Setenv("META_APP_SECRET", "app-secret")
-	t.Setenv("META_WEBHOOK_VERIFY_TOKEN", "verify-token")
-	t.Setenv("META_WEBHOOK_APP_SECRET", "webhook-secret")
+	validProductionEnv(t)
 	t.Setenv("META_LOGIN_MODE", "unified")
 	t.Setenv("META_LOGIN_CONFIG_ID", "")
 	if _, err := Load(); err == nil || !strings.Contains(err.Error(), "META_LOGIN_CONFIG_ID") {

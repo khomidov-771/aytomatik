@@ -1,163 +1,188 @@
 # IDS Automate
 
-IDS Automate — Instagram Professional akkauntlari uchun multi-tenant comment-to-DM SaaS. Foydalanuvchi emailini tasdiqlaydi, workspace yaratadi yoki taklif orqali qo‘shiladi, Instagram akkauntini OAuth bilan ulaydi, comment qoidalarini boshqaradi va ruxsat etilgan private reply’larni yuboradi. Inbox, 24 soatlik inbound-message reply oynasi, analytics, RBAC, audit, session management va aniq belgilangan Mock Mode mavjud.
+IDS Automate — Instagram Professional akkauntlari uchun real Comment-to-DM avtomatlashtirish platformasi.
 
-Loyiha joylashuvi: `C:\Users\secre\Desktop\1\IDS_Automate_Codex_Pack`.
+Asosiy oqim:
 
-Meta bergan Unified Login Configuration ID `2331645327602552` kodga ulangan. Unified authorization URL, token exchange, assigned-account discovery, webhook subscription va delivery ketma-ketligi deterministik HTTP test bilan o‘tdi. Biroq App ID/App Secret, tasdiqlangan Professional akkaunt va App Review dalili bo‘lmagani sababli real Instagram integratsiyasi “live tekshirildi” deb hisoblanmaydi. Mock Mode haqiqiy Instagram delivery emas va UI’da `Demo mode` bilan belgilanadi.
-
-## Stack
-
-- Frontend: Next.js 16, React 19, TypeScript, Vitest, ESLint.
-- Backend: Go 1.27, `net/http`, pgx, Redis client.
-- Data: PostgreSQL 17, Redis 7 (signal/acceleration; database queue source of truth).
-- Security: HttpOnly session cookie, CSRF, RBAC, AES-256-GCM token encryption, OAuth state, webhook HMAC, SMTP STARTTLS.
-
-## Tez ishga tushirish — Docker Compose
-
-Talablar: Docker Desktop va Docker Compose.
-
-```powershell
-Set-Location C:\Users\secre\Desktop\1\IDS_Automate_Codex_Pack
-Copy-Item .env.example .env
-docker compose up --build -d
-docker compose exec api /ids-seed
-docker compose logs -f api web
+```text
+REAL COMMENT → KEYWORD MATCH → OPTIONAL FOLLOW CHECK → PRIVATE REPLY → PUBLIC COMMENT REPLY
 ```
 
-Ochish:
+Public “DM yuborildi” javobi faqat Meta private reply’ni muvaffaqiyatli qabul qilgandan keyin yuboriladi. Follow holati uch qiymatli: `FOLLOWER`, `NOT_FOLLOWER`, `UNKNOWN`. API xatosi yoki yetishmayotgan field hech qachon `NOT_FOLLOWER` deb olinmaydi.
+
+Obuna/to‘lov mahsulot scope’idan chiqarilgan. Product UI/API’da demo rejim, demo akkaunt, fake analytics yoki mock event endpoint yo‘q. Test-only mock adapter faqat `APP_ENV=test` da ishlaydi.
+
+## Holat
+
+- Backend, frontend va PostgreSQL integratsion testlar lokal muhitda o‘tgan.
+- Meta OAuth, webhook, private/public reply va follow requestlari controlled HTTP testlarda tekshirilgan.
+- Real Meta App credentials va eligible Instagram Professional akkaunt bu workspace’da yo‘q. Shu sabab live OAuth, live webhook, `is_user_follow_business`, real private reply va public reply **live tekshirilmagan**.
+- Meta bergan Unified Login Configuration ID `.env.example`da public konfiguratsiya sifatida ko‘rsatilgan. Secretlar repositoryga yozilmaydi.
+
+Batafsil: [PROJECT_STATUS.md](docs/PROJECT_STATUS.md), [NEXT_STEPS.md](docs/NEXT_STEPS.md), [AI_HANDOFF.md](docs/AI_HANDOFF.md).
+
+## Texnologiyalar
+
+- Frontend: Next.js 16 App Router, React 19, TypeScript, custom CSS
+- Backend: Go, `net/http`, pgx
+- Database: PostgreSQL 17
+- Queue: PostgreSQL durable queue; Redis faqat wake-up signal
+- Auth: HttpOnly session cookie, CSRF, email verification, RBAC
+- Meta: Instagram Login yoki Unified/Facebook Login konfiguratsiyasi
+
+## Talablar
+
+- Go toolchain (repositorydagi `api/go.mod`ga mos)
+- Node.js 20+ va npm
+- PostgreSQL 17+
+- Redis 7+ tavsiya qilinadi
+- Real ishlash uchun Meta App credentials va Professional Business/Creator akkaunt
+
+## O‘rnatish
+
+```powershell
+git clone <repository-url>
+cd IDS_Automate_Codex_Pack
+Copy-Item .env.example .env
+npm ci
+cd api
+go mod download
+cd ..
+```
+
+`.env` ichida kamida database, security va Meta qiymatlarini to‘ldiring. Secretlarni commit qilmang.
+
+Security qiymatlarini yaratish misoli:
+
+```powershell
+# SESSION_SECRET uchun kamida 32 belgilik random qiymat ishlating.
+# TOKEN_ENCRYPTION_KEY base64 formatidagi aynan 32 byte bo‘lishi kerak.
+```
+
+## Ishga tushirish
+
+### Docker Compose
+
+```powershell
+docker compose up --build
+```
+
+Manzillar:
 
 - Web: `http://localhost:3000`
-- API health: `http://localhost:8080/healthz`
-- Seed qilingan dev login: `demo@ids.uz` / `Demo1234!`
+- API: `http://localhost:8080`
+- Health: `http://localhost:8080/healthz`
 
-`.env` ichidagi development qiymatlari production uchun yaroqsiz. Real secretlarni repository’ga commit qilmang.
+Meta credentials bo‘lmasa development UI/API ishga tushadi, ammo Instagram ulash va webhook integratsiyasi aniq `sozlanmagan` holatda bloklanadi. Production credentialsiz start qilmaydi va hech qachon mock rejimga avtomatik o‘tmaydi.
 
-## Lokal development
-
-1. PostgreSQL va ixtiyoriy Redis’ni ishga tushiring.
-2. `.env.example` dan `.env` yarating va environment’ga yuklang.
-3. Frontend dependency’larini o‘rnating.
-4. API va web’ni alohida terminallarda ishga tushiring.
+### Servislarni alohida ishga tushirish
 
 ```powershell
-# Repository root
-npm ci
+# 1. PostgreSQL va Redis
+docker compose up -d postgres redis
 
-# Terminal 1 — API
-Set-Location api
+# 2. Migration
+cd api
+go run ./cmd/migrate up
+
+# 3. API
 go run ./cmd/server
 
-# Terminal 2 — Web
-Set-Location web
-npm run dev
+# 4. Boshqa terminalda frontend
+cd ..
+npm run dev:web
 ```
 
-Bu workspace’da system Go bo‘lmasa, saqlangan toolchain ishlatiladi:
+## Meta sozlamalari
 
-```powershell
-Set-Location api
-$env:GOMODCACHE=(Resolve-Path '..\.tools').Path+'\gomodcache'
-$env:GOCACHE=(Resolve-Path '..\.tools').Path+'\gocache'
-& '..\.tools\go\bin\go.exe' run ./cmd/server
-```
+1. Meta App’da Instagram Professional asset va kerakli mahsulotlarni ulang.
+2. Redirect URI’ni `.env`dagi `META_REDIRECT_URI` bilan aynan moslang.
+3. Webhook callback: `${API_URL}/api/v1/webhooks/instagram`.
+4. Verify token va App Secret’ni server environment’iga kiriting.
+5. Login yo‘lini tanlang:
+   - `META_LOGIN_MODE=instagram`: Instagram Login; follow field faqat kerakli messaging context/ruxsatlarda mavjud bo‘lsa tekshiriladi.
+   - `META_LOGIN_MODE=unified`: Unified/Facebook Login; hozirgi implementatsiya follow checkni `UNKNOWN` qiladi, chunki `is_user_follow_business` bu yo‘lda live tasdiqlanmagan.
+6. Amaldagi ruxsatlar login yo‘liga qarab tekshiriladi. Instagram Login uchun kod `instagram_business_basic`, `instagram_business_manage_comments`, `instagram_business_manage_messages` bilan ishlaydi.
 
-API server startup’da barcha yangi SQL migration’larni qo‘llaydi. Demo seed:
-
-```powershell
-Set-Location api
-go run ./cmd/seed
-```
-
-## Asosiy komandalar
-
-```powershell
-# Frontend
-Set-Location web
-npm run dev
-npm run lint
-npm test -- --run
-npm run build
-npm run test:e2e
-npm run start
-
-# Backend
-Set-Location api
-go test ./...
-go vet ./...
-go build ./cmd/server ./cmd/migrate ./cmd/seed
-
-# PostgreSQL integration suite (alohida test database talab qiladi)
-$env:IDS_TEST_DATABASE_URL='postgres://user:pass@localhost:5432/ids_automate_test?sslmode=disable'
-go test -tags=integration -v ./internal/store
-```
-
-Rootdagi `npm test` frontend lint + unit test + production buildni ketma-ket bajaradi. Windows sandbox’da standalone copy `EPERM` bersa, buildni oddiy terminalda ishga tushiring; 2026-11-09 da ayni revision sandbox tashqarisida muvaffaqiyatli build bo‘lgan. Joriy unit/integration/E2E dalillari [Test report](./docs/TEST_REPORT.md) da.
+Commentning o‘zi profile/follow tekshiruviga yetarli permission yoki messaging context borligini anglatmaydi.
 
 ## Environment variables
 
-| Nom | Vazifa | Production |
-|---|---|---|
-| `APP_ENV` | `development` yoki `production` | `production` |
-| `APP_URL` | Frontend public URL | Majburiy |
-| `API_URL` | Backend public URL | Majburiy |
-| `PORT` | API port | Ixtiyoriy, default `8080` |
-| `DATABASE_URL` | PostgreSQL DSN | Majburiy |
-| `REDIS_URL` | Redis DSN; bo‘lmasa DB + in-process signal ishlaydi | Tavsiya qilinadi |
-| `SESSION_SECRET` | Kamida 32 belgili session secret | Majburiy |
-| `TOKEN_ENCRYPTION_KEY` | Base64 kodlangan 32 byte AES key | Majburiy |
-| `COOKIE_SECURE` | HTTPS cookie flag | `true` |
-| `ALLOWED_ORIGINS` | Vergul bilan CORS origin’lar | Majburiy |
-| `INSTAGRAM_PROVIDER` | `mock` yoki `meta` | Majburiy |
-| `META_APP_ID` | Meta App ID | `meta` rejimda majburiy |
-| `META_APP_SECRET` | Meta App Secret | `meta` rejimda majburiy |
-| `META_API_VERSION` | Graph API versiyasi | Rasmiy hujjat bilan tekshiring |
-| `META_LOGIN_MODE` | `unified` yoki eski `instagram` OAuth oqimi | Yangi Meta konfiguratsiya uchun `unified` |
-| `META_LOGIN_CONFIG_ID` | Meta Login for Business Configuration ID; secret emas | `unified` rejimda majburiy |
-| `META_REDIRECT_URI` | OAuth callback | `meta` rejimda majburiy |
-| `META_WEBHOOK_VERIFY_TOKEN` | Webhook verify token | `meta` rejimda majburiy |
-| `META_WEBHOOK_APP_SECRET` | HMAC app secret | `meta` rejimda majburiy |
-| `MAIL_PROVIDER` | `log` yoki `smtp` | `smtp` majburiy |
-| `MAIL_FROM` | RFC 5322 sender | Majburiy |
-| `MAIL_SMTP_HOST`, `MAIL_SMTP_PORT` | SMTP server | Majburiy |
-| `MAIL_SMTP_USER`, `MAIL_SMTP_PASSWORD` | SMTP auth | Providerga bog‘liq |
-| `MAIL_SMTP_STARTTLS` | STARTTLS talabi | `true` majburiy |
-| `NEXT_PUBLIC_API_URL` | Frontend API base URL; bo‘lmasa same-origin `/api/v1` | Alohida origin bo‘lsa majburiy |
-| `IDS_TEST_DATABASE_URL` | Faqat integration test DB | Testda |
+| Nomi | Maqsad |
+|---|---|
+| `APP_ENV` | `development`, `test`, `production` |
+| `APP_URL` | Frontend public URL |
+| `API_URL` | Backend public URL |
+| `PORT` | API port |
+| `DATABASE_URL` | PostgreSQL DSN |
+| `REDIS_URL` | Redis URL; wake-up signal uchun |
+| `SESSION_SECRET` | Session himoyasi, productionda 32+ belgi |
+| `TOKEN_ENCRYPTION_KEY` | Access token uchun base64 32-byte AES key |
+| `COOKIE_SECURE` | Productionda `true` |
+| `ALLOWED_ORIGINS` | CORS allowlist |
+| `TRUSTED_PROXY_CIDRS` | Ishonchli reverse proxy tarmoqlari |
+| `INSTAGRAM_PROVIDER` | Productda `meta`; `mock` faqat testda |
+| `META_APP_ID` | Meta App ID |
+| `META_APP_SECRET` | Meta App Secret |
+| `META_API_VERSION` | Graph API versiyasi |
+| `META_LOGIN_MODE` | `instagram` yoki `unified` |
+| `META_LOGIN_CONFIG_ID` | Unified Login configuration ID |
+| `META_REDIRECT_URI` | OAuth callback URI |
+| `META_WEBHOOK_VERIFY_TOKEN` | Webhook verify token |
+| `META_WEBHOOK_APP_SECRET` | `X-Hub-Signature-256` tekshiruvi |
+| `NEXT_PUBLIC_API_URL` | Frontend ishlatadigan API base URL |
+| `MAIL_PROVIDER` | `log` developmentda, `smtp` productionda |
+| `MAIL_*` | SMTP sozlamalari |
 
-To‘liq namesiz namuna: [.env.example](./.env.example).
+To‘liq, secretsiz namuna: [.env.example](.env.example).
 
-Production `.env.production` ichida `INSTAGRAM_PROVIDER=meta`, `META_LOGIN_MODE=unified` va `META_LOGIN_CONFIG_ID=2331645327602552` ishlatiladi. Haqiqiy App Secret/webhook/SMTP secretlarni repository’ga yozmang. VPS tartibi [Deployment](./docs/DEPLOYMENT.md) da.
+## Komandalar
 
-## Mock Mode end-to-end oqimi
+```powershell
+# Frontend
+npm run dev:web
+npm run lint:web
+npm run test:web
+npm run build:web
 
-1. `INSTAGRAM_PROVIDER=mock` bilan tizimni ishga tushiring.
-2. Email verification’ni dev response’dagi havola bilan yakunlang yoki seed login’dan foydalaning.
-3. Instagram akkauntlar sahifasida mock OAuth’ni tugating.
-4. Automation qoidasini yarating.
-5. `Mock laboratoriya`da comment yuboring — private reply yaratiladi, lekin manual reply oynasi ochilmaydi.
-6. Xuddi shu participant uchun inbound DM yuboring — Inbox’da 24 soatlik manual reply oynasi ochiladi.
-7. Bir xil comment/message ID takror yuborilsa idempotency duplicate’ni bloklaydi.
+# Backend (api papkasida)
+go test ./...
+go vet ./...
+go build ./cmd/server ./cmd/migrate
+go run ./cmd/migrate up
+
+# PostgreSQL integration
+go test -tags=integration -v ./internal/store
+
+# Barcha standart frontend gate’lari
+npm test
+```
+
+## Mahalliy ishlab chiqish qoidalari
+
+- Schema o‘zgarishi faqat yangi additive migration orqali qilinadi.
+- Tenant query’lari `workspace_id` bilan cheklanadi.
+- Provider side effect oldidan idempotency action marker yoziladi.
+- Private reply noaniq natija bersa blind retry qilinmaydi.
+- Faqat aniq retryable public reply xatosi maksimal uch urinishgacha qayta ishlanishi mumkin.
+- Controlled/mock test natijasini live Meta natijasi deb yozmang.
+
+## Repository tuzilishi
+
+```text
+api/                  Go API, worker, provider, store va migrations
+web/                  Next.js frontend
+docs/                 arxitektura, status, handoff va operatsion hujjatlar
+deploy/               nginx konfiguratsiyasi
+docker-compose.yml    local stack
+docker-compose.prod.yml production stack
+```
 
 ## Muhim hujjatlar
 
-- [Architecture](./docs/ARCHITECTURE.md)
-- [Project status va test dalillari](./docs/PROJECT_STATUS.md)
-- [Qolgan ishlar](./docs/NEXT_STEPS.md)
-- [AI handoff](./docs/AI_HANDOFF.md)
-- [Meta setup checklist](./docs/META_SETUP_CHECKLIST.md)
-- [VPS deployment](./docs/DEPLOYMENT.md)
-- [Test report](./docs/TEST_REPORT.md)
-- [Technical specification](./docs/TECHNICAL_SPEC.md)
-- [Design guide](./docs/DESIGN_GUIDE.md)
-
-## Hozirgi chegaralar
-
-- Real Meta OAuth/webhook/delivery real credential va App Review bilan bajarilmagan; faqat kontrollangan provider HTTP simulyatsiyasi o‘tgan.
-- Ayni revisionning PostgreSQL integration suite’i ajratilgan disposable PostgreSQL 18 bazasida o‘tgan. Docker CLI kompyuterda yo‘qligi sabab Compose runtime tekshirilmagan.
-- Playwright critical flow Mock Mode’da o‘tgan: register/verify/login/logout, duplicate comment, inbound DM va manual Inbox reply. Bu real Meta testi emas.
-- SMTP adapter mavjud, ammo real SMTP server bilan delivery testi bajarilmagan.
-- Meta Unified Login kodi berilgan `Configuration ID` bilan sozlangan, ammo App ID/App Secret, tasdiqlangan professional akkaunt va App Review bo‘lmagani uchun real OAuth/webhook/delivery tekshirilmagan.
-- Data deletion hozir xavfsiz `pending_manual_review`; avtomatik o‘chirish retention/legal qarorisiz yoqilmagan.
-- Campaign sahifasi alohida campaign entity emas; akkaunt bo‘yicha automation jamlanmasi ekanini ochiq yozadi. CSV optional va hozir disabled.
-- Production npm dependency auditida 0 vulnerability; to‘liq auditda ESLint dev-only zanjirida 8 moderate `minimatch` finding qolgan. Npm faqat breaking `--force` downgrade taklif qilgan.
+- [ARCHITECTURE.md](docs/ARCHITECTURE.md)
+- [TECHNICAL_SPEC.md](docs/TECHNICAL_SPEC.md)
+- [PROJECT_STATUS.md](docs/PROJECT_STATUS.md)
+- [NEXT_STEPS.md](docs/NEXT_STEPS.md)
+- [AI_HANDOFF.md](docs/AI_HANDOFF.md)
+- [META_SETUP_CHECKLIST.md](docs/META_SETUP_CHECKLIST.md)

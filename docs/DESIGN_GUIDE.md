@@ -15,7 +15,7 @@ Premium dark SaaS, deep navy canvas, violet/indigo action color, restrained cyan
 9. Inbox
 10. Analytics
 11. Team
-12. Plans/billing
+12. Execution history and errors
 13. Settings/integrations
 14. Profile
 
@@ -33,6 +33,8 @@ Premium dark SaaS, deep navy canvas, violet/indigo action color, restrained cyan
 - Status: connected green, warning amber, disconnected muted red.
 - Charts: clear axes and tooltips; never fabricate production metrics.
 - Tables: responsive cards on narrow screens.
+- Follow status must visibly distinguish `FOLLOWER`, `NOT_FOLLOWER` and `UNKNOWN`.
+- Public success reply must never appear as completed before confirmed private-reply success.
 
 ## UX states
 Every async screen needs loading, empty, error, success, permission denied and disconnected states where relevant.

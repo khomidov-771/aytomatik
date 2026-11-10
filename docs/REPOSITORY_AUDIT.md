@@ -1,38 +1,34 @@
 # Repository audit
 
-Audit date: 2026-11-08 (Asia/Tashkent)
+Initial audit: 2026-11-08. Re-audit: 2026-11-10.
 
-## Initial state
+## Boshlang‘ich holat
 
-The repository was a specification pack, not an application. It contained the product brief, design reference, Meta setup checklist, environment example, implementation plan and project skill. There was no Git metadata, package manifest, application entry point, database migration or automated test.
+Repository specification/design pack sifatida boshlangan. Keyin Next.js frontend, Go API, PostgreSQL schema/migrations, provider abstraction va testlar qo‘shilgan.
 
-## Reusable assets preserved
+## Joriy entrypointlar
 
-- `AGENTS.md` and `.codex/skills/ids-automate/SKILL.md` — binding engineering workflow.
-- `docs/TECHNICAL_SPEC.md` — product, API, data, security and acceptance requirements.
-- `docs/DESIGN_GUIDE.md` and `design/ids-automate-reference.png` — visual language.
-- `docs/META_SETUP_CHECKLIST.md` — production readiness checklist.
-- `.env.example` — expanded rather than replaced with secrets.
+- Web: `web/app/page.tsx`, `web/app/app/layout.tsx`
+- API: `api/cmd/server/main.go`
+- Migration: `api/cmd/migrate/main.go`
+- Core worker: `api/internal/worker/worker.go`
+- Meta adapter: `api/internal/provider/provider.go`
 
-## Chosen implementation
+Demo seed entrypoint olib tashlangan. Test-only mock adapter productda route/UI yoki credential yaratmaydi.
 
-- Web: Next.js App Router, React, TypeScript and CSS design tokens.
-- API: Go HTTP service with PostgreSQL persistence and an optional Redis-backed job signal.
-- Auth: opaque server-side sessions in HttpOnly cookies, CSRF header validation and bcrypt cost 12 passwords.
-- Tenancy: workspace membership resolved on the server; all protected repositories require `workspace_id`.
-- Instagram: provider interface with explicit `mock` and fail-closed `meta` adapters.
-- Infra: Docker Compose, PostgreSQL and Redis health checks, embedded SQL migrations and a demo seed command.
+## Saqlangan aktivlar
 
-## Entry points
+- `AGENTS.md` va project skill qoidalari
+- Design reference va custom CSS language
+- Auth/tenant/security bazasi
+- Durable queue/idempotency modeli
+- Existing production-compatible migrations va ma’lumotlar
 
-- Web: `web/app/page.tsx` and `web/app/app/layout.tsx`.
-- API: `api/cmd/server/main.go`.
-- Migrations: `api/cmd/migrate/main.go`.
-- Demo seed: `api/cmd/seed/main.go`.
+## Joriy risklar
 
-## Initial risks
+- Live Meta credentials/App Review/eligible account yo‘q.
+- Follow capability login path va messaging contextga bog‘liq.
+- Legacy plan/subscription schema migration tarixini saqlash uchun fizik database’da qoladi, lekin application ishlatmaydi.
+- Docker CLI audit workstation’da mavjud emas; PostgreSQL integration embedded real process bilan o‘tgan.
 
-- Meta credentials and Advanced Access are not present; only mock delivery can be verified locally.
-- Meta fields, API versions and review rules are externally mutable; production mode is configuration-gated and must be revalidated against official docs before launch.
-- The initial workstation did not have system Go, Docker, PostgreSQL or Redis. A repository-local Go toolchain was used, and a later disposable PostgreSQL 18 integration run passed. Production Compose/Redis/VPS behavior still requires its own authorized verification.
-
+Source of truth: `PROJECT_STATUS.md` va `NEXT_STEPS.md`.

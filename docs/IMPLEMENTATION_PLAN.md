@@ -1,45 +1,19 @@
 # Implementation plan
 
-## Phase 0 — Repository audit
-- Inspect existing frontend/backend and package manifests.
-- Identify reusable auth, DB, routing, styling and tests.
-- Write `docs/REPOSITORY_AUDIT.md`.
-- Do not overwrite existing app blindly.
+Bu tarixiy reja 2026-11-10 core scope’ga moslashtirilgan. Amaldagi ustuvorliklar `NEXT_STEPS.md`da.
 
-## Phase 1 — Design system and UI shell
-- Add tokens, typography, buttons, cards, forms, sidebar, topbar.
-- Implement landing, login, register, dashboard shell.
-- Use static demo data only with explicit demo labels.
-- Responsive and accessible.
+## Yakunlangan kod bosqichlari
 
-## Phase 2 — Authentication and tenancy
-- Register/login/logout, password reset, email verification dev adapter.
-- Workspace creation and RBAC.
-- Tenant isolation tests.
+1. Repository audit va design system.
+2. Authentication, sessions, CSRF, RBAC va multi-tenancy.
+3. Instagram/Unified Login provider abstraction va encrypted tokens.
+4. Signed webhook, durable PostgreSQL queue va idempotency.
+5. Keyword/media automation builder.
+6. Tri-state optional follow check.
+7. Private reply → confirmed success → public reply state machine.
+8. Per-action execution history va Inbox.
+9. Product UI/API’dan payment, demo va fake data scope’ini olib tashlash.
 
-## Phase 3 — Instagram provider abstraction
-- Define provider interface.
-- Implement mock provider and tests.
-- Add OAuth state/callback flow.
-- Add real Meta adapter only after verifying current official docs and app config.
+## Qolgan acceptance bosqichi
 
-## Phase 4 — Webhooks and automations
-- Webhook verification and signature checks.
-- Event persistence, queue, idempotency.
-- Rule editor and matching engine.
-- Policy eligibility checks and execution logs.
-
-## Phase 5 — Inbox and analytics
-- Conversations/messages where API access permits.
-- Analytics from persisted events and executions.
-- Empty/error/loading states.
-
-## Phase 6 — Billing, settings, production readiness
-- Plan limits and subscription states.
-- Data deletion, audit logs, security review.
-- App Review checklist, privacy policy, terms, deployment docs.
-
-## Required outputs
-- Working app, not just static mockups.
-- `README.md`, `.env.example`, migrations, tests.
-- `docs/REPOSITORY_AUDIT.md`, `docs/IMPLEMENTATION_STATUS.md`.
+Real Meta eligible account bilan OAuth, webhook, follow, private reply, public reply, duplicate va failure outcome’larini dalillash. Batafsil `NEXT_STEPS.md`.

@@ -1,11 +1,12 @@
 import { expect, test } from "@playwright/test";
 
-test("registration, mock automation and inbox critical flow", async ({ page }) => {
+test("registration, login and real-provider empty states", async ({ page }) => {
   const unique = Date.now();
   const email = `e2e-${unique}@example.com`;
 
   await page.goto("/");
-  await expect(page.getByRole("heading", { name: /Instagram biznesingizni/ })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /Commentni/ })).toBeVisible();
+  await expect(page.getByText(/Mock rejim/)).toHaveCount(0);
   await page.goto("/terms");
   await expect(page.getByRole("heading", { name: "Foydalanish shartlari" })).toBeVisible();
 
@@ -26,34 +27,11 @@ test("registration, mock automation and inbox critical flow", async ({ page }) =
   await page.getByRole("button", { name: "Kirish", exact: true }).click();
   await expect(page).toHaveURL(/\/app$/);
   await expect(page.getByRole("heading", { name: /Xush kelibsiz/ })).toBeVisible();
-  await page.getByRole("button", { name: "Chiqish" }).click();
+  await expect(page.getByText("Akkaunt ulanmagan")).toBeVisible();
 
-  await page.goto("/login?demo=1");
-  await page.getByRole("button", { name: "Kirish", exact: true }).click();
-  await expect(page).toHaveURL(/\/app$/);
-  await page.goto("/app/automations");
-  await expect(page.getByText("Narx so‘rovi")).toBeVisible();
-
+  await page.goto("/app/automations/new");
+  await expect(page.getByText(/Avval Instagram akkaunt ulang/)).toBeVisible();
   await page.goto("/app/settings");
-  await page.getByLabel("Comment ID").fill(`e2e-comment-${unique}`);
-  await page.getByRole("button", { name: "Mock event yuborish" }).click();
-  await expect(page.getByText(/Mock event: queued/)).toBeVisible();
-
-  await page.getByRole("button", { name: "Mock event yuborish" }).click();
-  await expect(page.getByText(/Mock event: duplicate/)).toBeVisible();
-
-  await page.goto("/app/mock-lab");
-  await page.getByRole("button", { name: "Inbound DM yuborish" }).click();
-  await expect(page.getByText(/Inbound xabar: received/)).toBeVisible();
-
-  await page.goto("/app/inbox");
-  const conversation = page.locator(".conversation-list button").filter({ hasText: "@aziza" }).first();
-  await expect(conversation).toBeVisible({ timeout: 15_000 });
-  await conversation.click();
-  await expect(page.locator(".thread-header").getByText("@aziza", { exact: true })).toBeVisible();
-  await expect(page.getByPlaceholder("Xabar yozing...")).toBeEnabled();
-  await page.getByPlaceholder("Xabar yozing...").fill("E2E manual reply");
-  await page.getByRole("button", { name: "Yuborish" }).click();
-  await expect(page.getByText("E2E manual reply", { exact: true })).toBeVisible();
-  await expect(page.getByText("Demo", { exact: true }).first()).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Webhook diagnostikasi" })).toBeVisible();
+  await expect(page.getByText(/Mock comment event/)).toHaveCount(0);
 });

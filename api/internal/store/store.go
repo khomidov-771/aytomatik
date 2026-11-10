@@ -16,7 +16,6 @@ import (
 )
 
 var ErrNotFound = errors.New("not found")
-var ErrLimit = errors.New("plan limit reached")
 var ErrAccountClaimed = errors.New("provider account is already connected to another workspace")
 var ErrEmailUnverified = errors.New("email is not verified")
 var ErrOwnerProtected = errors.New("workspace owner membership is protected")
@@ -50,14 +49,11 @@ func (s *Store) Register(ctx context.Context, name, email, passwordHash string) 
 		return domain.Principal{}, "", err
 	}
 	workspaceName := strings.TrimSpace(name) + " workspace"
-	err = tx.QueryRow(ctx, `INSERT INTO workspaces(name,owner_user_id,plan_id) SELECT $1,$2,id FROM plans WHERE code='free' RETURNING id`, workspaceName, userID).Scan(&workspaceID)
+	err = tx.QueryRow(ctx, `INSERT INTO workspaces(name,owner_user_id) VALUES($1,$2) RETURNING id`, workspaceName, userID).Scan(&workspaceID)
 	if err != nil {
 		return domain.Principal{}, "", err
 	}
 	if _, err = tx.Exec(ctx, `INSERT INTO workspace_members(workspace_id,user_id,role) VALUES($1,$2,'owner')`, workspaceID, userID); err != nil {
-		return domain.Principal{}, "", err
-	}
-	if _, err = tx.Exec(ctx, `INSERT INTO subscriptions(workspace_id,plan_id) SELECT $1,id FROM plans WHERE code='free'`, workspaceID); err != nil {
 		return domain.Principal{}, "", err
 	}
 	if err = tx.Commit(ctx); err != nil {
@@ -282,27 +278,7 @@ func (s *Store) UpsertInstagramAccount(ctx context.Context, workspaceID, userID 
 	if in.Scopes == nil {
 		in.Scopes = []string{}
 	}
-	tx, err := s.DB.Begin(ctx)
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback(ctx)
-	var limit int
-	if err = tx.QueryRow(ctx, `SELECT p.account_limit FROM workspaces w JOIN plans p ON p.id=w.plan_id WHERE w.id=$1 FOR UPDATE OF w`, workspaceID).Scan(&limit); err != nil {
-		return err
-	}
-	var count int
-	if err = tx.QueryRow(ctx, `SELECT count(*) FROM instagram_accounts WHERE workspace_id=$1 AND status='connected'`, workspaceID).Scan(&count); err != nil {
-		return err
-	}
-	var exists bool
-	if err = tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM instagram_accounts WHERE workspace_id=$1 AND instagram_user_id=$2)`, workspaceID, in.InstagramUserID).Scan(&exists); err != nil {
-		return err
-	}
-	if !exists && count >= limit {
-		return ErrLimit
-	}
-	_, err = tx.Exec(ctx, `INSERT INTO instagram_accounts(workspace_id,instagram_user_id,username,account_type,avatar_url,token_ciphertext,token_expires_at,scopes,status,provider,connected_by,last_sync_at)
+	_, err := s.DB.Exec(ctx, `INSERT INTO instagram_accounts(workspace_id,instagram_user_id,username,account_type,avatar_url,token_ciphertext,token_expires_at,scopes,status,provider,connected_by,last_sync_at)
 		VALUES($1,$2,$3,$4,$5,$6,$7,$8,'connected',$9,$10,now()) ON CONFLICT(workspace_id,instagram_user_id) DO UPDATE SET username=EXCLUDED.username,account_type=EXCLUDED.account_type,avatar_url=EXCLUDED.avatar_url,token_ciphertext=EXCLUDED.token_ciphertext,token_expires_at=EXCLUDED.token_expires_at,scopes=EXCLUDED.scopes,status='connected',provider=EXCLUDED.provider,connected_by=EXCLUDED.connected_by,last_sync_at=now()`, workspaceID, in.InstagramUserID, in.Username, in.AccountType, in.AvatarURL, in.TokenCiphertext, in.TokenExpiresAt, in.Scopes, in.Provider, userID)
 	var pgErr *pgconn.PgError
 	if errors.As(err, &pgErr) && pgErr.Code == "23505" && pgErr.ConstraintName == "instagram_accounts_active_provider_uidx" {
@@ -311,15 +287,12 @@ func (s *Store) UpsertInstagramAccount(ctx context.Context, workspaceID, userID 
 	if err != nil {
 		return err
 	}
-	if err = tx.Commit(ctx); err != nil {
-		return err
-	}
 	_ = s.Audit(ctx, workspaceID, userID, "instagram.connected", "instagram_account", in.InstagramUserID, map[string]any{"provider": in.Provider})
 	return nil
 }
 
 func (s *Store) ListInstagramAccounts(ctx context.Context, workspaceID string) ([]domain.InstagramAccount, error) {
-	rows, err := s.DB.Query(ctx, `SELECT id,instagram_user_id,username,account_type,COALESCE(avatar_url,''),status,provider,scopes,token_expires_at,connected_at,last_sync_at FROM instagram_accounts WHERE workspace_id=$1 ORDER BY connected_at DESC`, workspaceID)
+	rows, err := s.DB.Query(ctx, `SELECT id,instagram_user_id,username,account_type,COALESCE(avatar_url,''),status,provider,scopes,token_expires_at,connected_at,last_sync_at FROM instagram_accounts WHERE workspace_id=$1 AND provider<>'mock' ORDER BY connected_at DESC`, workspaceID)
 	if err != nil {
 		return nil, err
 	}
@@ -355,8 +328,8 @@ func (s *Store) AccountSecretByProviderID(ctx context.Context, provider, provide
 	return
 }
 
-func (s *Store) AccountSecretByID(ctx context.Context, workspaceID, id string) (providerAccountID, tokenCiphertext, provider string, err error) {
-	err = s.DB.QueryRow(ctx, `SELECT instagram_user_id,token_ciphertext,provider FROM instagram_accounts WHERE id=$1 AND workspace_id=$2 AND status='connected'`, id, workspaceID).Scan(&providerAccountID, &tokenCiphertext, &provider)
+func (s *Store) AccountSecretByID(ctx context.Context, workspaceID, id string) (providerAccountID, tokenCiphertext, provider string, scopes []string, err error) {
+	err = s.DB.QueryRow(ctx, `SELECT instagram_user_id,token_ciphertext,provider,scopes FROM instagram_accounts WHERE id=$1 AND workspace_id=$2 AND status='connected'`, id, workspaceID).Scan(&providerAccountID, &tokenCiphertext, &provider, &scopes)
 	if errors.Is(err, pgx.ErrNoRows) {
 		err = ErrNotFound
 	}
@@ -365,15 +338,29 @@ func (s *Store) AccountSecretByID(ctx context.Context, workspaceID, id string) (
 
 func normalizeRule(r domain.AutomationRule) (domain.AutomationRule, error) {
 	r.Name = strings.TrimSpace(r.Name)
-	r.ReplyText = strings.TrimSpace(r.ReplyText)
-	if utf8.RuneCountInString(r.Name) < 2 || utf8.RuneCountInString(r.Name) > 100 || len(r.Keywords) == 0 || r.ReplyText == "" {
-		return r, errors.New("name must be 2-100 characters; keywords and reply text are required")
+	r.PrivateReplyText = strings.TrimSpace(r.PrivateReplyText)
+	r.PublicSuccessReplyText = strings.TrimSpace(r.PublicSuccessReplyText)
+	r.PublicNotFollowerReplyText = strings.TrimSpace(r.PublicNotFollowerReplyText)
+	r.PublicUnknownReplyText = strings.TrimSpace(r.PublicUnknownReplyText)
+	if utf8.RuneCountInString(r.Name) < 2 || utf8.RuneCountInString(r.Name) > 100 || len(r.Keywords) == 0 || r.PrivateReplyText == "" || r.PublicSuccessReplyText == "" {
+		return r, errors.New("name must be 2-100 characters; keywords, private reply and success public reply are required")
 	}
 	if r.MatchMode != "exact" && r.MatchMode != "contains" && r.MatchMode != "keyword_list" {
 		return r, errors.New("invalid match mode")
 	}
-	if utf8.RuneCountInString(r.ReplyText) > 1000 {
-		return r, errors.New("reply text is too long")
+	for _, text := range []string{r.PrivateReplyText, r.PublicSuccessReplyText, r.PublicNotFollowerReplyText, r.PublicUnknownReplyText} {
+		if utf8.RuneCountInString(text) > 1000 {
+			return r, errors.New("reply text is too long")
+		}
+	}
+	if r.FollowVerificationEnabled && (r.PublicNotFollowerReplyText == "" || r.PublicUnknownReplyText == "") {
+		return r, errors.New("follow verification requires non-follower and unknown public replies")
+	}
+	if r.UnknownFallbackPolicy == "" {
+		r.UnknownFallbackPolicy = "skip_dm_neutral_reply"
+	}
+	if r.UnknownFallbackPolicy != "send_private_reply" && r.UnknownFallbackPolicy != "skip_dm_neutral_reply" {
+		return r, errors.New("invalid unknown fallback policy")
 	}
 	if len(r.Keywords) > 20 || len(r.Exclusions) > 20 {
 		return r, errors.New("too many keywords or exclusions")
@@ -433,31 +420,12 @@ func (s *Store) CreateRule(ctx context.Context, p domain.Principal, r domain.Aut
 	if r, err = normalizeRule(r); err != nil {
 		return r, err
 	}
-	tx, err := s.DB.Begin(ctx)
-	if err != nil {
-		return r, err
-	}
-	defer tx.Rollback(ctx)
-	var limit int
-	if err = tx.QueryRow(ctx, `SELECT p.rule_limit FROM workspaces w JOIN plans p ON p.id=w.plan_id WHERE w.id=$1 FOR UPDATE OF w`, p.WorkspaceID).Scan(&limit); err != nil {
-		return r, err
-	}
-	var count int
-	if err = tx.QueryRow(ctx, `SELECT count(*) FROM automation_rules WHERE workspace_id=$1`, p.WorkspaceID).Scan(&count); err != nil {
-		return r, err
-	}
-	if count >= limit {
-		return r, ErrLimit
-	}
-	err = tx.QueryRow(ctx, `INSERT INTO automation_rules(workspace_id,instagram_account_id,name,trigger_type,match_mode,keywords,exclusions,media_scope,media_ids,reply_text,is_active,priority)
-		SELECT $1,a.id,$3,'comment_created',$4,$5,$6,$7,$8,$9,$10,$11 FROM instagram_accounts a WHERE a.id=$2 AND a.workspace_id=$1 AND a.status='connected' RETURNING id,created_at,updated_at`, p.WorkspaceID, r.InstagramAccountID, r.Name, r.MatchMode, r.Keywords, r.Exclusions, r.MediaScope, r.MediaIDs, r.ReplyText, r.IsActive, r.Priority).Scan(&r.ID, &r.CreatedAt, &r.UpdatedAt)
+	err = s.DB.QueryRow(ctx, `INSERT INTO automation_rules(workspace_id,instagram_account_id,name,trigger_type,match_mode,keywords,exclusions,media_scope,media_ids,reply_text,private_reply_text,public_success_reply_text,public_not_follower_reply_text,public_unknown_reply_text,follow_verification_enabled,unknown_fallback_policy,is_active,priority)
+		SELECT $1,a.id,$3,'comment_created',$4,$5,$6,$7,$8,$9,$9,$10,$11,$12,$13,$14,$15,$16 FROM instagram_accounts a WHERE a.id=$2 AND a.workspace_id=$1 AND a.status='connected' AND a.provider<>'mock' RETURNING id,created_at,updated_at`, p.WorkspaceID, r.InstagramAccountID, r.Name, r.MatchMode, r.Keywords, r.Exclusions, r.MediaScope, r.MediaIDs, r.PrivateReplyText, r.PublicSuccessReplyText, r.PublicNotFollowerReplyText, r.PublicUnknownReplyText, r.FollowVerificationEnabled, r.UnknownFallbackPolicy, r.IsActive, r.Priority).Scan(&r.ID, &r.CreatedAt, &r.UpdatedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return r, ErrNotFound
 	}
 	if err != nil {
-		return r, err
-	}
-	if err = tx.Commit(ctx); err != nil {
 		return r, err
 	}
 	_ = s.Audit(ctx, p.WorkspaceID, p.UserID, "automation.created", "automation_rule", r.ID, nil)
@@ -465,7 +433,7 @@ func (s *Store) CreateRule(ctx context.Context, p domain.Principal, r domain.Aut
 }
 
 func (s *Store) ListRules(ctx context.Context, workspaceID string) ([]domain.AutomationRule, error) {
-	rows, err := s.DB.Query(ctx, `SELECT r.id,r.instagram_account_id,a.username,r.name,r.trigger_type,r.match_mode,r.keywords,r.exclusions,r.media_scope,r.media_ids,r.reply_text,r.is_active,r.priority,r.created_at,r.updated_at FROM automation_rules r JOIN instagram_accounts a ON a.id=r.instagram_account_id WHERE r.workspace_id=$1 ORDER BY r.priority,r.created_at DESC`, workspaceID)
+	rows, err := s.DB.Query(ctx, `SELECT r.id,r.instagram_account_id,a.username,r.name,r.trigger_type,r.match_mode,r.keywords,r.exclusions,r.media_scope,r.media_ids,r.private_reply_text,r.public_success_reply_text,r.public_not_follower_reply_text,r.public_unknown_reply_text,r.follow_verification_enabled,r.unknown_fallback_policy,r.is_active,r.priority,r.created_at,r.updated_at FROM automation_rules r JOIN instagram_accounts a ON a.id=r.instagram_account_id WHERE r.workspace_id=$1 AND a.provider<>'mock' ORDER BY r.priority,r.created_at DESC`, workspaceID)
 	if err != nil {
 		return nil, err
 	}
@@ -473,7 +441,7 @@ func (s *Store) ListRules(ctx context.Context, workspaceID string) ([]domain.Aut
 	items := []domain.AutomationRule{}
 	for rows.Next() {
 		var r domain.AutomationRule
-		if err = rows.Scan(&r.ID, &r.InstagramAccountID, &r.AccountUsername, &r.Name, &r.TriggerType, &r.MatchMode, &r.Keywords, &r.Exclusions, &r.MediaScope, &r.MediaIDs, &r.ReplyText, &r.IsActive, &r.Priority, &r.CreatedAt, &r.UpdatedAt); err != nil {
+		if err = rows.Scan(&r.ID, &r.InstagramAccountID, &r.AccountUsername, &r.Name, &r.TriggerType, &r.MatchMode, &r.Keywords, &r.Exclusions, &r.MediaScope, &r.MediaIDs, &r.PrivateReplyText, &r.PublicSuccessReplyText, &r.PublicNotFollowerReplyText, &r.PublicUnknownReplyText, &r.FollowVerificationEnabled, &r.UnknownFallbackPolicy, &r.IsActive, &r.Priority, &r.CreatedAt, &r.UpdatedAt); err != nil {
 			return nil, err
 		}
 		items = append(items, r)
@@ -483,7 +451,7 @@ func (s *Store) ListRules(ctx context.Context, workspaceID string) ([]domain.Aut
 
 func (s *Store) GetRule(ctx context.Context, workspaceID, id string) (domain.AutomationRule, error) {
 	var r domain.AutomationRule
-	err := s.DB.QueryRow(ctx, `SELECT r.id,r.instagram_account_id,a.username,r.name,r.trigger_type,r.match_mode,r.keywords,r.exclusions,r.media_scope,r.media_ids,r.reply_text,r.is_active,r.priority,r.created_at,r.updated_at FROM automation_rules r JOIN instagram_accounts a ON a.id=r.instagram_account_id WHERE r.workspace_id=$1 AND r.id=$2`, workspaceID, id).Scan(&r.ID, &r.InstagramAccountID, &r.AccountUsername, &r.Name, &r.TriggerType, &r.MatchMode, &r.Keywords, &r.Exclusions, &r.MediaScope, &r.MediaIDs, &r.ReplyText, &r.IsActive, &r.Priority, &r.CreatedAt, &r.UpdatedAt)
+	err := s.DB.QueryRow(ctx, `SELECT r.id,r.instagram_account_id,a.username,r.name,r.trigger_type,r.match_mode,r.keywords,r.exclusions,r.media_scope,r.media_ids,r.private_reply_text,r.public_success_reply_text,r.public_not_follower_reply_text,r.public_unknown_reply_text,r.follow_verification_enabled,r.unknown_fallback_policy,r.is_active,r.priority,r.created_at,r.updated_at FROM automation_rules r JOIN instagram_accounts a ON a.id=r.instagram_account_id WHERE r.workspace_id=$1 AND r.id=$2 AND a.provider<>'mock'`, workspaceID, id).Scan(&r.ID, &r.InstagramAccountID, &r.AccountUsername, &r.Name, &r.TriggerType, &r.MatchMode, &r.Keywords, &r.Exclusions, &r.MediaScope, &r.MediaIDs, &r.PrivateReplyText, &r.PublicSuccessReplyText, &r.PublicNotFollowerReplyText, &r.PublicUnknownReplyText, &r.FollowVerificationEnabled, &r.UnknownFallbackPolicy, &r.IsActive, &r.Priority, &r.CreatedAt, &r.UpdatedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		err = ErrNotFound
 	}
@@ -495,7 +463,7 @@ func (s *Store) UpdateRule(ctx context.Context, p domain.Principal, r domain.Aut
 	if r, err = normalizeRule(r); err != nil {
 		return r, err
 	}
-	err = s.DB.QueryRow(ctx, `UPDATE automation_rules SET name=$3,match_mode=$4,keywords=$5,exclusions=$6,media_scope=$7,media_ids=$8,reply_text=$9,is_active=$10,priority=$11,updated_at=now() WHERE workspace_id=$1 AND id=$2 RETURNING updated_at`, p.WorkspaceID, r.ID, r.Name, r.MatchMode, r.Keywords, r.Exclusions, r.MediaScope, r.MediaIDs, r.ReplyText, r.IsActive, r.Priority).Scan(&r.UpdatedAt)
+	err = s.DB.QueryRow(ctx, `UPDATE automation_rules SET name=$3,match_mode=$4,keywords=$5,exclusions=$6,media_scope=$7,media_ids=$8,reply_text=$9,private_reply_text=$9,public_success_reply_text=$10,public_not_follower_reply_text=$11,public_unknown_reply_text=$12,follow_verification_enabled=$13,unknown_fallback_policy=$14,is_active=$15,priority=$16,updated_at=now() WHERE workspace_id=$1 AND id=$2 RETURNING updated_at`, p.WorkspaceID, r.ID, r.Name, r.MatchMode, r.Keywords, r.Exclusions, r.MediaScope, r.MediaIDs, r.PrivateReplyText, r.PublicSuccessReplyText, r.PublicNotFollowerReplyText, r.PublicUnknownReplyText, r.FollowVerificationEnabled, r.UnknownFallbackPolicy, r.IsActive, r.Priority).Scan(&r.UpdatedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return r, ErrNotFound
 	}
@@ -518,7 +486,7 @@ func (s *Store) DeleteRule(ctx context.Context, p domain.Principal, id string) e
 }
 
 func (s *Store) ActiveRules(ctx context.Context, workspaceID, accountID string) ([]domain.AutomationRule, error) {
-	rows, err := s.DB.Query(ctx, `SELECT id,instagram_account_id,name,trigger_type,match_mode,keywords,exclusions,media_scope,media_ids,reply_text,is_active,priority,created_at,updated_at FROM automation_rules WHERE workspace_id=$1 AND instagram_account_id=$2 AND is_active=true ORDER BY priority,created_at`, workspaceID, accountID)
+	rows, err := s.DB.Query(ctx, `SELECT id,instagram_account_id,name,trigger_type,match_mode,keywords,exclusions,media_scope,media_ids,private_reply_text,public_success_reply_text,public_not_follower_reply_text,public_unknown_reply_text,follow_verification_enabled,unknown_fallback_policy,is_active,priority,created_at,updated_at FROM automation_rules WHERE workspace_id=$1 AND instagram_account_id=$2 AND is_active=true ORDER BY priority,created_at`, workspaceID, accountID)
 	if err != nil {
 		return nil, err
 	}
@@ -526,7 +494,7 @@ func (s *Store) ActiveRules(ctx context.Context, workspaceID, accountID string) 
 	items := []domain.AutomationRule{}
 	for rows.Next() {
 		var r domain.AutomationRule
-		if err = rows.Scan(&r.ID, &r.InstagramAccountID, &r.Name, &r.TriggerType, &r.MatchMode, &r.Keywords, &r.Exclusions, &r.MediaScope, &r.MediaIDs, &r.ReplyText, &r.IsActive, &r.Priority, &r.CreatedAt, &r.UpdatedAt); err != nil {
+		if err = rows.Scan(&r.ID, &r.InstagramAccountID, &r.Name, &r.TriggerType, &r.MatchMode, &r.Keywords, &r.Exclusions, &r.MediaScope, &r.MediaIDs, &r.PrivateReplyText, &r.PublicSuccessReplyText, &r.PublicNotFollowerReplyText, &r.PublicUnknownReplyText, &r.FollowVerificationEnabled, &r.UnknownFallbackPolicy, &r.IsActive, &r.Priority, &r.CreatedAt, &r.UpdatedAt); err != nil {
 			return nil, err
 		}
 		items = append(items, r)
@@ -622,25 +590,166 @@ func (s *Store) RetryEvent(ctx context.Context, eventID, workspaceID, errorCode 
 	return nil
 }
 
-// BeginDelivery is the fail-closed boundary before an external provider call.
-// If a worker crashes after this marker is committed, recovery will not send a
-// second private reply for the same event.
-func (s *Store) BeginDelivery(ctx context.Context, eventID, workspaceID, ruleID string) (bool, error) {
-	var executionID string
-	err := s.DB.QueryRow(ctx, `INSERT INTO automation_executions(workspace_id,rule_id,event_id,status)
-		SELECT $1,r.id,w.id,'sending' FROM webhook_events w JOIN automation_rules r ON r.id=$2 AND r.workspace_id=$1
-		WHERE w.id=$3 AND w.workspace_id=$1
-		ON CONFLICT(event_id) DO NOTHING RETURNING id`, workspaceID, ruleID, eventID).Scan(&executionID)
+type ActionState struct {
+	ID               string
+	ActionType       string
+	Status           string
+	MessageText      string
+	Outcome          string
+	ProviderResultID string
+	ErrorCode        string
+	ErrorMessage     string
+	AttemptCount     int
+	StartedAt        time.Time
+	CompletedAt      *time.Time
+}
+
+func (s *Store) EnsureExecution(ctx context.Context, eventID, workspaceID, ruleID string) (executionID string, followStatus domain.FollowerStatus, err error) {
+	err = s.DB.QueryRow(ctx, `INSERT INTO automation_executions(workspace_id,rule_id,event_id,status)
+		SELECT $1,r.id,w.id,'processing'
+		FROM webhook_events w
+		LEFT JOIN automation_rules r ON r.id=NULLIF($2,'')::uuid AND r.workspace_id=$1
+		WHERE w.id=$3 AND w.workspace_id=$1 AND ($2='' OR r.id IS NOT NULL)
+		ON CONFLICT(event_id) DO UPDATE SET rule_id=COALESCE(automation_executions.rule_id,EXCLUDED.rule_id)
+		WHERE automation_executions.workspace_id=EXCLUDED.workspace_id
+		RETURNING id,follow_status`, workspaceID, ruleID, eventID).Scan(&executionID, &followStatus)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return false, nil
+		err = ErrNotFound
 	}
-	return err == nil, err
+	return
+}
+
+// BeginAction commits an idempotency marker before an external side effect.
+// Only a public reply explicitly rejected with a retryable response may be
+// reacquired; private replies and ambiguous outcomes remain fail-closed.
+func (s *Store) BeginAction(ctx context.Context, workspaceID, executionID, actionType, messageText string, allowRetry bool) (ActionState, bool, error) {
+	var state ActionState
+	err := s.DB.QueryRow(ctx, `INSERT INTO automation_execution_actions(workspace_id,execution_id,action_type,status,message_text)
+		SELECT $1,e.id,$3,'sending',NULLIF($4,'') FROM automation_executions e WHERE e.id=$2 AND e.workspace_id=$1
+		ON CONFLICT(execution_id,action_type) DO NOTHING
+		RETURNING id,action_type,status,COALESCE(message_text,''),COALESCE(outcome,''),COALESCE(provider_result_id,''),COALESCE(error_code,''),COALESCE(error_message,''),attempt_count,started_at,completed_at`, workspaceID, executionID, actionType, messageText).Scan(
+		&state.ID, &state.ActionType, &state.Status, &state.MessageText, &state.Outcome, &state.ProviderResultID, &state.ErrorCode, &state.ErrorMessage, &state.AttemptCount, &state.StartedAt, &state.CompletedAt,
+	)
+	if err == nil {
+		return state, true, nil
+	}
+	if !errors.Is(err, pgx.ErrNoRows) {
+		return state, false, err
+	}
+	if allowRetry && actionType == "public_reply" {
+		err = s.DB.QueryRow(ctx, `UPDATE automation_execution_actions a SET status='sending',attempt_count=attempt_count+1,started_at=now(),completed_at=NULL,error_code=NULL,error_message=NULL,updated_at=now()
+			FROM automation_executions e WHERE a.execution_id=e.id AND a.execution_id=$2 AND a.workspace_id=$1 AND e.workspace_id=$1
+			AND a.action_type='public_reply' AND a.status='failed_retryable' AND a.attempt_count<3
+			RETURNING a.id,a.action_type,a.status,COALESCE(a.message_text,''),COALESCE(a.outcome,''),COALESCE(a.provider_result_id,''),COALESCE(a.error_code,''),COALESCE(a.error_message,''),a.attempt_count,a.started_at,a.completed_at`, workspaceID, executionID).Scan(
+			&state.ID, &state.ActionType, &state.Status, &state.MessageText, &state.Outcome, &state.ProviderResultID, &state.ErrorCode, &state.ErrorMessage, &state.AttemptCount, &state.StartedAt, &state.CompletedAt,
+		)
+		if err == nil {
+			return state, true, nil
+		}
+		if !errors.Is(err, pgx.ErrNoRows) {
+			return state, false, err
+		}
+	}
+	state, err = s.ActionState(ctx, workspaceID, executionID, actionType)
+	return state, false, err
+}
+
+func (s *Store) ActionState(ctx context.Context, workspaceID, executionID, actionType string) (ActionState, error) {
+	var state ActionState
+	err := s.DB.QueryRow(ctx, `SELECT a.id,a.action_type,a.status,COALESCE(a.message_text,''),COALESCE(a.outcome,''),COALESCE(a.provider_result_id,''),COALESCE(a.error_code,''),COALESCE(a.error_message,''),a.attempt_count,a.started_at,a.completed_at
+		FROM automation_execution_actions a JOIN automation_executions e ON e.id=a.execution_id
+		WHERE a.workspace_id=$1 AND e.workspace_id=$1 AND a.execution_id=$2 AND a.action_type=$3`, workspaceID, executionID, actionType).Scan(
+		&state.ID, &state.ActionType, &state.Status, &state.MessageText, &state.Outcome, &state.ProviderResultID, &state.ErrorCode, &state.ErrorMessage, &state.AttemptCount, &state.StartedAt, &state.CompletedAt,
+	)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return state, ErrNotFound
+	}
+	return state, err
+}
+
+func (s *Store) CompleteAction(ctx context.Context, workspaceID, executionID, actionType, status, outcome, providerResultID, errorCode, errorMessage string) error {
+	tag, err := s.DB.Exec(ctx, `UPDATE automation_execution_actions a
+		SET status=$4,outcome=NULLIF($5,''),provider_result_id=NULLIF($6,''),error_code=NULLIF($7,''),error_message=NULLIF($8,''),completed_at=now(),updated_at=now()
+		FROM automation_executions e WHERE a.execution_id=e.id AND a.workspace_id=$1 AND e.workspace_id=$1 AND a.execution_id=$2 AND a.action_type=$3 AND a.status='sending'`, workspaceID, executionID, actionType, status, outcome, providerResultID, errorCode, errorMessage)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
+func (s *Store) SetExecutionFollowStatus(ctx context.Context, workspaceID, executionID string, status domain.FollowerStatus) error {
+	tag, err := s.DB.Exec(ctx, `UPDATE automation_executions SET follow_status=$3 WHERE id=$2 AND workspace_id=$1`, workspaceID, executionID, status)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
+func (s *Store) RecordPrivateReplyMessage(ctx context.Context, workspaceID string, rule domain.AutomationRule, event domain.CommentEvent, providerMessageID string) error {
+	tx, err := s.DB.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+	participant := event.ParticipantID
+	if participant == "" {
+		participant = "commenter:" + event.CommentID
+	}
+	username := strings.TrimSpace(event.Username)
+	if username == "" {
+		username = participant
+	}
+	var conversationID string
+	err = tx.QueryRow(ctx, `INSERT INTO conversations(workspace_id,instagram_account_id,participant_id,participant_username,last_message_at)
+		VALUES($1,$2,$3,$4,now()) ON CONFLICT(workspace_id,instagram_account_id,participant_id) DO UPDATE SET participant_username=EXCLUDED.participant_username,last_message_at=now() RETURNING id`, workspaceID, rule.InstagramAccountID, participant, username).Scan(&conversationID)
+	if err != nil {
+		return err
+	}
+	_, err = tx.Exec(ctx, `INSERT INTO messages(conversation_id,provider_message_id,direction,message_text,status)
+		VALUES($1,$2,'outbound',$3,'sent') ON CONFLICT(provider_message_id) WHERE provider_message_id IS NOT NULL DO NOTHING`, conversationID, providerMessageID, rule.PrivateReplyText)
+	if err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
+}
+
+func (s *Store) FinishExecution(ctx context.Context, workspaceID, executionID, status, errorCode, errorMessage string, processed bool) error {
+	tx, err := s.DB.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+	var eventID string
+	err = tx.QueryRow(ctx, `UPDATE automation_executions SET status=$3,error_code=NULLIF($4,''),error_message=NULLIF($5,''),completed_at=CASE WHEN $6 THEN now() ELSE NULL END
+		WHERE id=$2 AND workspace_id=$1 RETURNING event_id`, workspaceID, executionID, status, errorCode, errorMessage, processed).Scan(&eventID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return ErrNotFound
+	}
+	if err != nil {
+		return err
+	}
+	if processed {
+		webhookStatus := "processed"
+		if status == "failed" || status == "delivery_state_unknown" {
+			webhookStatus = "failed"
+		}
+		if _, err = tx.Exec(ctx, `UPDATE webhook_events SET processing_status=$3,error_code=NULLIF($4,''),processed_at=now(),leased_at=NULL WHERE id=$1 AND workspace_id=$2`, eventID, workspaceID, webhookStatus, errorCode); err != nil {
+			return err
+		}
+	}
+	return tx.Commit(ctx)
 }
 
 // RecordInboundMessage stores a verified provider message idempotently and
 // opens (or extends) the manual reply window. No other event type may update
 // can_reply_until.
-func (s *Store) RecordInboundMessage(ctx context.Context, provider string, event domain.InboundMessageEvent, isDemo bool) (workspaceID, accountID string, inserted bool, err error) {
+func (s *Store) RecordInboundMessage(ctx context.Context, provider string, event domain.InboundMessageEvent) (workspaceID, accountID string, inserted bool, err error) {
 	accountID, workspaceID, _, err = s.AccountSecretByProviderID(ctx, provider, event.AccountID)
 	if err != nil {
 		return
@@ -661,9 +770,9 @@ func (s *Store) RecordInboundMessage(ctx context.Context, provider string, event
 		return workspaceID, accountID, false, err
 	}
 	var messageID string
-	err = tx.QueryRow(ctx, `INSERT INTO messages(conversation_id,provider_message_id,direction,message_text,status,is_demo,created_at)
-		VALUES($1,$2,'inbound',$3,'received',$4,$5)
-		ON CONFLICT(provider_message_id) WHERE provider_message_id IS NOT NULL DO NOTHING RETURNING id`, conversationID, event.ProviderMessageID, event.Text, isDemo, event.CreatedAt).Scan(&messageID)
+	err = tx.QueryRow(ctx, `INSERT INTO messages(conversation_id,provider_message_id,direction,message_text,status,created_at)
+		VALUES($1,$2,'inbound',$3,'received',$4)
+		ON CONFLICT(provider_message_id) WHERE provider_message_id IS NOT NULL DO NOTHING RETURNING id`, conversationID, event.ProviderMessageID, event.Text, event.CreatedAt).Scan(&messageID)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return workspaceID, accountID, false, nil
 	}
@@ -683,52 +792,45 @@ func (s *Store) RecordInboundMessage(ctx context.Context, provider string, event
 	return workspaceID, accountID, true, nil
 }
 
-func (s *Store) CompleteExecution(ctx context.Context, eventID, workspaceID string, rule *domain.AutomationRule, event domain.CommentEvent, status, providerMessageID, errorCode, errorMessage string, isDemo bool) error {
-	tx, err := s.DB.Begin(ctx)
+func (s *Store) ExecutionHistory(ctx context.Context, workspaceID, ruleID string, limit int) ([]domain.AutomationExecution, error) {
+	if limit < 1 || limit > 100 {
+		limit = 50
+	}
+	rows, err := s.DB.Query(ctx, `SELECT e.id,COALESCE(e.rule_id::text,''),COALESCE(w.payload_redacted->>'comment_id',''),COALESCE(w.payload_redacted->>'text',''),COALESCE(w.payload_redacted->>'username',''),e.status,e.follow_status,COALESCE(e.error_code,''),COALESCE(e.error_message,''),w.received_at,e.completed_at
+		FROM automation_executions e JOIN webhook_events w ON w.id=e.event_id
+		WHERE e.workspace_id=$1 AND e.rule_id=$2 ORDER BY w.received_at DESC LIMIT $3`, workspaceID, ruleID, limit)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	defer tx.Rollback(ctx)
-	var ruleID any = nil
-	if rule != nil {
-		ruleID = rule.ID
-	}
-	tag, err := tx.Exec(ctx, `INSERT INTO automation_executions(workspace_id,rule_id,event_id,status,provider_message_id,error_code,error_message)
-		SELECT $1,$2,w.id,$4,NULLIF($5,''),NULLIF($6,''),NULLIF($7,'') FROM webhook_events w WHERE w.id=$3 AND w.workspace_id=$1
-		ON CONFLICT(event_id) DO UPDATE SET status=EXCLUDED.status,provider_message_id=COALESCE(EXCLUDED.provider_message_id,automation_executions.provider_message_id),error_code=EXCLUDED.error_code,error_message=EXCLUDED.error_message
-		WHERE automation_executions.workspace_id=EXCLUDED.workspace_id`, workspaceID, ruleID, eventID, status, providerMessageID, errorCode, errorMessage)
-	if err != nil {
-		return err
-	}
-	if tag.RowsAffected() == 0 {
-		return ErrNotFound
-	}
-	if _, err = tx.Exec(ctx, `UPDATE webhook_events SET processing_status=$3,error_code=NULLIF($4,''),processed_at=now() WHERE id=$1 AND workspace_id=$2`, eventID, workspaceID, mapStatus(status), errorCode); err != nil {
-		return err
-	}
-	if status == "sent" && rule != nil {
-		var conversationID string
-		participant := event.ParticipantID
-		if participant == "" {
-			participant = "commenter:" + event.CommentID
+	defer rows.Close()
+	items := []domain.AutomationExecution{}
+	for rows.Next() {
+		var item domain.AutomationExecution
+		if err = rows.Scan(&item.ID, &item.RuleID, &item.CommentID, &item.CommentText, &item.Username, &item.Status, &item.FollowStatus, &item.ErrorCode, &item.ErrorMessage, &item.ReceivedAt, &item.CompletedAt); err != nil {
+			return nil, err
 		}
-		err = tx.QueryRow(ctx, `INSERT INTO conversations(workspace_id,instagram_account_id,participant_id,participant_username,last_message_at)
-			VALUES($1,$2,$3,$4,now()) ON CONFLICT(workspace_id,instagram_account_id,participant_id) DO UPDATE SET participant_username=EXCLUDED.participant_username,last_message_at=now() RETURNING id`, workspaceID, rule.InstagramAccountID, participant, event.Username).Scan(&conversationID)
-		if err != nil {
-			return err
+		item.Actions = []domain.ExecutionAction{}
+		actionRows, queryErr := s.DB.Query(ctx, `SELECT action_type,status,COALESCE(message_text,''),COALESCE(outcome,''),COALESCE(provider_result_id,''),COALESCE(error_code,''),COALESCE(error_message,''),attempt_count,started_at,completed_at
+			FROM automation_execution_actions WHERE workspace_id=$1 AND execution_id=$2 ORDER BY started_at`, workspaceID, item.ID)
+		if queryErr != nil {
+			return nil, queryErr
 		}
-		if _, err = tx.Exec(ctx, `INSERT INTO messages(conversation_id,provider_message_id,direction,message_text,status,is_demo) VALUES($1,$2,'outbound',$3,'sent',$4) ON CONFLICT(provider_message_id) WHERE provider_message_id IS NOT NULL DO NOTHING`, conversationID, providerMessageID, rule.ReplyText, isDemo); err != nil {
-			return err
+		for actionRows.Next() {
+			var action domain.ExecutionAction
+			if queryErr = actionRows.Scan(&action.ActionType, &action.Status, &action.MessageText, &action.Outcome, &action.ProviderResultID, &action.ErrorCode, &action.ErrorMessage, &action.AttemptCount, &action.StartedAt, &action.CompletedAt); queryErr != nil {
+				actionRows.Close()
+				return nil, queryErr
+			}
+			item.Actions = append(item.Actions, action)
 		}
+		queryErr = actionRows.Err()
+		actionRows.Close()
+		if queryErr != nil {
+			return nil, queryErr
+		}
+		items = append(items, item)
 	}
-	return tx.Commit(ctx)
-}
-
-func mapStatus(status string) string {
-	if status == "sent" || strings.HasPrefix(status, "skipped") || status == "duplicate" {
-		return "processed"
-	}
-	return "failed"
+	return items, rows.Err()
 }
 
 type Conversation struct {
@@ -746,12 +848,11 @@ type Message struct {
 	Direction string    `json:"direction"`
 	Text      string    `json:"text"`
 	Status    string    `json:"status"`
-	IsDemo    bool      `json:"is_demo"`
 	CreatedAt time.Time `json:"created_at"`
 }
 
 func (s *Store) Conversations(ctx context.Context, workspaceID, search string) ([]Conversation, error) {
-	rows, err := s.DB.Query(ctx, `SELECT c.id,a.username,c.participant_username,c.status,c.unread_count,c.can_reply_until,c.last_message_at,COALESCE((SELECT message_text FROM messages m WHERE m.conversation_id=c.id ORDER BY created_at DESC LIMIT 1),'') FROM conversations c JOIN instagram_accounts a ON a.id=c.instagram_account_id WHERE c.workspace_id=$1 AND ($2='' OR c.participant_username ILIKE '%'||$2||'%') ORDER BY c.last_message_at DESC LIMIT 100`, workspaceID, search)
+	rows, err := s.DB.Query(ctx, `SELECT c.id,a.username,c.participant_username,c.status,c.unread_count,c.can_reply_until,c.last_message_at,COALESCE((SELECT message_text FROM messages m WHERE m.conversation_id=c.id ORDER BY created_at DESC LIMIT 1),'') FROM conversations c JOIN instagram_accounts a ON a.id=c.instagram_account_id WHERE c.workspace_id=$1 AND a.provider<>'mock' AND ($2='' OR c.participant_username ILIKE '%'||$2||'%') ORDER BY c.last_message_at DESC LIMIT 100`, workspaceID, search)
 	if err != nil {
 		return nil, err
 	}
@@ -768,7 +869,7 @@ func (s *Store) Conversations(ctx context.Context, workspaceID, search string) (
 }
 
 func (s *Store) Messages(ctx context.Context, workspaceID, conversationID string) ([]Message, error) {
-	rows, err := s.DB.Query(ctx, `SELECT m.id,m.direction,m.message_text,m.status,m.is_demo,m.created_at FROM messages m JOIN conversations c ON c.id=m.conversation_id WHERE c.workspace_id=$1 AND c.id=$2 ORDER BY m.created_at`, workspaceID, conversationID)
+	rows, err := s.DB.Query(ctx, `SELECT m.id,m.direction,m.message_text,m.status,m.created_at FROM messages m JOIN conversations c ON c.id=m.conversation_id WHERE c.workspace_id=$1 AND c.id=$2 ORDER BY m.created_at`, workspaceID, conversationID)
 	if err != nil {
 		return nil, err
 	}
@@ -776,7 +877,7 @@ func (s *Store) Messages(ctx context.Context, workspaceID, conversationID string
 	items := []Message{}
 	for rows.Next() {
 		var m Message
-		if err = rows.Scan(&m.ID, &m.Direction, &m.Text, &m.Status, &m.IsDemo, &m.CreatedAt); err != nil {
+		if err = rows.Scan(&m.ID, &m.Direction, &m.Text, &m.Status, &m.CreatedAt); err != nil {
 			return nil, err
 		}
 		items = append(items, m)
@@ -791,24 +892,13 @@ func (s *Store) ConversationForReply(ctx context.Context, workspaceID, conversat
 	}
 	return
 }
-func (s *Store) AddMessage(ctx context.Context, workspaceID, conversationID, providerMessageID, text string, isDemo bool) error {
-	tag, err := s.DB.Exec(ctx, `INSERT INTO messages(conversation_id,provider_message_id,direction,message_text,status,is_demo) SELECT id,$3,'outbound',$4,'sent',$5 FROM conversations WHERE workspace_id=$1 AND id=$2`, workspaceID, conversationID, providerMessageID, text, isDemo)
-	if err != nil {
-		return err
-	}
-	if tag.RowsAffected() == 0 {
-		return ErrNotFound
-	}
-	_, _ = s.DB.Exec(ctx, `UPDATE conversations SET last_message_at=now() WHERE id=$1`, conversationID)
-	return nil
-}
 
 // BeginManualMessage commits the browser idempotency key before any provider
 // call. A duplicate request returns acquired=false and must never be resent.
-func (s *Store) BeginManualMessage(ctx context.Context, workspaceID, conversationID, clientRequestID, text string, isDemo bool) (messageID string, acquired bool, err error) {
-	err = s.DB.QueryRow(ctx, `INSERT INTO messages(conversation_id,client_request_id,direction,message_text,status,is_demo)
-		SELECT id,$3,'outbound',$4,'sending',$5 FROM conversations WHERE workspace_id=$1 AND id=$2
-		ON CONFLICT(conversation_id,client_request_id) WHERE client_request_id IS NOT NULL DO NOTHING RETURNING id`, workspaceID, conversationID, clientRequestID, text, isDemo).Scan(&messageID)
+func (s *Store) BeginManualMessage(ctx context.Context, workspaceID, conversationID, clientRequestID, text string) (messageID string, acquired bool, err error) {
+	err = s.DB.QueryRow(ctx, `INSERT INTO messages(conversation_id,client_request_id,direction,message_text,status)
+		SELECT id,$3,'outbound',$4,'sending' FROM conversations WHERE workspace_id=$1 AND id=$2
+		ON CONFLICT(conversation_id,client_request_id) WHERE client_request_id IS NOT NULL DO NOTHING RETURNING id`, workspaceID, conversationID, clientRequestID, text).Scan(&messageID)
 	if errors.Is(err, pgx.ErrNoRows) {
 		err = s.DB.QueryRow(ctx, `SELECT m.id FROM messages m JOIN conversations c ON c.id=m.conversation_id
 			WHERE c.workspace_id=$1 AND c.id=$2 AND m.client_request_id=$3`, workspaceID, conversationID, clientRequestID).Scan(&messageID)
@@ -844,14 +934,14 @@ func (s *Store) CompleteManualMessage(ctx context.Context, workspaceID, conversa
 
 func (s *Store) Metrics(ctx context.Context, workspaceID string, from, to time.Time) (domain.Metrics, error) {
 	var m domain.Metrics
-	err := s.DB.QueryRow(ctx, `SELECT count(w.id),count(e.id) FILTER(WHERE e.rule_id IS NOT NULL),count(e.id) FILTER(WHERE e.status='sent'),count(w.id) FILTER(WHERE w.processing_status='failed') FROM webhook_events w LEFT JOIN automation_executions e ON e.event_id=w.id WHERE w.workspace_id=$1 AND w.received_at BETWEEN $2 AND $3`, workspaceID, from, to).Scan(&m.Comments, &m.EligibleTriggers, &m.RepliesSent, &m.Failures)
+	err := s.DB.QueryRow(ctx, `SELECT count(DISTINCT w.id),count(DISTINCT e.id) FILTER(WHERE e.rule_id IS NOT NULL),count(DISTINCT a.execution_id) FILTER(WHERE a.action_type='private_reply' AND a.status='succeeded'),count(DISTINCT w.id) FILTER(WHERE w.processing_status='failed') FROM webhook_events w JOIN instagram_accounts ia ON ia.id=w.instagram_account_id AND ia.provider<>'mock' LEFT JOIN automation_executions e ON e.event_id=w.id LEFT JOIN automation_execution_actions a ON a.execution_id=e.id WHERE w.workspace_id=$1 AND w.received_at BETWEEN $2 AND $3`, workspaceID, from, to).Scan(&m.Comments, &m.EligibleTriggers, &m.RepliesSent, &m.Failures)
 	if err != nil {
 		return m, err
 	}
 	if m.Comments > 0 {
 		m.Conversion = float64(m.RepliesSent) * 100 / float64(m.Comments)
 	}
-	rows, err := s.DB.Query(ctx, `SELECT to_char(d,'DD Mon'),count(w.id),count(e.id) FILTER(WHERE e.status='sent') FROM generate_series($2::date,$3::date,interval '1 day') d LEFT JOIN webhook_events w ON w.workspace_id=$1 AND w.received_at::date=d::date LEFT JOIN automation_executions e ON e.event_id=w.id GROUP BY d ORDER BY d`, workspaceID, from, to)
+	rows, err := s.DB.Query(ctx, `SELECT to_char(d,'DD Mon'),count(DISTINCT w.id),count(DISTINCT a.execution_id) FILTER(WHERE a.action_type='private_reply' AND a.status='succeeded') FROM generate_series($2::date,$3::date,interval '1 day') d LEFT JOIN webhook_events w ON w.workspace_id=$1 AND w.received_at::date=d::date AND EXISTS(SELECT 1 FROM instagram_accounts ia WHERE ia.id=w.instagram_account_id AND ia.provider<>'mock') LEFT JOIN automation_executions e ON e.event_id=w.id LEFT JOIN automation_execution_actions a ON a.execution_id=e.id GROUP BY d ORDER BY d`, workspaceID, from, to)
 	if err != nil {
 		return m, err
 	}
@@ -864,25 +954,6 @@ func (s *Store) Metrics(ctx context.Context, workspaceID string, from, to time.T
 		m.Series = append(m.Series, p)
 	}
 	return m, rows.Err()
-}
-
-type Plan struct {
-	Code         string    `json:"code"`
-	Name         string    `json:"name"`
-	Status       string    `json:"status"`
-	AccountLimit int       `json:"account_limit"`
-	RuleLimit    int       `json:"rule_limit"`
-	EventLimit   int       `json:"event_limit"`
-	PriceUZS     int64     `json:"price_uzs"`
-	AccountsUsed int       `json:"accounts_used"`
-	RulesUsed    int       `json:"rules_used"`
-	PeriodEnd    time.Time `json:"period_end"`
-}
-
-func (s *Store) Plan(ctx context.Context, workspaceID string) (Plan, error) {
-	var p Plan
-	err := s.DB.QueryRow(ctx, `SELECT p.code,p.name,sub.status,p.account_limit,p.rule_limit,p.event_limit,p.price_uzs,(SELECT count(*) FROM instagram_accounts a WHERE a.workspace_id=w.id AND a.status='connected'),(SELECT count(*) FROM automation_rules r WHERE r.workspace_id=w.id),sub.current_period_end FROM workspaces w JOIN plans p ON p.id=w.plan_id JOIN subscriptions sub ON sub.workspace_id=w.id WHERE w.id=$1`, workspaceID).Scan(&p.Code, &p.Name, &p.Status, &p.AccountLimit, &p.RuleLimit, &p.EventLimit, &p.PriceUZS, &p.AccountsUsed, &p.RulesUsed, &p.PeriodEnd)
-	return p, err
 }
 
 type Member struct {
@@ -1043,42 +1114,13 @@ func (s *Store) AcceptInvitation(ctx context.Context, p domain.Principal, tokenH
 	return tx.Commit(ctx)
 }
 
-func (s *Store) ChangePlan(ctx context.Context, p domain.Principal, code string) error {
-	tx, err := s.DB.Begin(ctx)
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback(ctx)
-	var planID string
-	if err = tx.QueryRow(ctx, `SELECT id FROM plans WHERE code=$1 AND is_active=true`, code).Scan(&planID); errors.Is(err, pgx.ErrNoRows) {
-		return ErrNotFound
-	}
-	if err != nil {
-		return err
-	}
-	if _, err = tx.Exec(ctx, `UPDATE workspaces SET plan_id=$1 WHERE id=$2`, planID, p.WorkspaceID); err != nil {
-		return err
-	}
-	if _, err = tx.Exec(ctx, `UPDATE subscriptions SET plan_id=$1,status='active',current_period_start=now(),current_period_end=now()+interval '30 days' WHERE workspace_id=$2`, planID, p.WorkspaceID); err != nil {
-		return err
-	}
-	if err = tx.Commit(ctx); err == nil {
-		_ = s.Audit(ctx, p.WorkspaceID, p.UserID, "billing.plan_changed", "workspace", p.WorkspaceID, map[string]any{"plan": code, "mode": "manual_demo"})
-	}
-	return err
-}
-
 func (s *Store) Settings(ctx context.Context, p domain.Principal) (map[string]any, error) {
-	plan, err := s.Plan(ctx, p.WorkspaceID)
-	if err != nil {
-		return nil, err
-	}
 	var webhookFailures, queued int
 	var language string
 	var notifications bool
 	_ = s.DB.QueryRow(ctx, `SELECT preferred_language,notifications_enabled FROM users WHERE id=$1`, p.UserID).Scan(&language, &notifications)
-	_ = s.DB.QueryRow(ctx, `SELECT count(*) FILTER(WHERE processing_status='failed' AND received_at>now()-interval '24 hours'),count(*) FILTER(WHERE processing_status='queued') FROM webhook_events WHERE workspace_id=$1`, p.WorkspaceID).Scan(&webhookFailures, &queued)
-	return map[string]any{"profile": map[string]any{"name": p.Name, "email": p.Email}, "workspace": map[string]any{"id": p.WorkspaceID, "name": p.Workspace, "role": p.Role}, "plan": plan, "webhook": map[string]any{"failed_last_24h": webhookFailures, "queued": queued}, "language": language, "notifications_enabled": notifications}, nil
+	_ = s.DB.QueryRow(ctx, `SELECT count(*) FILTER(WHERE w.processing_status='failed' AND w.received_at>now()-interval '24 hours'),count(*) FILTER(WHERE w.processing_status='queued') FROM webhook_events w JOIN instagram_accounts a ON a.id=w.instagram_account_id AND a.provider<>'mock' WHERE w.workspace_id=$1`, p.WorkspaceID).Scan(&webhookFailures, &queued)
+	return map[string]any{"profile": map[string]any{"name": p.Name, "email": p.Email}, "workspace": map[string]any{"id": p.WorkspaceID, "name": p.Workspace, "role": p.Role}, "webhook": map[string]any{"failed_last_24h": webhookFailures, "queued": queued}, "language": language, "notifications_enabled": notifications}, nil
 }
 func (s *Store) UpdateSettings(ctx context.Context, p domain.Principal, name, workspaceName, language string, notifications bool) error {
 	if language != "uz" && language != "ru" && language != "en" {
@@ -1143,40 +1185,6 @@ func (s *Store) AuditEntries(ctx context.Context, workspaceID string, limit int)
 		items = append(items, item)
 	}
 	return items, rows.Err()
-}
-
-func (s *Store) SeedDemo(ctx context.Context, passwordHash, encryptedToken string) (string, error) {
-	var userID, workspaceID string
-	err := s.DB.QueryRow(ctx, `SELECT u.id,w.id FROM users u JOIN workspace_members wm ON wm.user_id=u.id JOIN workspaces w ON w.id=wm.workspace_id WHERE u.email='demo@ids.uz' ORDER BY CASE wm.role WHEN 'owner' THEN 1 ELSE 2 END LIMIT 1`).Scan(&userID, &workspaceID)
-	if errors.Is(err, pgx.ErrNoRows) {
-		p, id, regErr := s.Register(ctx, "Demo foydalanuvchi", "demo@ids.uz", passwordHash)
-		if regErr != nil {
-			return "", regErr
-		}
-		userID = id
-		workspaceID = p.WorkspaceID
-	} else if err != nil {
-		return "", err
-	}
-	_, err = s.DB.Exec(ctx, `INSERT INTO instagram_accounts(workspace_id,instagram_user_id,username,account_type,token_ciphertext,scopes,status,provider,connected_by,last_sync_at) VALUES($1::uuid,'mock-'||$1::text,'ids.demo.'||left($1::text,8),'BUSINESS',$2,ARRAY['instagram_business_basic','instagram_business_manage_comments','instagram_business_manage_messages'],'connected','mock',$3,now()) ON CONFLICT(workspace_id,instagram_user_id) DO UPDATE SET token_ciphertext=EXCLUDED.token_ciphertext,status='connected',last_sync_at=now()`, workspaceID, encryptedToken, userID)
-	if err != nil {
-		return "", err
-	}
-	var accountID string
-	if err = s.DB.QueryRow(ctx, `SELECT id FROM instagram_accounts WHERE workspace_id=$1 AND provider='mock' ORDER BY connected_at LIMIT 1`, workspaceID).Scan(&accountID); err != nil {
-		return "", err
-	}
-	_, err = s.DB.Exec(ctx, `INSERT INTO automation_rules(workspace_id,instagram_account_id,name,match_mode,keywords,reply_text,is_active,priority)
-		SELECT $1,$2,'Narx so‘rovi','contains',ARRAY['narx','qancha'],'Assalomu alaykum! Narxlar va batafsil ma’lumot: https://ids.uz/demo',true,10
-		WHERE NOT EXISTS(SELECT 1 FROM automation_rules WHERE workspace_id=$1 AND name='Narx so‘rovi')`, workspaceID, accountID)
-	if err != nil {
-		return "", err
-	}
-	_, err = s.DB.Exec(ctx, `UPDATE users SET email_verified_at=COALESCE(email_verified_at,now()) WHERE id=$1`, userID)
-	if err != nil {
-		return "", err
-	}
-	return userID, nil
 }
 
 func (s *Store) DebugCounts(ctx context.Context) string {

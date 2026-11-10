@@ -1,18 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { Eye, EyeOff, LockKeyhole, Mail } from "lucide-react";
-import { FormEvent, Suspense, useState } from "react";
+import { FormEvent, useState } from "react";
 import { AuthShell } from "@/components/auth-shell";
 import { api, ApiError, jsonBody } from "@/lib/api";
 
 function LoginForm() {
   const router = useRouter();
-  const demo = useSearchParams().has("demo");
   const [show, setShow] = useState(false);
-  const [email, setEmail] = useState(demo ? "demo@ids.uz" : "");
-  const [password, setPassword] = useState(demo ? "Demo1234!" : "");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -60,12 +59,11 @@ function LoginForm() {
         <button className="btn primary full large" disabled={loading}>{loading ? "Kirilmoqda..." : "Kirish"}</button>
         <div className="auth-divider"><span>yoki</span></div>
         <button className="btn secondary full" type="button" disabled>Google bilan kirish · Tez orada</button>
-        <p className="demo-hint">Demo: <button type="button" onClick={() => { setEmail("demo@ids.uz"); setPassword("Demo1234!"); }}>ma’lumotlarni to‘ldirish</button></p>
       </form>
     </AuthShell>
   );
 }
 
 export default function LoginPage() {
-  return <Suspense><LoginForm/></Suspense>;
+  return <LoginForm/>;
 }

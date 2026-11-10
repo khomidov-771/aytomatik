@@ -133,7 +133,7 @@ func (s *Server) logout(w http.ResponseWriter, r *http.Request, p domain.Princip
 	w.WriteHeader(http.StatusNoContent)
 }
 func (s *Server) me(w http.ResponseWriter, r *http.Request, p domain.Principal) {
-	respond(w, 200, map[string]any{"user": p, "csrf_token": p.CSRFToken, "instagram_provider": s.provider.Name(), "demo_mode": s.provider.IsDemo()})
+	respond(w, 200, map[string]any{"user": p, "csrf_token": p.CSRFToken})
 }
 func (s *Server) workspaces(w http.ResponseWriter, r *http.Request, p domain.Principal) {
 	items, err := s.store.UserWorkspaces(r.Context(), p.UserID)

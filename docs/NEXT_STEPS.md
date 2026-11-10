@@ -1,102 +1,110 @@
-# IDS Automate next steps
+# Keyingi qadamlar
 
-Current-revision local unit/build/PostgreSQL/Mock E2E gates pass. Remaining tasks require external credentials/infrastructure, a Docker host or explicit product/legal decisions. Do not rewrite green flows or call simulations live Meta evidence.
+Ustuvorliklar 2026-11-10 holatiga ko‘ra. Birinchi vazifa — real Meta eligible account bilan end-to-end dalil olish.
 
-## P0 — release blockers
+## P0 — Live Meta acceptance test
 
-### P0.1 Live Meta Unified Login acceptance
+Kerak:
 
-Prerequisites:
+- Meta App ID/App Secret;
+- public HTTPS web/API URL;
+- webhook verify token/App Secret;
+- App role yoki tasdiqlangan test user;
+- Instagram Professional Business/Creator account;
+- bir test post va ikki test commenter (follower/not follower imkon bo‘lsa).
 
-- Meta App ID/App Secret for the app owning Configuration ID `2331645327602552`;
-- approved test business/user and exactly one Instagram Business or Creator account;
-- HTTPS OAuth and webhook domain;
-- required review/access.
-
-Files to change only if live evidence exposes a defect:
+O‘zgartiriladigan fayllar faqat real response incompatibility aniqlansa:
 
 - `api/internal/provider/provider.go`
+- `api/internal/provider/provider_test.go`
 - `api/internal/httpapi/instagram.go`
-- provider fixtures/tests
-- `docs/META_SETUP_CHECKLIST.md`
+- `docs/PROJECT_STATUS.md`
+- `docs/TEST_REPORT.md`
 
-Procedure:
+Tekshiruv:
 
-1. Match `META_REDIRECT_URI` character-for-character in Meta.
-2. Complete consent with exactly one Professional asset.
-3. Confirm code exchange, expiry metadata, account discovery and `subscribed_apps` without logging secrets.
-4. Capture sanitized signed comment/message fixtures.
-5. Prove invalid signature rejection and duplicate event idempotency.
-6. Prove one policy-eligible private reply and one inbound/manual DM flow.
-7. Record denied permission, expired/revoked token and rate-limit behavior.
+1. OAuth boshidan oxirigacha, state reuse rejection.
+2. Token exchange, scopes, expiry va encrypted database qiymati.
+3. `subscribed_apps` yoki Instagram Login webhook subscription holati.
+4. Signed real comment webhook.
+5. FOLLOWER, NOT_FOLLOWER va permission/context yetishmagan UNKNOWN.
+6. Private reply provider ID va Instagram delivery ko‘rinishi.
+7. Private successdan keyingi public reply.
+8. Private failureda success public reply yo‘qligi.
+9. Bir comment qayta jo‘natilganda dublikat yo‘qligi.
 
-Pass condition: real delivery IDs and live signed webhook evidence are recorded; Mock or controlled HTTP tests do not satisfy this gate.
+Acceptance: har bir holat database execution/action row va Meta response ID bilan dalillanadi. Shundan oldin live integratsiya “tayyor” deb belgilanmaydi.
 
-### P0.2 Docker Compose runtime
+## P0 — Login path bo‘yicha follow capability qarori
 
-Current blocker: no `docker` executable on this workstation.
+Joriy `META_LOGIN_MODE=unified` bo‘lsa follow check ataylab `UNKNOWN`. Real Meta hujjati va App konfiguratsiyasida `is_user_follow_business` support tekshiriladi.
 
-On an authorized Docker host:
+- Agar faqat Instagram Login’da support bo‘lsa, production account ulashda shu yo‘l talab qilinsin yoki builderda capability aniq ko‘rsatilsin.
+- Missing field, permission error, rate limit va network ambiguity doim `UNKNOWN` qolishi shart.
+- Scraping yoki private API qo‘shilmaydi.
 
-```powershell
-docker version
-docker compose version
-docker compose config
-docker compose up --build -d
-docker compose ps
-docker compose exec api /ids-seed
-```
+Fayllar: `provider.go`, `accounts/page.tsx`, `automation-form.tsx`, status docs.
 
-Files: `docker-compose.yml`, `docker-compose.prod.yml`, both Dockerfiles and Nginx template. Verify health checks, migration startup, Redis failure fallback and that production PostgreSQL/Redis have no public ports.
+Test: controlled response + real eligible follower/non-follower/unknown account.
 
-Pass condition: both images build, services become healthy, local Mock critical flow passes against containers and `docker compose down` preserves named data volumes. Never use `down -v` on production.
+## P1 — Real provider error catalog va operator retry
 
-### P0.3 Real SMTP
+Meta real xatolaridan qayta ishlash jadvalini yarating:
 
-Configure a real STARTTLS provider and verify registration, password reset and invitation delivery plus bad credentials, TLS hostname failure and timeout. Files should change only if an observed failure exists: `api/internal/mailer/mailer.go`, `api/internal/config/config.go` and server-only `.env.production`.
+- permanent permission/policy rejection;
+- rate limit;
+- expired/revoked token;
+- one-private-reply violation;
+- private-reply time-window violation;
+- network timeout/ambiguous result.
 
-Pass condition: all three emails arrive with correct HTTPS links and no token/message body appears in production logs or API responses.
+Private reply uchun avtomatik blind retry taqiqlangan. Operator UI faqat xavfsiz public-reply retry yoki reconnect action ko‘rsatishi kerak.
 
-### P0.4 Staging/VPS, HTTPS and recovery
+Fayllar: `provider.go`, `worker.go`, `automation-form.tsx`, yangi migration kerak bo‘lsa `006_*.sql`.
 
-Follow `docs/DEPLOYMENT.md` on an explicitly authorized target. Verify certificate issue/renewal, secure cookies, public callback URLs, restart behavior, logs, monitoring and an encrypted PostgreSQL backup restored into an isolated database.
+Test: table-driven provider tests, DB retry-state integration, no-duplicate assertion.
 
-Pass condition: only 80/443 are public, health checks remain green after restart, renewal succeeds and a timed restore drill is documented.
+## P1 — Webhook fixture coverage
 
-### P0.5 Responsive/accessibility matrix
+Real Meta’dan redacted fixturelar oling:
 
-Extend Playwright for 360, 768 and 1440 widths, keyboard/focus behavior, reduced motion and an accessibility scanner. Likely files: `web/e2e/`, `web/app/globals.css` and only pages with reproduced failures.
+- comment create;
+- inbound DM;
+- deleted/unsupported event;
+- duplicate delivery;
+- missing username/participant;
+- malformed signature/body.
 
-Pass condition: Chromium plus a second browser engine pass with no critical accessibility findings.
+Fayllar: `api/internal/provider/testdata/`, `provider_test.go`, `httpapi` tests.
 
-## P1 — security/tooling follow-up
+Test: fixture parser, signature positive/negative, duplicate accepted=0.
 
-Monitor the upstream ESLint/TypeScript-ESLint dependency tree for a non-breaking patched `minimatch`. Production audit is currently clean; full audit has eight moderate dev-only findings. Do not apply npm’s proposed breaking `--force` downgrade without separately proving lint/build compatibility.
+## P1 — Production observability
 
-If available on a network-enabled machine, run `govulncheck ./...` and record exact output in `docs/TEST_REPORT.md`.
+Qo‘shing:
 
-## P1 — product/legal decisions
+- structured request/event correlation ID;
+- queue lag, lease recovery, action status va Meta latency metrics;
+- token-expiry/reconnect alert;
+- failed execution operator filter;
+- secret-redaction regression tests.
 
-### Data deletion/export
+Fayllar: server/worker/store, frontend history/analytics, deployment config.
 
-Current behavior records `pending_manual_review`. Before irreversible code, owner/legal must define identity verification, grace period, billing/audit retention, token revocation, export format, message/comment PII handling and backup expiry. Then add a queued privacy workflow, migration, audit evidence and integration/E2E tests.
+## P2 — Inbox live acceptance
 
-### Payment provider
+Real inbound DM bilan 24-soat reply window ochilishini, duplicate inbound event count oshirmasligini va manual send idempotency key’ini tekshiring.
 
-Production billing intentionally uses `BILLING_MODE=disabled`. Select a provider and define currency, invoices/tax, webhook states, dunning, refunds, proration and limit transitions before implementing it.
+Fayllar: `httpapi/instagram.go`, `httpapi/app.go`, `store.go`, Inbox UI.
 
-### Delivery reconciliation
+## P2 — Data lifecycle
 
-Keep `delivery_state_unknown` fail-closed. Add reconciliation only if the approved Meta API exposes a reliable delivery lookup; never blindly resend an ambiguous provider call.
+`pending_manual_review` deletion requestni avtomatik deb ko‘rsatmang. Owner/legal bilan retention, export, token revoke, messages/comments PII va backup expiry tasdiqlangandan keyin alohida queued workflow yarating.
 
-## P2 — optional scope
+## Scope’dan tashqari
 
-- Standalone campaign lifecycle after explicit requirements.
-- Tenant-safe streaming CSV export with audit entry.
-- Notification center beyond the current settings link.
-- Complete RU/EN localization.
-- Multi-asset selection UI if the product later requires several assets per OAuth grant; current flow intentionally requires exactly one.
-
-## First task for the next agent
-
-Read `AGENTS.md`, the project skill, `docs/AI_HANDOFF.md` and `docs/TEST_REPORT.md`. Confirm which external prerequisite is now available. If Meta credentials are available, start with P0.1. If Docker is available, start with P0.2. Do not modify working application code before reproducing a current failure.
+- subscription/payment/billing;
+- demo account yoki demo credentials;
+- fake analytics;
+- scraping/private Instagram APIs;
+- live dalilsiz “follow verification ishlaydi” da’vosi.

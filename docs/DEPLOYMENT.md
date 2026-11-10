@@ -53,8 +53,6 @@ MAIL_SMTP_PORT=587
 MAIL_SMTP_USER=<smtp-user>
 MAIL_SMTP_PASSWORD=<smtp-password>
 MAIL_SMTP_STARTTLS=true
-
-BILLING_MODE=disabled
 ```
 
 Generate strong values without copying shell history into the repository:
@@ -87,7 +85,7 @@ docker compose --env-file .env.production -f docker-compose.prod.yml ps
 docker compose --env-file .env.production -f docker-compose.prod.yml logs --tail=200 api web nginx
 ```
 
-The API applies forward SQL migrations at startup. Do not run the development seed command in production. The health endpoint is `https://automate.example.com/healthz`.
+The API applies forward SQL migrations at startup. There is no demo seed command. The health endpoint is `https://automate.example.com/healthz`.
 
 ## 5. Meta configuration
 
@@ -98,7 +96,7 @@ In the same Meta app that owns Configuration ID `2331645327602552`, set:
 - webhook verify token: the exact `META_WEBHOOK_VERIFY_TOKEN` value
 - required Professional account assets and reviewed permissions
 
-Follow [META_SETUP_CHECKLIST.md](./META_SETUP_CHECKLIST.md). Mock success is never evidence of real Meta delivery.
+Follow [META_SETUP_CHECKLIST.md](./META_SETUP_CHECKLIST.md). Controlled provider tests are never evidence of real Meta delivery.
 
 ## 6. Certificate renewal
 
@@ -152,4 +150,4 @@ Perform and document a restore drill before launch. Do not use `docker compose d
 - Rotate session/database/SMTP/Meta secrets through a documented maintenance window.
 - Preserve audit logs according to the approved retention policy.
 - Treat `delivery_state_unknown` as a manual reconciliation state; never blindly resend.
-- Keep `BILLING_MODE=disabled` until a real payment provider is implemented.
+- Keep payment/subscription code outside the current product scope.

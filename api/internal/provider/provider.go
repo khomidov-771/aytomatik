@@ -27,13 +27,56 @@ type Account struct {
 }
 type Delivery struct{ MessageID string }
 
+type APIError struct {
+	StatusCode int
+	Code       int
+	Type       string
+	Retryable  bool
+	Ambiguous  bool
+}
+
+func (e *APIError) Error() string {
+	if e.StatusCode == 0 {
+		return "Meta request outcome is unknown"
+	}
+	return fmt.Sprintf("Meta API error %d/%s", e.Code, e.Type)
+}
+
+func ErrorCode(err error) string {
+	var apiErr *APIError
+	if errors.As(err, &apiErr) {
+		if apiErr.Ambiguous {
+			return "provider_outcome_unknown"
+		}
+		if apiErr.StatusCode == http.StatusTooManyRequests {
+			return "provider_rate_limited"
+		}
+		return "provider_rejected"
+	}
+	if errors.Is(err, context.DeadlineExceeded) {
+		return "provider_timeout"
+	}
+	return "provider_error"
+}
+
+func IsRetryable(err error) bool {
+	var apiErr *APIError
+	return errors.As(err, &apiErr) && apiErr.Retryable && !apiErr.Ambiguous
+}
+
+func IsAmbiguous(err error) bool {
+	var apiErr *APIError
+	return errors.As(err, &apiErr) && apiErr.Ambiguous
+}
+
 type Instagram interface {
 	Name() string
-	IsDemo() bool
 	AuthorizationURL(state string) (string, error)
 	ExchangeCode(ctx context.Context, code string) (Account, error)
 	DisconnectAccount(ctx context.Context, accessToken, accountID string) error
+	CheckFollowerStatus(ctx context.Context, accessToken, participantID string, scopes []string) (domain.FollowerStatus, error)
 	SendPrivateReply(ctx context.Context, accessToken, accountID, commentID, text string) (Delivery, error)
+	SendPublicCommentReply(ctx context.Context, accessToken, commentID, text string) (Delivery, error)
 	SendMessage(ctx context.Context, accessToken, accountID, participantID, text string) (Delivery, error)
 	VerifyWebhook(body []byte, signature string) bool
 	ParseWebhook(body []byte) ([]domain.ProviderEvent, error)
@@ -49,7 +92,6 @@ func New(cfg config.Config) Instagram {
 type Mock struct{ apiURL string }
 
 func (m *Mock) Name() string { return "mock" }
-func (m *Mock) IsDemo() bool { return true }
 func (m *Mock) AuthorizationURL(state string) (string, error) {
 	return fmt.Sprintf("%s/api/v1/instagram/callback?code=mock-approved&state=%s", m.apiURL, url.QueryEscape(state)), nil
 }
@@ -61,20 +103,49 @@ func (m *Mock) ExchangeCode(_ context.Context, code string) (Account, error) {
 	return Account{ID: "mock-178414000000001", Username: "ids.demo", AccountType: "BUSINESS", AccessToken: "mock-access-token", ExpiresAt: &expiry, Scopes: []string{"instagram_business_basic", "instagram_business_manage_comments", "instagram_business_manage_messages"}}, nil
 }
 func (m *Mock) DisconnectAccount(_ context.Context, _, _ string) error { return nil }
+func (m *Mock) CheckFollowerStatus(_ context.Context, _, participantID string, _ []string) (domain.FollowerStatus, error) {
+	switch {
+	case strings.Contains(participantID, "not-follower"):
+		return domain.NotFollower, nil
+	case strings.Contains(participantID, "unknown"):
+		return domain.FollowerUnknown, errors.New("test follower status unavailable")
+	default:
+		return domain.Follower, nil
+	}
+}
 func (m *Mock) SendPrivateReply(_ context.Context, _, _, commentID, text string) (Delivery, error) {
 	if commentID == "fail" || strings.Contains(text, "[FAIL]") {
 		return Delivery{}, errors.New("simulated provider failure")
 	}
-	return Delivery{MessageID: "demo_dm_" + shortID(commentID)}, nil
+	return Delivery{MessageID: "test_dm_" + shortID(commentID)}, nil
+}
+func (m *Mock) SendPublicCommentReply(_ context.Context, _, commentID, text string) (Delivery, error) {
+	if commentID == "fail-public" || strings.Contains(text, "[FAIL]") {
+		return Delivery{}, errors.New("simulated public reply failure")
+	}
+	return Delivery{MessageID: "test_comment_" + shortID(commentID)}, nil
 }
 func (m *Mock) SendMessage(_ context.Context, _, _, participantID, text string) (Delivery, error) {
 	if strings.Contains(text, "[FAIL]") {
 		return Delivery{}, errors.New("simulated provider failure")
 	}
-	return Delivery{MessageID: "demo_msg_" + shortID(participantID)}, nil
+	return Delivery{MessageID: "test_msg_" + shortID(participantID)}, nil
 }
-func (m *Mock) VerifyWebhook(_ []byte, _ string) bool                    { return true }
-func (m *Mock) ParseWebhook(body []byte) ([]domain.ProviderEvent, error) { return parseEvents(body) }
+func (m *Mock) VerifyWebhook(_ []byte, _ string) bool { return true }
+func (m *Mock) ParseWebhook(body []byte) ([]domain.ProviderEvent, error) {
+	var direct domain.CommentEvent
+	if json.Unmarshal(body, &direct) == nil && direct.CommentID != "" {
+		if direct.CreatedAt.IsZero() {
+			direct.CreatedAt = time.Now()
+		}
+		if direct.ProviderEventID == "" {
+			direct.ProviderEventID = "comment:" + direct.CommentID
+		}
+		direct.RawRedacted = json.RawMessage(`{"redacted":true}`)
+		return []domain.ProviderEvent{{Type: domain.ProviderEventComment, Comment: &direct}}, nil
+	}
+	return parseEvents(body)
+}
 
 type Meta struct {
 	cfg    config.Config
@@ -82,7 +153,6 @@ type Meta struct {
 }
 
 func (m *Meta) Name() string { return "meta" }
-func (m *Meta) IsDemo() bool { return false }
 func (m *Meta) AuthorizationURL(state string) (string, error) {
 	if m.cfg.MetaAppID == "" {
 		return "", errors.New("Meta App ID is not configured")
@@ -339,6 +409,57 @@ func (m *Meta) subscribeUnifiedWebhooks(ctx context.Context, graphBase, token, a
 func (m *Meta) SendPrivateReply(ctx context.Context, token, accountID, commentID, text string) (Delivery, error) {
 	return m.send(ctx, token, accountID, map[string]any{"recipient": map[string]string{"comment_id": commentID}, "message": map[string]string{"text": text}})
 }
+func (m *Meta) CheckFollowerStatus(ctx context.Context, token, participantID string, scopes []string) (domain.FollowerStatus, error) {
+	// Meta documents is_user_follow_business on the Instagram Login messaging
+	// user-profile surface. Unified/Facebook Login and a comment by itself do
+	// not prove that this profile lookup is available.
+	if m.cfg.MetaLoginMode != "instagram" {
+		return domain.FollowerUnknown, errors.New("follow verification is unavailable for the configured login mode")
+	}
+	if !containsScope(scopes, "instagram_business_manage_messages") {
+		return domain.FollowerUnknown, errors.New("follow verification requires instagram_business_manage_messages")
+	}
+	if strings.TrimSpace(participantID) == "" {
+		return domain.FollowerUnknown, errors.New("comment event did not include a participant ID")
+	}
+	endpoint := "https://graph.instagram.com/" + m.cfg.MetaAPIVersion + "/" + url.PathEscape(participantID) + "?" + url.Values{"fields": {"is_user_follow_business"}}.Encode()
+	req, _ := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	var result struct {
+		IsUserFollowBusiness *bool `json:"is_user_follow_business"`
+	}
+	if err := m.do(req, &result); err != nil {
+		return domain.FollowerUnknown, err
+	}
+	if result.IsUserFollowBusiness == nil {
+		return domain.FollowerUnknown, errors.New("Meta user profile did not return follow status")
+	}
+	if *result.IsUserFollowBusiness {
+		return domain.Follower, nil
+	}
+	return domain.NotFollower, nil
+}
+func (m *Meta) SendPublicCommentReply(ctx context.Context, token, commentID, text string) (Delivery, error) {
+	host := "https://graph.instagram.com"
+	if m.cfg.MetaLoginMode == "unified" {
+		host = "https://graph.facebook.com"
+	}
+	form := url.Values{"message": {text}}
+	endpoint := fmt.Sprintf("%s/%s/%s/replies", host, m.cfg.MetaAPIVersion, url.PathEscape(commentID))
+	req, _ := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, strings.NewReader(form.Encode()))
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	var result struct {
+		ID string `json:"id"`
+	}
+	if err := m.do(req, &result); err != nil {
+		return Delivery{}, err
+	}
+	if result.ID == "" {
+		return Delivery{}, errors.New("Meta public comment reply returned no ID")
+	}
+	return Delivery{MessageID: result.ID}, nil
+}
 func (m *Meta) SendMessage(ctx context.Context, token, accountID, participantID, text string) (Delivery, error) {
 	return m.send(ctx, token, accountID, map[string]any{"recipient": map[string]string{"id": participantID}, "message": map[string]string{"text": text}})
 }
@@ -380,7 +501,7 @@ func (m *Meta) ParseWebhook(body []byte) ([]domain.ProviderEvent, error) { retur
 func (m *Meta) do(req *http.Request, dest any) error {
 	res, err := m.client.Do(req)
 	if err != nil {
-		return fmt.Errorf("Meta request failed: %w", err)
+		return &APIError{Ambiguous: req.Method != http.MethodGet}
 	}
 	defer res.Body.Close()
 	data, _ := io.ReadAll(io.LimitReader(res.Body, 1<<20))
@@ -392,7 +513,7 @@ func (m *Meta) do(req *http.Request, dest any) error {
 			}
 		}
 		_ = json.Unmarshal(data, &apiErr)
-		return fmt.Errorf("Meta API error %d/%s", apiErr.Error.Code, apiErr.Error.Type)
+		return &APIError{StatusCode: res.StatusCode, Code: apiErr.Error.Code, Type: apiErr.Error.Type, Retryable: res.StatusCode == http.StatusTooManyRequests}
 	}
 	if err = json.Unmarshal(data, dest); err != nil {
 		return errors.New("invalid response from Meta")
@@ -400,19 +521,16 @@ func (m *Meta) do(req *http.Request, dest any) error {
 	return nil
 }
 
-func parseEvents(body []byte) ([]domain.ProviderEvent, error) {
-	// Accept the normalized internal envelope used by mock tests first.
-	var direct domain.CommentEvent
-	if json.Unmarshal(body, &direct) == nil && direct.CommentID != "" {
-		if direct.CreatedAt.IsZero() {
-			direct.CreatedAt = time.Now()
+func containsScope(scopes []string, target string) bool {
+	for _, scope := range scopes {
+		if scope == target {
+			return true
 		}
-		if direct.ProviderEventID == "" {
-			direct.ProviderEventID = "comment:" + direct.CommentID
-		}
-		direct.RawRedacted = json.RawMessage(`{"redacted":true}`)
-		return []domain.ProviderEvent{{Type: domain.ProviderEventComment, Comment: &direct}}, nil
 	}
+	return false
+}
+
+func parseEvents(body []byte) ([]domain.ProviderEvent, error) {
 	type webhookFrom struct {
 		ID       string `json:"id"`
 		Username string `json:"username"`

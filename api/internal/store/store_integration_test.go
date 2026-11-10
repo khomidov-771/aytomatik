@@ -129,7 +129,7 @@ func TestTenantTokensInboxAndQueue(t *testing.T) {
 		t.Fatalf("member removal failed: %#v %v", members, err)
 	}
 
-	account := store.AccountInput{InstagramUserID: "ig-unique", Username: "alice.ig", AccountType: "BUSINESS", TokenCiphertext: "encrypted", Provider: "meta"}
+	account := store.AccountInput{InstagramUserID: "ig-unique", Username: "alice.ig", AccountType: "BUSINESS", TokenCiphertext: "encrypted", Provider: "meta", Scopes: []string{"instagram_business_manage_comments", "instagram_business_manage_messages"}}
 	if err = s.UpsertInstagramAccount(ctx, alice.WorkspaceID, aliceID, account); err != nil {
 		t.Fatal(err)
 	}
@@ -140,16 +140,16 @@ func TestTenantTokensInboxAndQueue(t *testing.T) {
 	if err != nil || len(accounts) != 1 {
 		t.Fatalf("alice accounts: %#v %v", accounts, err)
 	}
-	if _, _, _, err = s.AccountSecretByID(ctx, bob.WorkspaceID, accounts[0].ID); !errors.Is(err, store.ErrNotFound) {
+	if _, _, _, _, err = s.AccountSecretByID(ctx, bob.WorkspaceID, accounts[0].ID); !errors.Is(err, store.ErrNotFound) {
 		t.Fatalf("cross-tenant account lookup succeeded: %v", err)
 	}
 
 	inbound := domain.InboundMessageEvent{ProviderEventID: "message:mid-1", AccountID: "ig-unique", ProviderMessageID: "mid-1", ParticipantID: "customer-1", Username: "customer", Text: "Salom", CreatedAt: time.Now()}
-	_, _, inserted, err := s.RecordInboundMessage(ctx, "meta", inbound, false)
+	_, _, inserted, err := s.RecordInboundMessage(ctx, "meta", inbound)
 	if err != nil || !inserted {
 		t.Fatalf("inbound insert: inserted=%v err=%v", inserted, err)
 	}
-	_, _, inserted, err = s.RecordInboundMessage(ctx, "meta", inbound, false)
+	_, _, inserted, err = s.RecordInboundMessage(ctx, "meta", inbound)
 	if err != nil || inserted {
 		t.Fatalf("inbound idempotency: inserted=%v err=%v", inserted, err)
 	}
@@ -167,33 +167,94 @@ func TestTenantTokensInboxAndQueue(t *testing.T) {
 	if err != nil || queued.Event.CommentID != "c1" || queued.WorkspaceID != alice.WorkspaceID {
 		t.Fatalf("queue claim: %#v %v", queued, err)
 	}
-	// A rule is required by the delivery marker foreign key.
-	rule, err := s.CreateRule(ctx, alice, domain.AutomationRule{Name: "Narx", InstagramAccountID: accounts[0].ID, MatchMode: "contains", Keywords: []string{"narx"}, MediaScope: "all", ReplyText: "DM", IsActive: true, Priority: 100})
+	// A rule is required by the execution and action ledger foreign keys.
+	rule, err := s.CreateRule(ctx, alice, domain.AutomationRule{
+		Name: "Narx", InstagramAccountID: accounts[0].ID, MatchMode: "contains", Keywords: []string{"narx"}, MediaScope: "all",
+		PrivateReplyText: "DM", PublicSuccessReplyText: "Direct xabaringizga yubordik!", PublicNotFollowerReplyText: "Avval sahifamizga obuna bo‘ling!",
+		PublicUnknownReplyText: "Sahifani kuzatib, Direct orqali yozing.", FollowVerificationEnabled: true, UnknownFallbackPolicy: "skip_dm_neutral_reply",
+		IsActive: true, Priority: 100,
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	acquired, err := s.BeginDelivery(ctx, eventID, alice.WorkspaceID, rule.ID)
-	if err != nil || !acquired {
-		t.Fatalf("first delivery marker: acquired=%v err=%v", acquired, err)
+	executionID, followStatus, err := s.EnsureExecution(ctx, eventID, alice.WorkspaceID, rule.ID)
+	if err != nil || executionID == "" || followStatus != domain.FollowerNotChecked {
+		t.Fatalf("execution marker: id=%q follow=%q err=%v", executionID, followStatus, err)
 	}
-	acquired, err = s.BeginDelivery(ctx, eventID, alice.WorkspaceID, rule.ID)
+	if _, _, err = s.EnsureExecution(ctx, eventID, bob.WorkspaceID, rule.ID); !errors.Is(err, store.ErrNotFound) {
+		t.Fatalf("cross-tenant execution was not rejected: %v", err)
+	}
+	if err = s.SetExecutionFollowStatus(ctx, alice.WorkspaceID, executionID, domain.Follower); err != nil {
+		t.Fatal(err)
+	}
+	privateState, acquired, err := s.BeginAction(ctx, alice.WorkspaceID, executionID, "private_reply", rule.PrivateReplyText, false)
+	if err != nil || !acquired || privateState.AttemptCount != 1 {
+		t.Fatalf("first private action: state=%#v acquired=%v err=%v", privateState, acquired, err)
+	}
+	_, acquired, err = s.BeginAction(ctx, alice.WorkspaceID, executionID, "private_reply", rule.PrivateReplyText, false)
 	if err != nil || acquired {
-		t.Fatalf("duplicate delivery marker: acquired=%v err=%v", acquired, err)
+		t.Fatalf("duplicate private action: acquired=%v err=%v", acquired, err)
 	}
-	acquired, err = s.BeginDelivery(ctx, eventID, bob.WorkspaceID, rule.ID)
-	if err != nil || acquired {
-		t.Fatalf("cross-tenant delivery marker was acquired: acquired=%v err=%v", acquired, err)
+	if err = s.CompleteAction(ctx, alice.WorkspaceID, executionID, "private_reply", "succeeded", "sent", "private-id", "", ""); err != nil {
+		t.Fatal(err)
 	}
-	if err = s.CompleteExecution(ctx, eventID, bob.WorkspaceID, &rule, comment, "failed", "", "tenant_test", "", false); !errors.Is(err, store.ErrNotFound) {
-		t.Fatalf("cross-tenant completion was not rejected: %v", err)
+	publicState, acquired, err := s.BeginAction(ctx, alice.WorkspaceID, executionID, "public_reply", rule.PublicSuccessReplyText, true)
+	if err != nil || !acquired || publicState.MessageText != rule.PublicSuccessReplyText {
+		t.Fatalf("first public action: state=%#v acquired=%v err=%v", publicState, acquired, err)
+	}
+	if err = s.CompleteAction(ctx, alice.WorkspaceID, executionID, "public_reply", "failed_retryable", "", "", "rate_limited", "retry later"); err != nil {
+		t.Fatal(err)
+	}
+	publicState, acquired, err = s.BeginAction(ctx, alice.WorkspaceID, executionID, "public_reply", "changed template must not replace stored text", true)
+	if err != nil || !acquired || publicState.AttemptCount != 2 || publicState.MessageText != rule.PublicSuccessReplyText {
+		t.Fatalf("safe public retry: state=%#v acquired=%v err=%v", publicState, acquired, err)
+	}
+	if err = s.CompleteAction(ctx, alice.WorkspaceID, executionID, "public_reply", "succeeded", "sent", "public-id", "", ""); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err = s.BeginAction(ctx, bob.WorkspaceID, executionID, "public_reply", "cross tenant", true); !errors.Is(err, store.ErrNotFound) {
+		t.Fatalf("cross-tenant action was not rejected: %v", err)
+	}
+	if err = s.FinishExecution(ctx, alice.WorkspaceID, executionID, "succeeded", "", "", true); err != nil {
+		t.Fatal(err)
+	}
+	history, err := s.ExecutionHistory(ctx, alice.WorkspaceID, rule.ID, 10)
+	if err != nil || len(history) != 1 || history[0].FollowStatus != domain.Follower || history[0].Status != "succeeded" || len(history[0].Actions) != 2 {
+		t.Fatalf("execution history: %#v err=%v", history, err)
+	}
+
+	// Historical/test-provider rows must remain preserved without appearing in
+	// product account lists, Inbox counters or analytics.
+	if err = s.UpsertInstagramAccount(ctx, alice.WorkspaceID, aliceID, store.AccountInput{InstagramUserID: "mock-hidden", Username: "hidden.fixture", AccountType: "BUSINESS", TokenCiphertext: "test-only", Provider: "mock"}); err != nil {
+		t.Fatal(err)
+	}
+	accounts, err = s.ListInstagramAccounts(ctx, alice.WorkspaceID)
+	if err != nil || len(accounts) != 1 || accounts[0].Provider != "meta" {
+		t.Fatalf("test-provider account leaked into product list: %#v %v", accounts, err)
+	}
+	_, _, _, inserted, err = s.EnqueueEvent(ctx, "mock", domain.CommentEvent{ProviderEventID: "comment:mock-hidden", AccountID: "mock-hidden", CommentID: "mock-hidden", MediaID: "m2", Text: "narx", ParticipantID: "fixture", CreatedAt: time.Now()})
+	if err != nil || !inserted {
+		t.Fatalf("test-only event setup failed: inserted=%v err=%v", inserted, err)
+	}
+	metrics, err := s.Metrics(ctx, alice.WorkspaceID, time.Now().Add(-time.Hour), time.Now().Add(time.Hour))
+	if err != nil || metrics.Comments != 1 || metrics.EligibleTriggers != 1 || metrics.RepliesSent != 1 {
+		t.Fatalf("product metrics included test-provider data: %#v %v", metrics, err)
+	}
+	settings, err := s.Settings(ctx, alice)
+	if err != nil {
+		t.Fatal(err)
+	}
+	webhook, ok := settings["webhook"].(map[string]any)
+	if !ok || webhook["queued"] != 0 {
+		t.Fatalf("test-provider queue leaked into settings: %#v", settings)
 	}
 
 	conversationID := conversations[0].ID
-	messageID, acquired, err := s.BeginManualMessage(ctx, alice.WorkspaceID, conversationID, "550e8400-e29b-41d4-a716-446655440000", "Manual", false)
+	messageID, acquired, err := s.BeginManualMessage(ctx, alice.WorkspaceID, conversationID, "550e8400-e29b-41d4-a716-446655440000", "Manual")
 	if err != nil || !acquired {
 		t.Fatalf("manual message marker: acquired=%v err=%v", acquired, err)
 	}
-	duplicateID, acquired, err := s.BeginManualMessage(ctx, alice.WorkspaceID, conversationID, "550e8400-e29b-41d4-a716-446655440000", "Manual", false)
+	duplicateID, acquired, err := s.BeginManualMessage(ctx, alice.WorkspaceID, conversationID, "550e8400-e29b-41d4-a716-446655440000", "Manual")
 	if err != nil || acquired || duplicateID != messageID {
 		t.Fatalf("manual message duplicate: id=%q acquired=%v err=%v", duplicateID, acquired, err)
 	}

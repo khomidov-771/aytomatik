@@ -1,124 +1,95 @@
-# IDS Automate project status
+# Project status
 
-Status date: 2026-11-09. Repository: `C:\Users\secre\Desktop\1\IDS_Automate_Codex_Pack`.
+Tekshiruv: 2026-11-10. Branch: `main`. Holat faqat repository kodi va shu muhitda bajarilgan testlarga asoslangan.
 
-## Executive status
+## Umumiy natija
 
-- **Implementation:** required MVP code is present across frontend, backend, PostgreSQL, auth/tenancy, automation, Inbox, Mock Mode, Meta Unified Login and deployment configuration.
-- **Current revision local gates:** Go unit/vet/build, frontend lint/unit/production build, PostgreSQL integration and Playwright Mock critical flow PASS.
-- **Unified Login code-level flow:** PASS with a controlled Meta-shaped HTTP transport; live Meta remains NOT TESTED.
-- **Real Meta integration:** BLOCKED EXTERNAL — App credentials, approved Professional account, live webhook and App Review/access evidence are absent.
-- **Real SMTP:** NOT TESTED.
-- **Docker Compose runtime:** BLOCKED on this workstation because Docker CLI/runtime is not installed. Equivalent PostgreSQL tests passed with local disposable PostgreSQL 18.
-- **Production deployment:** configured, not deployed or VPS-verified.
-- **Acceptance evidence score:** **12.5/14 = 89.3%** using the deterministic table below.
+Tekshiriladigan 17 gate’dan 12 tasi o‘tdi, 5 ta live Meta gate credential/eligible account yo‘qligi sabab bloklangan: **70.6% verified readiness**.
 
-The platform is not 100% production-ready until live Meta, SMTP, Docker/VPS/HTTPS, restore and responsive/accessibility gates have evidence.
+Bu product completion foizi emas. Kod tayyorligi yuqoriroq, lekin core biznes qiymatining live Meta dalili mavjud bo‘lmaguncha loyiha “to‘liq tayyor” emas.
 
-## Module status
+## Gate’lar
 
-| Module | Actual status | Evidence / limitation |
+| # | Gate | Holat | Dalil |
+|---:|---|---|---|
+| 1 | Backend compile | PASS | `go build ./cmd/server ./cmd/migrate` |
+| 2 | Backend unit tests | PASS | `go test ./...` |
+| 3 | Backend static analysis | PASS | `go vet ./...` |
+| 4 | Frontend lint | PASS | `npm run lint:web` |
+| 5 | Frontend unit tests | PASS | 1 file, 2 tests |
+| 6 | Frontend production build | PASS | Next.js 21 route build |
+| 7 | PostgreSQL migrations/integration | PASS | embedded PostgreSQL 18.6.1, `TestTenantTokensInboxAndQueue` |
+| 8 | Auth/session/CSRF | PASS controlled | Unit/integration coverage |
+| 9 | Multi-tenant isolation | PASS controlled | Cross-tenant account/execution/action negative checks |
+| 10 | OAuth/token/webhook request logic | PASS controlled | Provider/security tests; no live Meta |
+| 11 | Comment-to-DM decision matrix | PASS controlled | Worker tests cover disabled/follower/not-follower/UNKNOWN policies |
+| 12 | Action idempotency/history | PASS controlled | PostgreSQL action ledger retry/dedup/history test |
+| 13 | Live Meta OAuth | BLOCKED | App ID/App Secret/test asset yo‘q |
+| 14 | Live signed webhook receive | BLOCKED | Public HTTPS Meta subscription yo‘q |
+| 15 | Live follow verification | BLOCKED | Eligible Instagram Login messaging context yo‘q |
+| 16 | Live private reply | BLOCKED | Real comment/access token yo‘q |
+| 17 | Live public reply and ordering | BLOCKED | Real private-reply success event yo‘q |
+
+## Modul holati
+
+| Modul | Haqiqiy holat |
+|---|---|
+| Registration/login/email verification/reset | Implemented va controlled testdan o‘tgan |
+| Session/CSRF/RBAC/workspace switch | Implemented va controlled testdan o‘tgan |
+| Multi-tenant store | Implemented; cross-tenant negative integration test bor |
+| Instagram account UI | Real OAuth-only; demo account yaratmaydi |
+| Instagram Login adapter | Kod va controlled HTTP test bor; live tekshirilmagan |
+| Unified Login adapter | Auth URL, exchange, assigned asset, subscription controlled test bor; live tekshirilmagan |
+| Token encryption | AES-256-GCM implementation/test bor; real token saqlanmagan |
+| Webhook verify/parser | HMAC va Meta-shaped payload controlled test bor; live payload tekshirilmagan |
+| Automation builder | Account/post/keyword/templates/follow/fallback/active fields ishlaydi |
+| Follow tri-state | Implemented. Unified → UNKNOWN. Instagram Login field/error semantics controlled testda |
+| Private reply | Official endpoint adapter va state machine implemented; live tekshirilmagan |
+| Public comment reply | Private successdan keyingi branch implemented; live tekshirilmagan |
+| Idempotency/retry | Event, action va manual message markerlar implemented; DB testdan o‘tgan |
+| Execution history | API + UI implemented; actionlar alohida ko‘rinadi |
+| Inbox | Inbound store/manual reply window implemented; live DM tekshirilmagan |
+| Analytics | Database’dagi real event/actionlardan hisoblanadi; fake seed yo‘q |
+| Billing/subscription | Product scope’dan olib tashlangan; route/UI/config yo‘q |
+| Demo/mock product mode | Olib tashlangan; mock adapter faqat automated test uchun |
+
+## Comment-to-DM outcome matrix
+
+| Follow setting/status | Private reply | Public reply |
 |---|---|---|
-| Register/verify/login/logout | PASS locally | Playwright critical flow + Go tests |
-| Password reset/session rotation | PASS code/unit/integration | Real SMTP reset delivery not tested |
-| Multi-tenant/RBAC | PASS | PostgreSQL isolation plus role tests; owner protection/member management included |
-| Team management | PASS locally | Invite/accept, role update, removal, cancellation and audit; integration/build green |
-| Mail | PARTIAL | Safe log adapter and STARTTLS production gates pass; live SMTP absent |
-| Mock Instagram | PASS | OAuth/demo delivery/comment/inbound/manual reply E2E; never real delivery |
-| Meta Unified Login adapter | PASS code-level | Auth URL, config ID, token exchange, asset discovery, subscription and message delivery simulated; no live credentials |
-| OAuth state/token safety | PASS locally | One-time workspace/user state integration + AES-256-GCM roundtrip/non-plaintext test |
-| Webhooks | PASS code-level | HMAC, comment/message parser, nested media ID, echo/self filters and DB event idempotency pass; no live fixture |
-| Automation/durable queue | PASS locally | Rule tests, DB leases/idempotency/delivery marker and browser duplicate event pass |
-| Inbox/DM | PASS in Mock Mode | Inbound opens 24-hour window; client-idempotent manual outbound E2E passes; live Meta DM absent |
-| Analytics/audit/settings | PASS locally | Current lint/build and persisted-data implementation |
-| Billing | Deliberately disabled in production | Manual development demo only; no payment provider claimed |
-| Privacy deletion | Manual review by design | Destructive retention/legal policy not approved |
-| Frontend | PASS desktop critical flow | Lint, Vitest, production build and Edge Playwright pass; full 360/768/1440 accessibility matrix not run |
-| Deployment configuration | Implemented, unverified runtime | Compose/Nginx/Certbot/runbook exist; Docker/VPS unavailable |
+| Disabled | Yuboriladi | Faqat private successdan keyin success template |
+| `FOLLOWER` | Yuboriladi | Faqat private successdan keyin success template |
+| `NOT_FOLLOWER` | Yuborilmaydi | Not-follower template |
+| `UNKNOWN` + `send_private_reply` | Yuboriladi | Faqat private successdan keyin success template |
+| `UNKNOWN` + `skip_dm_neutral_reply` | Yuborilmaydi | Neutral UNKNOWN template |
+| Private rejected/ambiguous | Success deb belgilanmaydi | “DM yuborildi” public reply yuborilmaydi |
+| Private success + public retryable failure | Private qayta yuborilmaydi | Faqat public action maksimal 3 urinish |
 
-## Unified Login implementation and evidence
+## Test natijalari
 
-Configuration supplied by the user:
+2026-11-10 bajarilgan:
 
-- Product: `Instagram API (Unified Login)`
-- Compatibility: `Instagram Login Compatible`
-- Configuration ID: `2331645327602552`
+```text
+go test ./...                                                   PASS
+go test -tags=integration ./internal/store -run TestTenant...  PASS
+npm run lint:web                                                PASS
+npm run test:web                                                PASS (2/2)
+npm run build:web                                               PASS (21 routes)
+```
 
-Implemented behavior:
+Docker CLI bu Windows muhitida o‘rnatilmagan. PostgreSQL integration test cached embedded PostgreSQL 18.6.1 bilan real database processga qarshi o‘tdi. Bu in-memory/mock DB emas.
 
-1. `META_LOGIN_MODE=unified` and required `META_LOGIN_CONFIG_ID` startup validation.
-2. `facebook.com/dialog/oauth` URL with App ID, Configuration ID, exact redirect and single-use state.
-3. Versioned Facebook Graph code exchange.
-4. Cursor-paginated assigned Instagram account discovery with dedupe/repeated-cursor/100-page safeguards.
-5. Fail-closed zero/multiple asset handling; no silent first-account selection.
-6. `subscribed_apps` confirmation for `messages,comments,messaging_postbacks` before persistence.
-7. Granted-permission metadata, encrypted token persistence boundary and token expiry metadata.
-8. Unified Graph message/private-reply delivery and best-effort unsubscribe/revoke on disconnect.
-9. Accounts/settings UI identifies the active login mode.
+Frontend build dastlab cheklangan Windows process huquqida `.next/standalone` yaratishda `EPERM` berdi; generated `.next` tozalanib odatiy Windows huquqida qayta bajarilganda PASS bo‘ldi.
 
-`TestUnifiedAuthorizationURLUsesConfigurationID` and `TestUnifiedOAuthExchangeSubscriptionAndMessageDelivery` pass against controlled Meta-shaped responses. These tests prove request construction/handling, not Meta approval or live reachability.
+## Aniqlangan cheklovlar
 
-## Acceptance evidence
+- Real Meta credentials va public HTTPS callback yo‘q.
+- `is_user_follow_business` Unified/Facebook Login yo‘lida tasdiqlanmagan; kod bu holatda `UNKNOWN` qiladi.
+- Instagram Login yo‘lida ham follow field real eligible user/account bilan sinovdan o‘tmagan.
+- Meta rate-limit, revoked token, App Review va one-private-reply/time-window xatolari real response bilan tekshirilmagan.
+- Current queue process bir processli worker; horizontal deployment uchun distributed wake-up/lease observability kengaytirilishi kerak.
+- Data deletion hozir auditdagi `pending_manual_review`; avtomatik deletion workflow emas.
 
-Scoring: `1` = current applicable test evidence; `0.5` = implemented but incomplete browser/external evidence; `0` = required live evidence absent.
+## Muhim aniqlik
 
-| # | Criterion | Score | Current evidence |
-|---:|---|---:|---|
-| 1 | Register, verify, login, logout | 1 | Green Playwright critical flow |
-| 2 | Workspace and tenant isolation | 1 | Green PostgreSQL integration + RBAC tests |
-| 3 | OAuth; Mock Mode completes locally | 1 | Unified request tests + Mock browser flow |
-| 4 | Real mode rejects missing credentials | 1 | Current config tests |
-| 5 | Safe connected-account metadata | 1 | DTO/token boundary and build tests |
-| 6 | Automation CRUD | 1 | Rule/store/frontend tests and build |
-| 7 | Duplicate event triggers once | 1 | PostgreSQL marker + browser duplicate assertion |
-| 8 | Mock reply explicitly demo | 1 | UI/E2E Demo markers |
-| 9 | Real private reply after official eligibility/API success | 0 | No approved live Meta run |
-| 10 | Metrics derive from stored data | 1 | SQL implementation and green build/tests |
-| 11 | Token never exposed | 1 | Cipher/non-plaintext test + server-only DTO design |
-| 12 | Automated role/tenant tests | 1 | Current Go/PostgreSQL pass |
-| 13 | Mobile/desktop usable | 0.5 | Responsive implementation; full viewport/accessibility matrix missing |
-| 14 | Setup and environment docs complete | 1 | Required handoff/deployment/test docs present |
-
-Total: `12.5 / 14 × 100 = 89.3%`.
-
-## Current test summary
-
-- `go test ./...`: PASS.
-- `go vet ./...`: PASS.
-- `go build ./cmd/server ./cmd/migrate ./cmd/seed`: PASS.
-- Unified provider/security/config verbose tests: PASS.
-- `go test -tags=integration -v ./internal/store` on isolated PostgreSQL 18 database: PASS.
-- `npm run lint`: PASS.
-- `npm test -- --run`: PASS, 2 tests.
-- `npm run build`: PASS outside restricted Windows sandbox, 24 routes.
-- Playwright Edge critical flow: PASS, 1 test.
-- `npm audit --omit=dev`: PASS, 0 vulnerabilities.
-- Full `npm audit`: 8 moderate dev-only `minimatch` findings in ESLint tooling; no safe non-breaking automatic fix offered.
-- Docker Compose config/start: BLOCKED, `docker` executable not installed.
-
-Exact commands and boundaries: `docs/TEST_REPORT.md`.
-
-## Remaining release blockers
-
-### External
-
-- Real Meta App ID/App Secret, approved business/test user, one Professional account and App Review/access.
-- Live HTTPS OAuth callback, signed webhook delivery and policy-eligible DM/private reply proof.
-- Real SMTP provider/domain and registration/reset/invitation delivery proof.
-- Authorized staging/VPS/domain.
-- Owner/legal retention and destructive deletion policy.
-- Payment-provider requirements if production billing is desired.
-
-### Operational/verification
-
-- Docker Compose build/start/health validation on a Docker host.
-- 360/768/1440 browser and accessibility matrix.
-- HTTPS certificate issue/renewal test, backup/restore drill and alerting verification.
-- Resolve or accept the dev-only audit finding when upstream offers a non-breaking patched dependency tree.
-
-## Explicit non-claims
-
-- Mock Mode and Meta-shaped HTTP simulation are not live Meta integration.
-- Configuration ID alone is not an App credential or App Review approval.
-- Production build success is not a production deployment.
-- Disabled billing and manual-review deletion are not implemented external services.
+Controlled provider testlari request URL/body, response parsing va state transitionni isbotlaydi. Ular Meta App approval, permission availability, real delivery yoki follow checkni isbotlamaydi.

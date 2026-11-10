@@ -63,16 +63,13 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /api/v1/automations/{id}", s.auth(false, "customer", s.getAutomation))
 	mux.HandleFunc("PATCH /api/v1/automations/{id}", s.auth(true, "manager", s.updateAutomation))
 	mux.HandleFunc("DELETE /api/v1/automations/{id}", s.auth(true, "manager", s.deleteAutomation))
+	mux.HandleFunc("GET /api/v1/automations/{id}/executions", s.auth(false, "customer", s.automationExecutions))
 	mux.HandleFunc("GET /api/v1/webhooks/instagram", s.verifyWebhook)
 	mux.HandleFunc("POST /api/v1/webhooks/instagram", s.instagramWebhook)
-	mux.HandleFunc("POST /api/v1/webhooks/instagram/mock-event", s.auth(true, "manager", s.mockEvent))
-	mux.HandleFunc("POST /api/v1/webhooks/instagram/mock-message", s.auth(true, "manager", s.mockMessage))
 	mux.HandleFunc("GET /api/v1/inbox/conversations", s.auth(false, "operator", s.conversations))
 	mux.HandleFunc("GET /api/v1/inbox/conversations/{id}/messages", s.auth(false, "operator", s.messages))
 	mux.HandleFunc("POST /api/v1/inbox/conversations/{id}/messages", s.auth(true, "operator", s.sendMessage))
 	mux.HandleFunc("GET /api/v1/analytics/summary", s.auth(false, "manager", s.analytics))
-	mux.HandleFunc("GET /api/v1/billing/plan", s.auth(false, "customer", s.billingPlan))
-	mux.HandleFunc("PATCH /api/v1/billing/plan", s.auth(true, "owner", s.changePlan))
 	mux.HandleFunc("GET /api/v1/team", s.auth(false, "manager", s.team))
 	mux.HandleFunc("POST /api/v1/team/invitations", s.auth(true, "owner", s.inviteMember))
 	mux.HandleFunc("DELETE /api/v1/team/invitations/{id}", s.auth(true, "owner", s.cancelInvitation))
@@ -278,15 +275,13 @@ func (s *Server) health(w http.ResponseWriter, r *http.Request) {
 		fail(w, 503, "database_unavailable", "Database bilan aloqa yo‘q")
 		return
 	}
-	respond(w, 200, map[string]any{"status": "ok", "provider": s.provider.Name(), "demo_mode": s.provider.IsDemo(), "queue_depth": s.worker.Depth()})
+	respond(w, 200, map[string]any{"status": "ok", "provider": s.provider.Name(), "meta_configured": s.metaConfigured(), "queue_depth": s.worker.Depth()})
 }
 
 func statusError(w http.ResponseWriter, err error) {
 	switch {
 	case errors.Is(err, store.ErrNotFound):
 		fail(w, 404, "not_found", "Ma’lumot topilmadi")
-	case errors.Is(err, store.ErrLimit):
-		fail(w, 409, "plan_limit", "Tarif limiti tugagan")
 	default:
 		slog.Error("request failed", "error", err)
 		fail(w, 500, "internal_error", "Server xatosi")

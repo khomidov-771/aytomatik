@@ -5,6 +5,7 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"io"
 	"net/http"
 	"net/url"
@@ -15,6 +16,42 @@ import (
 	"github.com/ids-automate/ids-automate/api/internal/config"
 	"github.com/ids-automate/ids-automate/api/internal/domain"
 )
+
+func TestPrivateReplyUsesOfficialCommentRecipient(t *testing.T) {
+	for _, test := range []struct {
+		name, loginMode, host string
+	}{
+		{name: "Instagram Login", loginMode: "instagram", host: "graph.instagram.com"},
+		{name: "Unified Login", loginMode: "unified", host: "graph.facebook.com"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			client := &http.Client{Transport: roundTripFunc(func(request *http.Request) (*http.Response, error) {
+				if request.Method != http.MethodPost || request.URL.Host != test.host || request.URL.Path != "/v25.0/ig-1/messages" {
+					t.Fatalf("unexpected private reply endpoint: %s %s", request.Method, request.URL.String())
+				}
+				if request.Header.Get("Authorization") != "Bearer token" {
+					t.Fatal("private reply did not use bearer token")
+				}
+				var payload struct {
+					Recipient map[string]string `json:"recipient"`
+					Message   map[string]string `json:"message"`
+				}
+				if err := json.NewDecoder(request.Body).Decode(&payload); err != nil {
+					t.Fatalf("private reply payload was invalid: %v", err)
+				}
+				if payload.Recipient["comment_id"] != "comment-1" || payload.Recipient["id"] != "" || payload.Message["text"] != "DM text" {
+					t.Fatalf("unexpected private reply payload: %#v", payload)
+				}
+				return jsonResponse(200, `{"message_id":"private-1"}`), nil
+			})}
+			p := &Meta{cfg: config.Config{MetaAPIVersion: "v25.0", MetaLoginMode: test.loginMode}, client: client}
+			delivery, err := p.SendPrivateReply(context.Background(), "token", "ig-1", "comment-1", "DM text")
+			if err != nil || delivery.MessageID != "private-1" {
+				t.Fatalf("private reply failed: %#v %v", delivery, err)
+			}
+		})
+	}
+}
 
 type roundTripFunc func(*http.Request) (*http.Response, error)
 
@@ -71,6 +108,8 @@ func TestUnifiedOAuthExchangeSubscriptionAndMessageDelivery(t *testing.T) {
 			return jsonResponse(200, `{"data":[{"permission":"instagram_basic","status":"granted"},{"permission":"denied_scope","status":"declined"}]}`), nil
 		case request.Method == http.MethodPost && request.URL.Path == "/v25.0/ig-1/messages":
 			return jsonResponse(200, `{"message_id":"mid-live-shaped"}`), nil
+		case request.Method == http.MethodPost && request.URL.Path == "/v25.0/comment-1/replies":
+			return jsonResponse(200, `{"id":"public-reply-1"}`), nil
 		default:
 			t.Fatalf("unexpected Meta request: %s %s", request.Method, request.URL.String())
 			return nil, nil
@@ -98,8 +137,45 @@ func TestUnifiedOAuthExchangeSubscriptionAndMessageDelivery(t *testing.T) {
 	if err != nil || delivery.MessageID != "mid-live-shaped" {
 		t.Fatalf("unified message delivery failed: %#v %v", delivery, err)
 	}
-	if len(requests) != 5 {
+	publicReply, err := p.SendPublicCommentReply(context.Background(), account.AccessToken, "comment-1", "DM yuborildi")
+	if err != nil || publicReply.MessageID != "public-reply-1" {
+		t.Fatalf("public comment reply failed: %#v %v", publicReply, err)
+	}
+	status, err := p.CheckFollowerStatus(context.Background(), account.AccessToken, "customer-1", []string{"instagram_business_manage_messages"})
+	if err == nil || status != domain.FollowerUnknown {
+		t.Fatalf("unified login must not claim follow verification: %s %v", status, err)
+	}
+	if len(requests) != 6 {
 		t.Fatalf("unexpected request sequence: %#v", requests)
+	}
+}
+
+func TestInstagramLoginFollowerStatusIsThreeState(t *testing.T) {
+	response := `{"is_user_follow_business":true}`
+	client := &http.Client{Transport: roundTripFunc(func(request *http.Request) (*http.Response, error) {
+		if request.Method != http.MethodGet || request.URL.Path != "/v25.0/customer-1" || request.URL.Query().Get("fields") != "is_user_follow_business" {
+			t.Fatalf("unexpected follower request: %s %s", request.Method, request.URL.String())
+		}
+		return jsonResponse(200, response), nil
+	})}
+	p := &Meta{cfg: config.Config{MetaAPIVersion: "v25.0", MetaLoginMode: "instagram"}, client: client}
+	status, err := p.CheckFollowerStatus(context.Background(), "token", "customer-1", []string{"instagram_business_manage_messages"})
+	if err != nil || status != domain.Follower {
+		t.Fatalf("confirmed follower was not returned: %s %v", status, err)
+	}
+	response = `{"is_user_follow_business":false}`
+	status, err = p.CheckFollowerStatus(context.Background(), "token", "customer-1", []string{"instagram_business_manage_messages"})
+	if err != nil || status != domain.NotFollower {
+		t.Fatalf("confirmed non-follower was not returned: %s %v", status, err)
+	}
+	response = `{}`
+	status, err = p.CheckFollowerStatus(context.Background(), "token", "customer-1", []string{"instagram_business_manage_messages"})
+	if err == nil || status != domain.FollowerUnknown {
+		t.Fatalf("missing field must be UNKNOWN: %s %v", status, err)
+	}
+	status, err = p.CheckFollowerStatus(context.Background(), "token", "customer-1", nil)
+	if err == nil || status != domain.FollowerUnknown {
+		t.Fatalf("missing permission must be UNKNOWN: %s %v", status, err)
 	}
 }
 
@@ -117,8 +193,8 @@ func TestWebhookSignature(t *testing.T) {
 		t.Fatal("invalid signature accepted")
 	}
 }
-func TestParseNormalizedEvent(t *testing.T) {
-	events, err := parseEvents([]byte(`{"account_id":"a1","comment_id":"c1","media_id":"m1","text":"Narx","username":"aziza"}`))
+func TestMockParseNormalizedEvent(t *testing.T) {
+	events, err := (&Mock{}).ParseWebhook([]byte(`{"account_id":"a1","comment_id":"c1","media_id":"m1","text":"Narx","username":"aziza"}`))
 	if err != nil || len(events) != 1 || events[0].Type != domain.ProviderEventComment || events[0].Comment.ProviderEventID != "comment:c1" {
 		t.Fatalf("unexpected parse result: %#v %v", events, err)
 	}

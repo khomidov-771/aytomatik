@@ -49,7 +49,7 @@ func main() {
 	api := httpapi.New(cfg, db, instagram, cipher, jobs)
 	server := &http.Server{Addr: ":" + cfg.Port, Handler: api.Handler(), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 15 * time.Second, WriteTimeout: 30 * time.Second, IdleTimeout: 60 * time.Second}
 	go func() {
-		slog.Info("IDS Automate API started", "port", cfg.Port, "provider", instagram.Name(), "demo_mode", instagram.IsDemo())
+		slog.Info("IDS Automate API started", "port", cfg.Port, "provider", instagram.Name())
 		if listenErr := server.ListenAndServe(); listenErr != nil && listenErr != http.ErrServerClosed {
 			slog.Error("server stopped unexpectedly", "error", listenErr)
 			stop()

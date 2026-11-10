@@ -1,4 +1,4 @@
-.PHONY: dev test migrate seed
+.PHONY: dev test migrate
 
 dev:
 	docker compose up --build
@@ -9,7 +9,4 @@ test:
 
 migrate:
 	cd api && go run ./cmd/migrate up
-
-seed:
-	cd api && go run ./cmd/seed
 

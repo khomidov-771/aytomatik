@@ -25,7 +25,7 @@ func (s *Server) conversations(w http.ResponseWriter, r *http.Request, p domain.
 		statusError(w, err)
 		return
 	}
-	respond(w, 200, map[string]any{"items": items, "demo_mode": s.provider.IsDemo()})
+	respond(w, 200, map[string]any{"items": items})
 }
 func (s *Server) messages(w http.ResponseWriter, r *http.Request, p domain.Principal) {
 	items, err := s.store.Messages(r.Context(), p.WorkspaceID, r.PathValue("id"))
@@ -33,7 +33,7 @@ func (s *Server) messages(w http.ResponseWriter, r *http.Request, p domain.Princ
 		statusError(w, err)
 		return
 	}
-	respond(w, 200, map[string]any{"items": items, "demo_mode": s.provider.IsDemo()})
+	respond(w, 200, map[string]any{"items": items})
 }
 func (s *Server) sendMessage(w http.ResponseWriter, r *http.Request, p domain.Principal) {
 	var input struct {
@@ -63,7 +63,7 @@ func (s *Server) sendMessage(w http.ResponseWriter, r *http.Request, p domain.Pr
 		fail(w, 409, "policy_window_closed", "Meta messaging oynasi yopilgan; xabar yuborilmadi")
 		return
 	}
-	providerAccountID, encrypted, accountProvider, err := s.store.AccountSecretByID(r.Context(), p.WorkspaceID, accountID)
+	providerAccountID, encrypted, accountProvider, _, err := s.store.AccountSecretByID(r.Context(), p.WorkspaceID, accountID)
 	if err != nil {
 		statusError(w, err)
 		return
@@ -77,13 +77,13 @@ func (s *Server) sendMessage(w http.ResponseWriter, r *http.Request, p domain.Pr
 		fail(w, 503, "token_unavailable", "Akkauntni qayta ulang")
 		return
 	}
-	messageID, acquired, err := s.store.BeginManualMessage(r.Context(), p.WorkspaceID, conversationID, input.ClientRequestID, input.Text, s.provider.IsDemo())
+	messageID, acquired, err := s.store.BeginManualMessage(r.Context(), p.WorkspaceID, conversationID, input.ClientRequestID, input.Text)
 	if err != nil {
 		statusError(w, err)
 		return
 	}
 	if !acquired {
-		respond(w, 200, map[string]any{"message_id": messageID, "status": "already_accepted", "demo_mode": s.provider.IsDemo()})
+		respond(w, 200, map[string]any{"message_id": messageID, "status": "already_accepted"})
 		return
 	}
 	delivery, err := s.provider.SendMessage(r.Context(), token, providerAccountID, participantID, input.Text)
@@ -98,7 +98,7 @@ func (s *Server) sendMessage(w http.ResponseWriter, r *http.Request, p domain.Pr
 		statusError(w, err)
 		return
 	}
-	respond(w, 201, map[string]any{"message_id": delivery.MessageID, "status": "sent", "demo_mode": s.provider.IsDemo()})
+	respond(w, 201, map[string]any{"message_id": delivery.MessageID, "status": "sent"})
 }
 
 func validClientRequestID(value string) bool {
@@ -125,38 +125,7 @@ func (s *Server) analytics(w http.ResponseWriter, r *http.Request, p domain.Prin
 		statusError(w, err)
 		return
 	}
-	respond(w, 200, map[string]any{"summary": metrics, "range": map[string]any{"from": from, "to": to, "days": days}, "demo_mode": s.provider.IsDemo()})
-}
-func (s *Server) billingPlan(w http.ResponseWriter, r *http.Request, p domain.Principal) {
-	plan, err := s.store.Plan(r.Context(), p.WorkspaceID)
-	if err != nil {
-		statusError(w, err)
-		return
-	}
-	notice := "To‘lov provayderi ulanmagan; tarifni UI orqali o‘zgartirish o‘chirilgan"
-	if s.cfg.BillingMode == "manual_demo" {
-		notice = "Development manual/demo billing faol; bu haqiqiy to‘lov emas"
-	}
-	respond(w, 200, map[string]any{"plan": plan, "billing_mode": s.cfg.BillingMode, "notice": notice})
-}
-func (s *Server) changePlan(w http.ResponseWriter, r *http.Request, p domain.Principal) {
-	if s.cfg.BillingMode != "manual_demo" {
-		fail(w, http.StatusServiceUnavailable, "billing_disabled", "To‘lov provayderi ulanmagan; tarifni o‘zgartirib bo‘lmaydi")
-		return
-	}
-	var input struct {
-		Code string `json:"code"`
-	}
-	if decode(r, &input) != nil {
-		fail(w, 400, "invalid_json", "Tarif formati noto‘g‘ri")
-		return
-	}
-	if err := s.store.ChangePlan(r.Context(), p, input.Code); err != nil {
-		statusError(w, err)
-		return
-	}
-	plan, _ := s.store.Plan(r.Context(), p.WorkspaceID)
-	respond(w, 200, map[string]any{"plan": plan, "billing_mode": s.cfg.BillingMode})
+	respond(w, 200, map[string]any{"summary": metrics, "range": map[string]any{"from": from, "to": to, "days": days}})
 }
 func (s *Server) team(w http.ResponseWriter, r *http.Request, p domain.Principal) {
 	items, err := s.store.Members(r.Context(), p.WorkspaceID)
@@ -276,7 +245,7 @@ func (s *Server) settings(w http.ResponseWriter, r *http.Request, p domain.Princ
 	}
 	settings["instagram_provider"] = s.provider.Name()
 	settings["meta_login_mode"] = s.cfg.MetaLoginMode
-	settings["demo_mode"] = s.provider.IsDemo()
+	settings["meta_configured"] = s.metaConfigured()
 	settings["queue_depth"] = s.worker.Depth()
 	settings["webhook_url"] = strings.TrimRight(s.cfg.APIURL, "/") + "/api/v1/webhooks/instagram"
 	respond(w, 200, settings)

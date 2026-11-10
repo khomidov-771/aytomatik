@@ -14,7 +14,7 @@ func (s *Server) automations(w http.ResponseWriter, r *http.Request, p domain.Pr
 		statusError(w, err)
 		return
 	}
-	respond(w, 200, map[string]any{"items": items, "demo_mode": s.provider.IsDemo()})
+	respond(w, 200, map[string]any{"items": items})
 }
 func (s *Server) createAutomation(w http.ResponseWriter, r *http.Request, p domain.Principal) {
 	var rule domain.AutomationRule
@@ -24,7 +24,10 @@ func (s *Server) createAutomation(w http.ResponseWriter, r *http.Request, p doma
 	}
 	rule.TriggerType = "comment_created"
 	rule.Name = strings.TrimSpace(rule.Name)
-	rule.ReplyText = strings.TrimSpace(rule.ReplyText)
+	rule.PrivateReplyText = strings.TrimSpace(rule.PrivateReplyText)
+	rule.PublicSuccessReplyText = strings.TrimSpace(rule.PublicSuccessReplyText)
+	rule.PublicNotFollowerReplyText = strings.TrimSpace(rule.PublicNotFollowerReplyText)
+	rule.PublicUnknownReplyText = strings.TrimSpace(rule.PublicUnknownReplyText)
 	if rule.MediaScope == "" {
 		rule.MediaScope = "all"
 	}
@@ -57,15 +60,20 @@ func (s *Server) updateAutomation(w http.ResponseWriter, r *http.Request, p doma
 		return
 	}
 	var input struct {
-		Name       *string   `json:"name"`
-		MatchMode  *string   `json:"match_mode"`
-		Keywords   *[]string `json:"keywords"`
-		Exclusions *[]string `json:"exclusions"`
-		MediaScope *string   `json:"media_scope"`
-		MediaIDs   *[]string `json:"media_ids"`
-		ReplyText  *string   `json:"reply_text"`
-		IsActive   *bool     `json:"is_active"`
-		Priority   *int      `json:"priority"`
+		Name                       *string   `json:"name"`
+		MatchMode                  *string   `json:"match_mode"`
+		Keywords                   *[]string `json:"keywords"`
+		Exclusions                 *[]string `json:"exclusions"`
+		MediaScope                 *string   `json:"media_scope"`
+		MediaIDs                   *[]string `json:"media_ids"`
+		PrivateReplyText           *string   `json:"private_reply_text"`
+		PublicSuccessReplyText     *string   `json:"public_success_reply_text"`
+		PublicNotFollowerReplyText *string   `json:"public_not_follower_reply_text"`
+		PublicUnknownReplyText     *string   `json:"public_unknown_reply_text"`
+		FollowVerificationEnabled  *bool     `json:"follow_verification_enabled"`
+		UnknownFallbackPolicy      *string   `json:"unknown_fallback_policy"`
+		IsActive                   *bool     `json:"is_active"`
+		Priority                   *int      `json:"priority"`
 	}
 	if decode(r, &input) != nil {
 		fail(w, 400, "invalid_json", "Qoida formati noto‘g‘ri")
@@ -89,8 +97,23 @@ func (s *Server) updateAutomation(w http.ResponseWriter, r *http.Request, p doma
 	if input.MediaIDs != nil {
 		existing.MediaIDs = *input.MediaIDs
 	}
-	if input.ReplyText != nil {
-		existing.ReplyText = *input.ReplyText
+	if input.PrivateReplyText != nil {
+		existing.PrivateReplyText = *input.PrivateReplyText
+	}
+	if input.PublicSuccessReplyText != nil {
+		existing.PublicSuccessReplyText = *input.PublicSuccessReplyText
+	}
+	if input.PublicNotFollowerReplyText != nil {
+		existing.PublicNotFollowerReplyText = *input.PublicNotFollowerReplyText
+	}
+	if input.PublicUnknownReplyText != nil {
+		existing.PublicUnknownReplyText = *input.PublicUnknownReplyText
+	}
+	if input.FollowVerificationEnabled != nil {
+		existing.FollowVerificationEnabled = *input.FollowVerificationEnabled
+	}
+	if input.UnknownFallbackPolicy != nil {
+		existing.UnknownFallbackPolicy = *input.UnknownFallbackPolicy
 	}
 	if input.IsActive != nil {
 		existing.IsActive = *input.IsActive
@@ -108,6 +131,19 @@ func (s *Server) updateAutomation(w http.ResponseWriter, r *http.Request, p doma
 		return
 	}
 	respond(w, 200, updated)
+}
+
+func (s *Server) automationExecutions(w http.ResponseWriter, r *http.Request, p domain.Principal) {
+	if _, err := s.store.GetRule(r.Context(), p.WorkspaceID, r.PathValue("id")); err != nil {
+		statusError(w, err)
+		return
+	}
+	items, err := s.store.ExecutionHistory(r.Context(), p.WorkspaceID, r.PathValue("id"), 50)
+	if err != nil {
+		statusError(w, err)
+		return
+	}
+	respond(w, 200, map[string]any{"items": items})
 }
 func (s *Server) deleteAutomation(w http.ResponseWriter, r *http.Request, p domain.Principal) {
 	if err := s.store.DeleteRule(r.Context(), p, r.PathValue("id")); err != nil {

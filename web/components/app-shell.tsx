@@ -2,12 +2,12 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { BarChart3, Bell, Bot, ChevronDown, CircleDollarSign, ClipboardList, CreditCard, Home, Instagram, LogOut, Menu, MessageSquareText, PanelLeftClose, Settings, TestTube2, Users, X } from "lucide-react";
+import { BarChart3, Bell, Bot, ChevronDown, ClipboardList, Home, Instagram, LogOut, Menu, MessageSquareText, PanelLeftClose, Settings, Users, X } from "lucide-react";
 import { useState } from "react";
 import { api } from "@/lib/api";
 import type { Session } from "@/lib/types";
 import { useApi } from "@/hooks/use-api";
-import { DemoBadge, ErrorState, LoadingState } from "./ui";
+import { ErrorState, LoadingState } from "./ui";
 import { Logo } from "./logo";
 import { roleAtLeast, SessionProvider } from "./session-context";
 
@@ -16,13 +16,10 @@ const navigation = [
   { href: "/app/accounts", label: "Instagram akkauntlar", icon: Instagram, minimumRole: "customer" as const },
   { href: "/app/automations", label: "Avtomatlashtirish", icon: Bot, minimumRole: "customer" as const },
   { href: "/app/inbox", label: "Inbox (Direct)", icon: MessageSquareText, minimumRole: "operator" as const },
-  { href: "/app/campaigns", label: "Kampaniyalar", icon: CircleDollarSign, minimumRole: "customer" as const },
   { href: "/app/analytics", label: "Analitika", icon: BarChart3, minimumRole: "manager" as const },
   { href: "/app/team", label: "Jamoa", icon: Users, minimumRole: "manager" as const },
   { href: "/app/audit", label: "Audit jurnali", icon: ClipboardList, minimumRole: "manager" as const },
-  { href: "/app/billing", label: "Tarif", icon: CreditCard, minimumRole: "customer" as const },
   { href: "/app/settings", label: "Sozlamalar", icon: Settings, minimumRole: "customer" as const },
-  { href: "/app/mock-lab", label: "Mock laboratoriya", icon: TestTube2, minimumRole: "manager" as const },
 ];
 
 type WorkspaceList = {
@@ -70,21 +67,21 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   if (loading) return <div className="center-screen"><LoadingState label="Workspace yuklanmoqda..."/></div>;
   if (error || !session) return <div className="center-screen"><ErrorState message={error || "Sessiya topilmadi"} retry={() => { if (error.includes("Kirish") || error.includes("Sessiya")) router.push("/login"); else void reload(); }}/></div>;
   const initials = session.user.name.split(" ").map((value) => value[0]).join("").slice(0, 2).toUpperCase();
-  const visibleNavigation = navigation.filter((item) => roleAtLeast(session.user.role, item.minimumRole) && (item.href !== "/app/mock-lab" || session.demo_mode));
+  const visibleNavigation = navigation.filter((item) => roleAtLeast(session.user.role, item.minimumRole));
 
   return <SessionProvider session={session}><div className={`app-shell ${collapsed ? "sidebar-collapsed" : ""}`}>
     <aside className={`sidebar ${open ? "open" : ""}`}>
       <div className="sidebar-brand"><Logo compact={collapsed}/><button className="icon-btn sidebar-close" aria-label="Menyuni yopish" onClick={() => setOpen(false)}><X/></button></div>
       <nav aria-label="Dashboard navigatsiyasi">{visibleNavigation.map((item) => { const Icon = item.icon; const active = item.href === "/app" ? path === item.href : path.startsWith(item.href); return <Link href={item.href} key={item.href} className={active ? "active" : ""} onClick={() => setOpen(false)} title={collapsed ? item.label : undefined}><Icon/><span>{item.label}</span></Link>; })}</nav>
       <div className="sidebar-bottom">
-        <div className="usage-card"><div><span>Tarif va limitlar</span><strong>Backend holati</strong></div><Link href="/app/billing">Tarifni ko‘rish</Link></div>
+        <div className="usage-card"><div><span>Asosiy oqim</span><strong>Comment → DM</strong></div><Link href="/app/automations">Qoidalarni ko‘rish</Link></div>
         <button className="sidebar-collapse" onClick={() => setCollapsed(!collapsed)}><PanelLeftClose/><span>Yon panelni yig‘ish</span></button>
       </div>
     </aside>
     {open && <button className="sidebar-overlay" aria-label="Menyuni yopish" onClick={() => setOpen(false)}/>}
     <div className="app-main">
       <header className="topbar">
-        <div className="topbar-left"><button className="icon-btn mobile-menu" aria-label="Menyuni ochish" onClick={() => setOpen(true)}><Menu/></button><WorkspaceSwitcher session={session}/><DemoBadge show={session.demo_mode}/></div>
+        <div className="topbar-left"><button className="icon-btn mobile-menu" aria-label="Menyuni ochish" onClick={() => setOpen(true)}><Menu/></button><WorkspaceSwitcher session={session}/></div>
         <div className="topbar-actions"><Link href="/app/settings#notifications" className="icon-btn" aria-label="Bildirishnoma sozlamalari" title="Bildirishnoma sozlamalari"><Bell/></Link><Link href="/app/profile" className="profile-chip"><span className="avatar">{initials}</span><span><strong>{session.user.name}</strong><small>{session.user.role}</small></span><ChevronDown/></Link><button className="icon-btn logout" aria-label="Chiqish" onClick={() => void logout()}><LogOut/></button></div>
       </header>
       <main className="app-content">{children}</main>

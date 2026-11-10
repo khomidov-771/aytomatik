@@ -4,7 +4,7 @@ import { AlertTriangle, Check, Instagram, Link2, Plus, RefreshCw, ShieldCheck, T
 import { useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
 import { roleAtLeast, useSession } from "@/components/session-context";
-import { DemoBadge, EmptyState, ErrorState, LoadingState, PageHeader, StatusPill } from "@/components/ui";
+import { EmptyState, ErrorState, LoadingState, PageHeader, StatusPill } from "@/components/ui";
 import { useApi } from "@/hooks/use-api";
 import { api, ApiError } from "@/lib/api";
 import { formatDate, timeAgo } from "@/lib/format";
@@ -14,7 +14,6 @@ const oauthErrors: Record<string, string> = {
   invalid_state: "OAuth state eskirgan yoki allaqachon ishlatilgan. Ulanishni qayta boshlang.",
   oauth_exchange_failed: "Meta avtorizatsiyasi yakunlanmadi. Unified Login konfiguratsiyasi, asset tanlovi va ruxsatlarni tekshiring.",
   token_storage_failed: "Access token xavfsiz saqlanmadi; akkaunt ulanmagan.",
-  plan_limit: "Joriy tarifdagi Instagram akkaunt limiti tugagan.",
   account_already_connected: "Bu Instagram akkaunt boshqa workspace’ga ulangan.",
   account_save_failed: "Instagram akkauntini saqlashda xato yuz berdi.",
 };
@@ -23,7 +22,7 @@ type AccountResponse = {
   items: InstagramAccount[];
   provider: string;
   login_mode: string;
-  demo_mode: boolean;
+  meta_configured: boolean;
 };
 
 function AccountsContent() {
@@ -39,11 +38,11 @@ function AccountsContent() {
     : searchParams.has("connected") ? "Instagram akkaunti muvaffaqiyatli ulandi." : "";
 
   async function connect() {
-    if (!canManage) return;
+    if (!canManage || !accounts.data?.meta_configured) return;
     setBusy("connect");
     setNotice("");
     try {
-      const result = await api<{ authorization_url: string; demo_mode: boolean }>("/instagram/connect");
+      const result = await api<{ authorization_url: string }>("/instagram/connect");
       window.location.assign(result.authorization_url);
     } catch (error) {
       setNotice(error instanceof ApiError ? error.message : "Ulash boshlanmadi");
@@ -76,24 +75,25 @@ function AccountsContent() {
       eyebrow="Integratsiyalar"
       title="Instagram akkauntlar"
       description="Professional Business yoki Creator akkauntlarini rasmiy OAuth orqali ulang."
-      action={canManage ? <button className="btn primary" onClick={() => void connect()} disabled={busy === "connect"}><Plus/>{busy === "connect" ? "Ulanmoqda..." : "Akkaunt ulash"}</button> : undefined}
+      action={canManage ? <button className="btn primary" onClick={() => void connect()} disabled={busy === "connect" || !data?.meta_configured}><Plus/>{busy === "connect" ? "Ulanmoqda..." : "Akkaunt ulash"}</button> : undefined}
     />
-    {data?.demo_mode && <div className="notice-banner demo"><DemoBadge/><div><strong>Mock provider faol</strong><p>Bu akkaunt va yuborish natijalari demo. Haqiqiy Instagram’ga hech narsa yuborilmaydi.</p></div></div>}
+    {data && !data.meta_configured && <div className="notice-banner warning"><AlertTriangle/><div><strong>Meta integratsiyasi sozlanmagan</strong><p>App ID, App Secret va webhook secretlar serverga kiritilmaguncha akkaunt ulash bloklangan.</p></div></div>}
+    {data?.login_mode === "unified" && <div className="notice-banner warning"><AlertTriangle/><div><strong>Follow verification cheklovi</strong><p>Joriy Unified/Facebook login yo‘lida `is_user_follow_business` tekshiruvi tasdiqlanmagan; follow yoqilsa natija UNKNOWN fallbackga tushadi.</p></div></div>}
     {!canManage && <div className="notice-banner warning"><ShieldCheck/><span>Akkaunt ulash, qayta ulash va uzish uchun Manager yoki Owner roli kerak.</span></div>}
-    {(notice || callbackNotice) && <div className={`notice-banner ${callbackError || notice ? "warning" : "demo"}`}><AlertTriangle/><span>{notice || callbackNotice}</span></div>}
+    {(notice || callbackNotice) && <div className={`notice-banner ${callbackError || notice ? "warning" : ""}`}><AlertTriangle/><span>{notice || callbackNotice}</span></div>}
     <div className="integration-summary">
       <div><span className="summary-icon"><Link2/></span><div><strong>{items.filter((item) => item.status === "connected").length} ta ulangan</strong><p>Provider: {providerLabel}</p></div></div>
       <div className="security-note"><ShieldCheck/><span>Access tokenlar shifrlangan, UI’da ko‘rsatilmaydi</span></div>
     </div>
     {items.length === 0 ? <EmptyState
       title="Instagram akkaunt ulanmagan"
-      text={!canManage ? "Manager yoki Owner akkaunt ulashi mumkin." : data?.login_mode === "unified" ? "Meta Unified Login orqali bitta Professional akkaunt assetini tanlang." : "Mock rejimda xavfsiz demo OAuth oqimini sinang yoki Meta credentials sozlang."}
-      action={canManage ? <button className="btn primary" onClick={() => void connect()}><Instagram/>Akkaunt ulash</button> : undefined}
+      text={!canManage ? "Manager yoki Owner akkaunt ulashi mumkin." : data?.login_mode === "unified" ? "Meta Unified Login orqali bitta Professional akkaunt assetini tanlang." : "Instagram Login orqali Professional akkauntni ulang."}
+      action={canManage ? <button className="btn primary" onClick={() => void connect()} disabled={!data?.meta_configured}><Instagram/>Akkaunt ulash</button> : undefined}
     /> : <div className="account-grid">{items.map((account) => <article className="account-card" key={account.id}>
       <div className="account-card-top"><span className="account-avatar large"><Instagram/></span><div><h3>@{account.username}</h3><p>{account.account_type}</p></div><StatusPill status={account.status}/></div>
-      <div className="account-details"><div><span>Provider</span><strong>{account.provider}{account.provider === "mock" && " · Demo"}</strong></div><div><span>Oxirgi sync</span><strong>{account.last_sync_at ? timeAgo(account.last_sync_at) : "—"}</strong></div><div><span>Token muddati</span><strong>{formatDate(account.token_expires_at)}</strong></div></div>
+      <div className="account-details"><div><span>Provider</span><strong>{account.provider}</strong></div><div><span>Oxirgi sync</span><strong>{account.last_sync_at ? timeAgo(account.last_sync_at) : "—"}</strong></div><div><span>Token muddati</span><strong>{formatDate(account.token_expires_at)}</strong></div></div>
       <div className="scope-list"><span>Ruxsatlar</span>{account.scopes.length ? account.scopes.map((scope) => <small key={scope}><Check/>{scope.replace("instagram_business_", "").replace("instagram_", "")}</small>) : <small>Meta grant ro‘yxati qaytmadi</small>}</div>
-      {canManage && <div className="account-card-actions"><button className="btn secondary small" onClick={() => void connect()} disabled={Boolean(busy)}><RefreshCw/>Qayta ulash</button><button className="btn danger ghost small" onClick={() => void disconnect(account)} disabled={Boolean(busy)}><Trash2/>Uzish</button></div>}
+      {canManage && <div className="account-card-actions"><button className="btn secondary small" onClick={() => void connect()} disabled={Boolean(busy) || !data?.meta_configured}><RefreshCw/>Qayta ulash</button><button className="btn danger ghost small" onClick={() => void disconnect(account)} disabled={Boolean(busy)}><Trash2/>Uzish</button></div>}
     </article>)}</div>}
   </>;
 }

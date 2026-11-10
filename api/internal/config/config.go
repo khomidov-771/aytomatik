@@ -37,7 +37,6 @@ type Config struct {
 	SMTPUser           string
 	SMTPPassword       string
 	SMTPStartTLS       bool
-	BillingMode        string
 	TrustedProxyCIDRs  []string
 	ShortSessionTTL    time.Duration
 	SessionTTL         time.Duration
@@ -50,10 +49,6 @@ func Load() (Config, error) {
 	if metaLoginConfigID != "" && os.Getenv("META_LOGIN_MODE") == "" {
 		metaLoginMode = "unified"
 	}
-	billingDefault := "manual_demo"
-	if appEnv == "production" {
-		billingDefault = "disabled"
-	}
 	c := Config{
 		Env:                appEnv,
 		Port:               env("PORT", "8080"),
@@ -64,7 +59,7 @@ func Load() (Config, error) {
 		SessionSecret:      os.Getenv("SESSION_SECRET"),
 		CookieSecure:       env("COOKIE_SECURE", "false") == "true",
 		AllowedOrigins:     split(env("ALLOWED_ORIGINS", "http://localhost:3000")),
-		InstagramProvider:  env("INSTAGRAM_PROVIDER", "mock"),
+		InstagramProvider:  env("INSTAGRAM_PROVIDER", "meta"),
 		MetaAppID:          os.Getenv("META_APP_ID"),
 		MetaAppSecret:      os.Getenv("META_APP_SECRET"),
 		MetaAPIVersion:     env("META_API_VERSION", "v25.0"),
@@ -80,7 +75,6 @@ func Load() (Config, error) {
 		SMTPUser:           os.Getenv("MAIL_SMTP_USER"),
 		SMTPPassword:       os.Getenv("MAIL_SMTP_PASSWORD"),
 		SMTPStartTLS:       env("MAIL_SMTP_STARTTLS", "true") == "true",
-		BillingMode:        env("BILLING_MODE", billingDefault),
 		TrustedProxyCIDRs:  split(env("TRUSTED_PROXY_CIDRS", "127.0.0.1/32,::1/128,172.16.0.0/12")),
 		ShortSessionTTL:    24 * time.Hour,
 		SessionTTL:         30 * 24 * time.Hour,
@@ -103,13 +97,16 @@ func Load() (Config, error) {
 	if c.InstagramProvider != "mock" && c.InstagramProvider != "meta" {
 		return c, errors.New("INSTAGRAM_PROVIDER must be mock or meta")
 	}
-	if c.InstagramProvider == "meta" && (c.MetaAppID == "" || c.MetaAppSecret == "" || c.WebhookVerifyToken == "" || c.WebhookAppSecret == "") {
+	if c.InstagramProvider == "mock" && c.Env != "test" {
+		return c, errors.New("mock Instagram provider is test-only")
+	}
+	if c.Env == "production" && c.InstagramProvider == "meta" && (c.MetaAppID == "" || c.MetaAppSecret == "" || c.WebhookVerifyToken == "" || c.WebhookAppSecret == "") {
 		return c, errors.New("meta provider requires app ID, app secret and webhook secrets")
 	}
 	if c.MetaLoginMode != "instagram" && c.MetaLoginMode != "unified" {
 		return c, errors.New("META_LOGIN_MODE must be instagram or unified")
 	}
-	if c.InstagramProvider == "meta" && c.MetaLoginMode == "unified" && c.MetaLoginConfigID == "" {
+	if c.Env == "production" && c.InstagramProvider == "meta" && c.MetaLoginMode == "unified" && c.MetaLoginConfigID == "" {
 		return c, errors.New("unified Meta login requires META_LOGIN_CONFIG_ID")
 	}
 	if c.MailProvider != "log" && c.MailProvider != "smtp" {
@@ -123,12 +120,6 @@ func Load() (Config, error) {
 	}
 	if c.Env == "production" && !c.SMTPStartTLS {
 		return c, errors.New("production SMTP requires STARTTLS")
-	}
-	if c.BillingMode != "manual_demo" && c.BillingMode != "disabled" {
-		return c, errors.New("BILLING_MODE must be manual_demo or disabled")
-	}
-	if c.Env == "production" && c.BillingMode != "disabled" {
-		return c, errors.New("production requires BILLING_MODE=disabled until a payment provider is implemented")
 	}
 	if c.Env == "production" {
 		if !c.CookieSecure {

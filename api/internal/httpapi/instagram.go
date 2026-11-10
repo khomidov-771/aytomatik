@@ -1,13 +1,11 @@
 package httpapi
 
 import (
-	"encoding/json"
 	"errors"
 	"io"
 	"log/slog"
 	"net/http"
 	"net/url"
-	"strings"
 	"time"
 
 	"github.com/ids-automate/ids-automate/api/internal/domain"
@@ -17,6 +15,10 @@ import (
 )
 
 func (s *Server) instagramConnect(w http.ResponseWriter, r *http.Request, p domain.Principal) {
+	if !s.metaConfigured() {
+		fail(w, http.StatusServiceUnavailable, "provider_not_configured", "Meta credentials sozlanmagan; Instagram ulanishi bloklangan")
+		return
+	}
 	state, err := security.RandomToken(32)
 	if err != nil {
 		statusError(w, err)
@@ -31,7 +33,7 @@ func (s *Server) instagramConnect(w http.ResponseWriter, r *http.Request, p doma
 		fail(w, 503, "provider_not_configured", cleanError(err))
 		return
 	}
-	respond(w, 200, map[string]any{"authorization_url": authURL, "provider": s.provider.Name(), "login_mode": s.cfg.MetaLoginMode, "demo_mode": s.provider.IsDemo()})
+	respond(w, 200, map[string]any{"authorization_url": authURL, "provider": s.provider.Name(), "login_mode": s.cfg.MetaLoginMode})
 }
 func (s *Server) instagramCallback(w http.ResponseWriter, r *http.Request) {
 	state := r.URL.Query().Get("state")
@@ -52,12 +54,6 @@ func (s *Server) instagramCallback(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, redirect+"?error=oauth_exchange_failed", http.StatusFound)
 		return
 	}
-	if s.provider.IsDemo() {
-		// Mock identities must be unique per workspace so demo tenants can be
-		// exercised without weakening production webhook routing guarantees.
-		account.ID = "mock-" + workspaceID
-		account.Username = "ids.demo." + workspaceID[:8]
-	}
 	encrypted, err := s.cipher.Encrypt(account.AccessToken)
 	if err != nil {
 		http.Redirect(w, r, redirect+"?error=token_storage_failed", http.StatusFound)
@@ -66,19 +62,13 @@ func (s *Server) instagramCallback(w http.ResponseWriter, r *http.Request) {
 	err = s.store.UpsertInstagramAccount(r.Context(), workspaceID, userID, store.AccountInput{InstagramUserID: account.ID, Username: account.Username, AccountType: account.AccountType, AvatarURL: account.AvatarURL, TokenCiphertext: encrypted, Provider: s.provider.Name(), Scopes: account.Scopes, TokenExpiresAt: account.ExpiresAt})
 	if err != nil {
 		code := "account_save_failed"
-		if errors.Is(err, store.ErrLimit) {
-			code = "plan_limit"
-		} else if errors.Is(err, store.ErrAccountClaimed) {
+		if errors.Is(err, store.ErrAccountClaimed) {
 			code = "account_already_connected"
 		}
 		http.Redirect(w, r, redirect+"?error="+code, http.StatusFound)
 		return
 	}
-	suffix := "?connected=1"
-	if s.provider.IsDemo() {
-		suffix += "&demo=1"
-	}
-	http.Redirect(w, r, redirect+suffix, http.StatusFound)
+	http.Redirect(w, r, redirect+"?connected=1", http.StatusFound)
 }
 func (s *Server) instagramAccounts(w http.ResponseWriter, r *http.Request, p domain.Principal) {
 	items, err := s.store.ListInstagramAccounts(r.Context(), p.WorkspaceID)
@@ -86,11 +76,18 @@ func (s *Server) instagramAccounts(w http.ResponseWriter, r *http.Request, p dom
 		statusError(w, err)
 		return
 	}
-	respond(w, 200, map[string]any{"items": items, "provider": s.provider.Name(), "login_mode": s.cfg.MetaLoginMode, "demo_mode": s.provider.IsDemo()})
+	respond(w, 200, map[string]any{"items": items, "provider": s.provider.Name(), "login_mode": s.cfg.MetaLoginMode, "meta_configured": s.metaConfigured()})
+}
+
+func (s *Server) metaConfigured() bool {
+	if s.provider.Name() != "meta" || s.cfg.MetaAppID == "" || s.cfg.MetaAppSecret == "" || s.cfg.WebhookVerifyToken == "" || s.cfg.WebhookAppSecret == "" {
+		return false
+	}
+	return s.cfg.MetaLoginMode != "unified" || s.cfg.MetaLoginConfigID != ""
 }
 func (s *Server) instagramDisconnect(w http.ResponseWriter, r *http.Request, p domain.Principal) {
 	accountID := r.PathValue("id")
-	providerAccountID, encrypted, accountProvider, secretErr := s.store.AccountSecretByID(r.Context(), p.WorkspaceID, accountID)
+	providerAccountID, encrypted, accountProvider, _, secretErr := s.store.AccountSecretByID(r.Context(), p.WorkspaceID, accountID)
 	if secretErr != nil {
 		statusError(w, secretErr)
 		return
@@ -154,7 +151,7 @@ func (s *Server) instagramWebhook(w http.ResponseWriter, r *http.Request) {
 			if providerEvent.Message == nil {
 				continue
 			}
-			_, _, inserted, saveErr := s.store.RecordInboundMessage(r.Context(), s.provider.Name(), *providerEvent.Message, s.provider.IsDemo())
+			_, _, inserted, saveErr := s.store.RecordInboundMessage(r.Context(), s.provider.Name(), *providerEvent.Message)
 			if saveErr != nil {
 				persistenceFailed = true
 				continue
@@ -170,99 +167,3 @@ func (s *Server) instagramWebhook(w http.ResponseWriter, r *http.Request) {
 	}
 	respond(w, http.StatusAccepted, map[string]int{"accepted": accepted})
 }
-func (s *Server) mockEvent(w http.ResponseWriter, r *http.Request, p domain.Principal) {
-	if !s.provider.IsDemo() {
-		fail(w, 404, "not_found", "Mock endpoint production providerida mavjud emas")
-		return
-	}
-	var event domain.CommentEvent
-	if decode(r, &event) != nil {
-		fail(w, 400, "invalid_json", "Event formati noto‘g‘ri")
-		return
-	}
-	if event.AccountID == "" || event.CommentID == "" || strings.TrimSpace(event.Text) == "" {
-		fail(w, 422, "validation_error", "account_id, comment_id va text talab qilinadi")
-		return
-	}
-	if event.ProviderEventID == "" {
-		event.ProviderEventID = "mock:" + event.CommentID
-	}
-	if event.CreatedAt.IsZero() {
-		event.CreatedAt = time.Now()
-	}
-	_, ownerWorkspaceID, _, lookupErr := s.store.AccountSecretByProviderID(r.Context(), s.provider.Name(), event.AccountID)
-	if lookupErr != nil {
-		statusError(w, lookupErr)
-		return
-	}
-	if ownerWorkspaceID != p.WorkspaceID {
-		fail(w, 403, "tenant_mismatch", "Akkaunt boshqa workspacega tegishli")
-		return
-	}
-	eventID, workspaceID, accountID, inserted, err := s.store.EnqueueEvent(r.Context(), s.provider.Name(), event)
-	if err != nil {
-		statusError(w, err)
-		return
-	}
-	if workspaceID != p.WorkspaceID {
-		fail(w, 403, "tenant_mismatch", "Akkaunt boshqa workspacega tegishli")
-		return
-	}
-	if !inserted {
-		respond(w, 200, map[string]any{"status": "duplicate", "demo_mode": true})
-		return
-	}
-	queued := s.worker.Enqueue(worker.Job{EventID: eventID, WorkspaceID: workspaceID, AccountID: accountID, Event: event})
-	if !queued {
-		fail(w, 503, "queue_full", "Queue band, qayta urinib ko‘ring")
-		return
-	}
-	respond(w, 202, map[string]any{"status": "queued", "event_id": eventID, "demo_mode": true})
-}
-
-func (s *Server) mockMessage(w http.ResponseWriter, r *http.Request, p domain.Principal) {
-	if !s.provider.IsDemo() {
-		fail(w, 404, "not_found", "Mock endpoint production providerida mavjud emas")
-		return
-	}
-	var event domain.InboundMessageEvent
-	if decode(r, &event) != nil {
-		fail(w, 400, "invalid_json", "Event formati noto‘g‘ri")
-		return
-	}
-	if event.AccountID == "" || event.ProviderMessageID == "" || event.ParticipantID == "" || strings.TrimSpace(event.Text) == "" {
-		fail(w, 422, "validation_error", "account_id, provider_message_id, participant_id va text talab qilinadi")
-		return
-	}
-	if event.ProviderEventID == "" {
-		event.ProviderEventID = "message:" + event.ProviderMessageID
-	}
-	if event.CreatedAt.IsZero() {
-		event.CreatedAt = time.Now()
-	}
-	_, ownerWorkspaceID, _, lookupErr := s.store.AccountSecretByProviderID(r.Context(), s.provider.Name(), event.AccountID)
-	if lookupErr != nil {
-		statusError(w, lookupErr)
-		return
-	}
-	if ownerWorkspaceID != p.WorkspaceID {
-		fail(w, 403, "tenant_mismatch", "Akkaunt boshqa workspacega tegishli")
-		return
-	}
-	workspaceID, _, inserted, err := s.store.RecordInboundMessage(r.Context(), s.provider.Name(), event, true)
-	if err != nil {
-		statusError(w, err)
-		return
-	}
-	if workspaceID != p.WorkspaceID {
-		fail(w, 403, "tenant_mismatch", "Akkaunt boshqa workspacega tegishli")
-		return
-	}
-	status := "duplicate"
-	if inserted {
-		status = "received"
-	}
-	respond(w, 202, map[string]any{"status": status, "demo_mode": true, "reply_window_hours": 24})
-}
-
-func redactJSON(raw []byte) json.RawMessage { return json.RawMessage(`{"redacted":true}`) }
