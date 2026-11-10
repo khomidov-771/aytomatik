@@ -122,7 +122,11 @@ Har bir rule:
 - Raw session token DB’da saqlanmaydi.
 - Mutations CSRF header talab qiladi.
 - Login/reset rate limited.
-- Email verification talab qilinadi.
+- Password registration’da email verification talab qilinadi; Google login uchun Google imzosi tasdiqlangan `email_verified=true` OIDC claim kerak.
+- Google login server-side OAuth 2.0 authorization code + OIDC, PKCE S256, one-time state va nonce ishlatadi; verified ID token signature, issuer, audience va expiry tekshiriladi.
+- `GOOGLE_CLIENT_SECRET` faqat backend environment’da. Google access token session/login tugagach persist qilinmaydi; OAuth identity `provider + sub` bilan saqlanadi.
+- Google signup terms roziligi bilan alohida owner workspace yaratadi; login intent yangi user yaratmaydi. Verified email mavjud user bilan identity link qilishi mumkin.
+- Google credentials sozlanmaguncha login UI o‘chiq va API status false bo‘lishi kerak; controlled OIDC test live Google deb talqin qilinmaydi.
 
 ## 8. Inbox
 

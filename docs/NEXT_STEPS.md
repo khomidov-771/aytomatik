@@ -1,8 +1,31 @@
 # Keyingi qadamlar
 
-Ustuvorliklar 2026-11-10 holatiga ko‘ra. Birinchi vazifa — real Meta eligible account bilan end-to-end dalil olish.
+Ustuvorliklar 2026-11-10 holatiga ko‘ra. Avval Google OAuth patchini deploy qilib, client credentials bilan live browser oqimini qabul qilish; keyin real Meta eligible account bilan alohida end-to-end acceptance.
 
 Joriy frontendda UZ/RU/EN va light/dark tema tayyor. Yangi ekran qo‘shilganda matnni `usePreferences().tr(uz, ru, en)` orqali uchala tilda berish va ikkala temada ko‘rish talab qilinadi.
+
+## P0 — Google OAuth production sozlamasi va live acceptance
+
+Server-side Google OAuth/OIDC oqimi kodga qo‘shilgan. Haqiqiy loginni yoqish uchun Google Cloud Console’dagi Web OAuth Client ID va Client Secret production serverning `.env.production`iga xavfsiz kiritilishi, so‘ng API container qayta ishga tushishi kerak. Secretni Git, log yoki chatga yozmang.
+
+Google Cloud Console’dagi Authorized redirect URI aynan quyidagicha bo‘lsin:
+
+```text
+https://instagram.schat.uz/api/v1/auth/google/callback
+```
+
+Serverdan `GET /api/v1/auth/google/status` `{"enabled":true}` qaytarishi kerak. Bu faqat sozlama mavjudligini bildiradi; real Google consent, birinchi signup, oldin yaratilgan emailni bog‘lash, login, state/nonce replay va bekor qilingan consent oqimlarini production’da sinab, database `oauth_identities`, workspace membership va session cookie’ni tekshirish shart.
+
+Kod/konfiguratsiya fayllari:
+
+- `api/internal/httpapi/google_oauth.go`
+- `api/internal/store/store.go`
+- `api/internal/migrations/006_google_oauth.sql`
+- `api/internal/config/config.go`
+- `web/components/google-auth-button.tsx`
+- `.env.example`, `docker-compose.prod.yml`, `deploy/nginx/default.conf.template`
+
+Local Google testi uchun Google Cloud’da `http://localhost:8080/api/v1/auth/google/callback` callback URI va `GOOGLE_REDIRECT_URL` kerak. Haqiqiy Google credential bo‘lmasa OAuth’ni live ishlaydi deb ko‘rsatmang.
 
 ## P0 — Live Meta acceptance test
 

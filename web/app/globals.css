@@ -503,3 +503,11 @@ body{transition:background-color .28s ease,color .28s ease}
   *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;transition-delay:0ms!important;scroll-behavior:auto!important}
   .motion-ready :where([data-reveal]){opacity:1!important;filter:none!important;transform:none!important}
 }
+
+.auth-page .google-auth-button{display:flex;align-items:center;justify-content:center;gap:10px;min-height:48px;background:var(--surface);color:var(--text);border-color:var(--border);font-weight:650}
+.auth-page .google-auth-button:not(:disabled):hover{border-color:rgba(92,62,228,.4);background:rgba(92,62,228,.045);transform:translateY(-1px)}
+.auth-page .google-auth-button:disabled{opacity:.72;cursor:not-allowed}
+.google-mark{display:inline-grid;place-items:center;width:19px;height:19px;border-radius:50%;font:800 17px/1 Arial,sans-serif;color:#4285f4;background:conic-gradient(from -45deg,#4285f4 0 25%,#34a853 25% 48%,#fbbc05 48% 72%,#ea4335 72% 88%,#4285f4 88%);background-clip:text;-webkit-text-fill-color:transparent}
+.auth-google-note{margin:-8px 0 0;color:var(--muted);font-size:11px;line-height:1.55;text-align:center}
+html[data-theme="dark"] .auth-page .google-auth-button{background:#101a30;color:#f5f7ff;border-color:rgba(255,255,255,.12)}
+html[data-theme="dark"] .auth-page .google-auth-button:not(:disabled):hover{background:rgba(124,97,255,.12);border-color:rgba(157,138,255,.5)}

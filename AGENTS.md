@@ -70,7 +70,7 @@ go build ./cmd/server ./cmd/migrate
 go test -tags=integration -v ./internal/store
 ```
 
-Database/auth/tenant/webhook o‘zgarishlarida PostgreSQL integration va kamida bitta cross-tenant negative test majburiy. OAuth/Meta o‘zgarishida controlled provider test va real Meta eligible-account testi alohida qayd etilsin; controlled test live Meta deb atalmasin.
+Database/auth/tenant/webhook o‘zgarishlarida PostgreSQL integration va kamida bitta cross-tenant negative test majburiy. OAuth/Meta o‘zgarishida controlled provider test va real Meta eligible-account testi alohida qayd etilsin; controlled test live Meta deb atalmasin. Google OIDC o‘zgarishida controlled signed-token/state/nonce/PostgreSQL testi va production’da real Google consent/session acceptance alohida qayd etilsin; controlled issuer live Google deb atalmasin.
 
 Quality gate fail bo‘lsa feature “done” emas. Environment xatosi bo‘lsa command, exit code va aniq xabarni hujjatga yozing.
 
@@ -78,6 +78,9 @@ Quality gate fail bo‘lsa feature “done” emas. Environment xatosi bo‘lsa 
 
 - `.env`, access token, App Secret, DB password, session token va webhook secretni commit/log/UI qilmang.
 - OAuth token browserga yuborilmasin; faqat serverda AES-256-GCM ciphertext saqlansin.
+- Google OAuth’da faqat Google imzosi tekshirilgan ID token qabul qilinsin; issuer, audience, expiry, nonce va `email_verified` talab qilinadi. State browser cookie va database one-time state bilan tekshirilsin.
+- `GOOGLE_CLIENT_SECRET` va Meta secretlari faqat server environment’da; Google OAuth access token serverda saqlanmasin yoki log/UI/frontend bundle’ga chiqarilmasin.
+- Google login yangi userga faqat `register` intenti va terms roziligida workspace ochadi; verified email bo‘lmasa login/link qilish taqiqlanadi.
 - Production’da unique `TOKEN_ENCRYPTION_KEY`, 32+ belgilik `SESSION_SECRET`, HTTPS va `COOKIE_SECURE=true` kerak.
 - Cookie mutationlarda CSRF, auth/reset endpointlarda rate limit saqlansin.
 - Webhook Meta rejimida HMAC signature tekshirilmasdan event qabul qilinmasin.

@@ -21,6 +21,8 @@ Automation yaratishda foydalanuvchi Media ID yozmaydi: real OAuth orqali ulangan
 - Backend, frontend va PostgreSQL integratsion testlar lokal muhitda o‘tgan.
 - Meta OAuth, webhook, private/public reply va follow requestlari controlled HTTP testlarda tekshirilgan.
 - Professional light/dark UI va uch tilli asosiy product oqimlari frontend lint, unit test va production builddan o‘tgan.
+- Google OAuth server-side authorization-code/OIDC, PKCE, signed ID-token va Postgres account linking oqimi kodga qo‘shilgan; disposable PostgreSQL va controlled OIDC server bilan tekshirilgan.
+- Production serverning oxirgi auditida Google status endpoint `404` va Google client credentiallari yo‘q edi. Yangi kod deploy qilinib, Google Cloud Client ID/Secret serverga qo‘yilmaguncha real Google sign-in **ishlamaydi**.
 - Production auditda joriy Meta App Secret Meta tomonidan rad etildi (`OAuthException`, code `190`); real connected Instagram akkaunt, active rule va webhook event yo‘q. Shu sabab live OAuth, live webhook, `is_user_follow_business`, real private reply va public reply **live tekshirilmagan**.
 - Meta bergan Unified Login Configuration ID `.env.example`da public konfiguratsiya sifatida ko‘rsatilgan. Secretlar repositoryga yozilmaydi.
 
@@ -33,6 +35,7 @@ Batafsil: [PROJECT_STATUS.md](docs/PROJECT_STATUS.md), [NEXT_STEPS.md](docs/NEXT
 - Database: PostgreSQL 17
 - Queue: PostgreSQL durable queue; Redis faqat wake-up signal
 - Auth: HttpOnly session cookie, CSRF, email verification, RBAC
+- Google sign-in: server-side OAuth 2.0 / OpenID Connect; verified ID token and email, one-time state + PKCE S256 + nonce, browser-bound HttpOnly cookie
 - Meta: Instagram Login yoki Unified/Facebook Login konfiguratsiyasi
 
 ## Talablar
@@ -56,6 +59,15 @@ cd ..
 ```
 
 `.env` ichida kamida database, security va Meta qiymatlarini to‘ldiring. Secretlarni commit qilmang.
+
+Google orqali kirish ixtiyoriy. Uni yoqish uchun Google Cloud Console’da OAuth Client ID (Web application) yarating, local va production callback manzillarini Authorized redirect URIs ro‘yxatiga qo‘shing hamda server `.env`iga `GOOGLE_CLIENT_ID` va `GOOGLE_CLIENT_SECRET`ni kiriting. Callback qiymati Google Cloud’dagi qiymat bilan aynan bir xil bo‘lishi shart:
+
+```text
+Local:      http://localhost:8080/api/v1/auth/google/callback
+Production: https://instagram.schat.uz/api/v1/auth/google/callback
+```
+
+`GOOGLE_REDIRECT_URL` berilmasa, backend `API_URL`dan callback manzilini hosil qiladi. Production’da `API_URL` public HTTPS origin bo‘lishi kerak. Sozlamadan so‘ng API container’ni qayta ishga tushiring. `GET /api/v1/auth/google/status` faqat OAuth yoqilgan/yoqilmagan holatini beradi; status `enabled` bo‘lishi Google real login muvaffaqiyatli degani emas. Real tekshiruv uchun Google consent oynasi, callback, database identity link va session’ni production’da sinash kerak. Client Secret hech qachon frontend, Git yoki chatga qo‘yilmaydi.
 
 Security qiymatlarini yaratish misoli:
 
@@ -136,6 +148,9 @@ Commentning o‘zi profile/follow tekshiruviga yetarli permission yoki messaging
 | `META_REDIRECT_URI` | OAuth callback URI |
 | `META_WEBHOOK_VERIFY_TOKEN` | Webhook verify token |
 | `META_WEBHOOK_APP_SECRET` | `X-Hub-Signature-256` tekshiruvi |
+| `GOOGLE_CLIENT_ID` | Google OAuth Web Client ID; ixtiyoriy, serverda ishlatiladi |
+| `GOOGLE_CLIENT_SECRET` | Google OAuth Client Secret; faqat serverda saqlanadi |
+| `GOOGLE_REDIRECT_URL` | Google callback; bo‘sh bo‘lsa `API_URL`dan hosil qilinadi |
 | `NEXT_PUBLIC_API_URL` | Frontend ishlatadigan API base URL |
 | `MAIL_PROVIDER` | `log` developmentda, `smtp` productionda |
 | `MAIL_*` | SMTP sozlamalari |

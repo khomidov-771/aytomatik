@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Eye, EyeOff, LockKeyhole, Mail } from "lucide-react";
 import { FormEvent, useState } from "react";
 import { AuthShell } from "@/components/auth-shell";
+import { GoogleAuthButton } from "@/components/google-auth-button";
 import { usePreferences } from "@/components/preferences-provider";
 import { api, ApiError, jsonBody } from "@/lib/api";
 
@@ -59,8 +60,7 @@ function LoginForm() {
         <label><span>{tr("Parol", "Пароль", "Password")}</span><div className="input-wrap"><LockKeyhole/><input type={show ? "text" : "password"} autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="••••••••" required maxLength={72}/><button type="button" aria-label={tr("Parolni ko‘rsatish", "Показать пароль", "Show password")} onClick={() => setShow(!show)}>{show ? <EyeOff/> : <Eye/>}</button></div></label>
         <div className="form-row"><label className="check"><input type="checkbox" checked={rememberMe} onChange={(event) => setRememberMe(event.target.checked)}/> <span>{tr("Eslab qolish", "Запомнить меня", "Remember me")}</span></label><Link href="/forgot-password">{tr("Parolni unutdingizmi?", "Забыли пароль?", "Forgot password?")}</Link></div>
         <button className="btn primary full large" disabled={loading}>{loading ? tr("Kirilmoqda...", "Вход...", "Signing in...") : tr("Kirish", "Войти", "Sign in")}</button>
-        <div className="auth-divider"><span>{tr("yoki", "или", "or")}</span></div>
-        <button className="btn secondary full" type="button" disabled>{tr("Google bilan kirish · Tez orada", "Вход через Google · Скоро", "Sign in with Google · Soon")}</button>
+        <GoogleAuthButton intent="login" rememberMe={rememberMe} />
       </form>
     </AuthShell>
   );

@@ -13,6 +13,9 @@ func baseEnv(t *testing.T) {
 	t.Setenv("INSTAGRAM_PROVIDER", "mock")
 	t.Setenv("MAIL_PROVIDER", "log")
 	t.Setenv("TOKEN_ENCRYPTION_KEY", "")
+	t.Setenv("GOOGLE_CLIENT_ID", "")
+	t.Setenv("GOOGLE_CLIENT_SECRET", "")
+	t.Setenv("GOOGLE_REDIRECT_URL", "")
 }
 
 func validProductionEnv(t *testing.T) {
@@ -145,5 +148,28 @@ func TestMetaConfigurationReadyRejectsPlaceholders(t *testing.T) {
 	cfg.MetaLoginConfigID = "config-id"
 	if cfg.MetaConfigurationReady() {
 		t.Fatal("non-numeric Unified Login configuration ID must be rejected")
+	}
+}
+
+func TestGoogleOAuthConfiguration(t *testing.T) {
+	baseEnv(t)
+	t.Setenv("GOOGLE_CLIENT_ID", "example.apps.googleusercontent.com")
+	t.Setenv("GOOGLE_CLIENT_SECRET", strings.Repeat("g", 32))
+	cfg, err := Load()
+	if err != nil || !cfg.GoogleOAuthReady() {
+		t.Fatalf("complete Google OAuth settings should be ready: ready=%v err=%v", cfg.GoogleOAuthReady(), err)
+	}
+
+	t.Setenv("GOOGLE_CLIENT_SECRET", "")
+	if _, err = Load(); err == nil || !strings.Contains(err.Error(), "configured together") {
+		t.Fatalf("partial Google OAuth settings must fail: %v", err)
+	}
+
+	validProductionEnv(t)
+	t.Setenv("GOOGLE_CLIENT_ID", "example.apps.googleusercontent.com")
+	t.Setenv("GOOGLE_CLIENT_SECRET", strings.Repeat("g", 32))
+	t.Setenv("GOOGLE_REDIRECT_URL", "http://automate.example.com/api/v1/auth/google/callback")
+	if _, err = Load(); err == nil || !strings.Contains(err.Error(), "HTTPS") {
+		t.Fatalf("production Google callback must use HTTPS: %v", err)
 	}
 }

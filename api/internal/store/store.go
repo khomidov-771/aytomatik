@@ -21,6 +21,16 @@ var ErrEmailUnverified = errors.New("email is not verified")
 var ErrOwnerProtected = errors.New("workspace owner membership is protected")
 var ErrSelfRemoval = errors.New("the active owner cannot remove their own membership")
 var ErrInvalidRole = errors.New("invalid role")
+var ErrGoogleAccountNotFound = errors.New("google login account not found")
+var ErrGoogleIdentityConflict = errors.New("google identity is already linked to another account")
+
+type GoogleLoginState struct {
+	Nonce        string
+	CodeVerifier string
+	Intent       string
+	AcceptTerms  bool
+	RememberMe   bool
+}
 
 type Store struct{ DB *pgxpool.Pool }
 
@@ -266,6 +276,120 @@ func (s *Store) ConsumeOAuthState(ctx context.Context, hash []byte) (workspaceID
 		err = ErrNotFound
 	}
 	return
+}
+
+func (s *Store) SaveGoogleLoginState(ctx context.Context, hash []byte, state GoogleLoginState, expires time.Time) error {
+	if _, err := s.DB.Exec(ctx, `DELETE FROM google_oauth_login_states WHERE expires_at < now() OR used_at IS NOT NULL`); err != nil {
+		return err
+	}
+	_, err := s.DB.Exec(ctx, `INSERT INTO google_oauth_login_states(state_hash,nonce,code_verifier,intent,accept_terms,remember_me,expires_at)
+		VALUES($1,$2,$3,$4,$5,$6,$7)`, hash, state.Nonce, state.CodeVerifier, state.Intent, state.AcceptTerms, state.RememberMe, expires)
+	return err
+}
+
+func (s *Store) ConsumeGoogleLoginState(ctx context.Context, hash []byte) (state GoogleLoginState, err error) {
+	err = s.DB.QueryRow(ctx, `UPDATE google_oauth_login_states SET used_at=now()
+		WHERE state_hash=$1 AND used_at IS NULL AND expires_at>now()
+		RETURNING nonce,code_verifier,intent,accept_terms,remember_me`, hash).
+		Scan(&state.Nonce, &state.CodeVerifier, &state.Intent, &state.AcceptTerms, &state.RememberMe)
+	if errors.Is(err, pgx.ErrNoRows) {
+		err = ErrNotFound
+	}
+	return
+}
+
+// CompleteGoogleLogin links only a verified Google subject. New users receive
+// their own workspace in the same transaction as the identity mapping.
+func (s *Store) CompleteGoogleLogin(ctx context.Context, subject, email, name, passwordHash string, allowCreate bool) (domain.Principal, error) {
+	tx, err := s.DB.Begin(ctx)
+	if err != nil {
+		return domain.Principal{}, err
+	}
+	defer tx.Rollback(ctx)
+
+	var userID string
+	err = tx.QueryRow(ctx, `SELECT user_id FROM oauth_identities WHERE provider='google' AND provider_subject=$1`, subject).Scan(&userID)
+	if err == nil {
+		principal, principalErr := googlePrincipalForUser(ctx, tx, userID)
+		if principalErr != nil {
+			return domain.Principal{}, principalErr
+		}
+		if err = tx.Commit(ctx); err != nil {
+			return domain.Principal{}, err
+		}
+		return principal, nil
+	}
+	if !errors.Is(err, pgx.ErrNoRows) {
+		return domain.Principal{}, err
+	}
+
+	email = strings.ToLower(strings.TrimSpace(email))
+	if _, err = tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtextextended($1,0))`, email); err != nil {
+		return domain.Principal{}, err
+	}
+	var existingName string
+	err = tx.QueryRow(ctx, `SELECT id,name FROM users WHERE email=$1 FOR UPDATE`, email).Scan(&userID, &existingName)
+	if errors.Is(err, pgx.ErrNoRows) {
+		if !allowCreate {
+			return domain.Principal{}, ErrGoogleAccountNotFound
+		}
+		name = strings.TrimSpace(name)
+		if name == "" {
+			name = strings.SplitN(email, "@", 2)[0]
+		}
+		if utf8.RuneCountInString(name) > 80 {
+			name = string([]rune(name)[:80])
+		}
+		if utf8.RuneCountInString(name) < 2 {
+			name = "Google user"
+		}
+		if err = tx.QueryRow(ctx, `INSERT INTO users(name,email,password_hash,email_verified_at)
+			VALUES($1,$2,$3,now()) RETURNING id`, name, email, passwordHash).Scan(&userID); err != nil {
+			return domain.Principal{}, err
+		}
+		workspaceName := name + " workspace"
+		var workspaceID string
+		if err = tx.QueryRow(ctx, `INSERT INTO workspaces(name,owner_user_id) VALUES($1,$2) RETURNING id`, workspaceName, userID).Scan(&workspaceID); err != nil {
+			return domain.Principal{}, err
+		}
+		if _, err = tx.Exec(ctx, `INSERT INTO workspace_members(workspace_id,user_id,role) VALUES($1,$2,'owner')`, workspaceID, userID); err != nil {
+			return domain.Principal{}, err
+		}
+	} else if err != nil {
+		return domain.Principal{}, err
+	} else {
+		if _, err = tx.Exec(ctx, `UPDATE users SET email_verified_at=COALESCE(email_verified_at,now()) WHERE id=$1`, userID); err != nil {
+			return domain.Principal{}, err
+		}
+	}
+
+	if _, err = tx.Exec(ctx, `INSERT INTO oauth_identities(user_id,provider,provider_subject,email_at_link)
+		VALUES($1,'google',$2,$3)`, userID, subject, email); err != nil {
+		if pgErr, ok := err.(*pgconn.PgError); ok && pgErr.Code == "23505" {
+			return domain.Principal{}, ErrGoogleIdentityConflict
+		}
+		return domain.Principal{}, err
+	}
+	principal, err := googlePrincipalForUser(ctx, tx, userID)
+	if err != nil {
+		return domain.Principal{}, err
+	}
+	if err = tx.Commit(ctx); err != nil {
+		return domain.Principal{}, err
+	}
+	return principal, nil
+}
+
+func googlePrincipalForUser(ctx context.Context, tx pgx.Tx, userID string) (domain.Principal, error) {
+	var principal domain.Principal
+	err := tx.QueryRow(ctx, `SELECT u.id,u.name,u.email,w.id,w.name,wm.role
+		FROM users u JOIN workspace_members wm ON wm.user_id=u.id JOIN workspaces w ON w.id=wm.workspace_id
+		WHERE u.id=$1 ORDER BY CASE wm.role WHEN 'owner' THEN 1 ELSE 2 END,w.created_at,w.id LIMIT 1`, userID).
+		Scan(&principal.UserID, &principal.Name, &principal.Email, &principal.WorkspaceID, &principal.Workspace, &principal.Role)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return domain.Principal{}, ErrNotFound
+	}
+	return principal, err
 }
 
 type AccountInput struct {

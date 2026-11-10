@@ -73,6 +73,50 @@ func testStore(t *testing.T) *store.Store {
 	return &store.Store{DB: pool}
 }
 
+func TestGoogleLoginStateAndIdentityLinking(t *testing.T) {
+	s := testStore(t)
+	ctx := context.Background()
+	state := store.GoogleLoginState{Nonce: "nonce-value", CodeVerifier: "verifier-value", Intent: "register", AcceptTerms: true, RememberMe: true}
+	if err := s.SaveGoogleLoginState(ctx, []byte("google-state"), state, time.Now().Add(time.Minute)); err != nil {
+		t.Fatal(err)
+	}
+	gotState, err := s.ConsumeGoogleLoginState(ctx, []byte("google-state"))
+	if err != nil || gotState != state {
+		t.Fatalf("Google state binding failed: %#v %v", gotState, err)
+	}
+	if _, err = s.ConsumeGoogleLoginState(ctx, []byte("google-state")); !errors.Is(err, store.ErrNotFound) {
+		t.Fatalf("Google state could be reused: %v", err)
+	}
+
+	created, err := s.CompleteGoogleLogin(ctx, "google-subject-1", "New.User@example.com", "New User", "opaque-bcrypt-hash", true)
+	if err != nil || created.Role != "owner" || created.WorkspaceID == "" || created.Email != "new.user@example.com" {
+		t.Fatalf("Google registration did not create its own tenant: %#v %v", created, err)
+	}
+	returned, err := s.CompleteGoogleLogin(ctx, "google-subject-1", "changed@example.com", "Changed Name", "unused", false)
+	if err != nil || returned.UserID != created.UserID || returned.Email != created.Email {
+		t.Fatalf("existing Google subject did not resolve to the linked user: %#v %v", returned, err)
+	}
+	if _, err = s.CompleteGoogleLogin(ctx, "unknown-google-subject", "missing@example.com", "Missing", "unused", false); !errors.Is(err, store.ErrGoogleAccountNotFound) {
+		t.Fatalf("login intent created an unregistered account: %v", err)
+	}
+
+	local, _, err := s.Register(ctx, "Local User", "local@example.com", "already-hashed")
+	if err != nil {
+		t.Fatal(err)
+	}
+	linked, err := s.CompleteGoogleLogin(ctx, "google-subject-2", local.Email, "Provider Name", "unused", false)
+	if err != nil || linked.UserID != local.UserID {
+		t.Fatalf("verified Google email did not link to its existing account: %#v %v", linked, err)
+	}
+	_, _, _, _, _, _, _, verified, err := s.LoginUser(ctx, local.Email)
+	if err != nil || !verified {
+		t.Fatalf("verified Google identity did not verify local account email: verified=%v err=%v", verified, err)
+	}
+	if _, err = s.CompleteGoogleLogin(ctx, "google-subject-3", local.Email, "Other", "unused", true); !errors.Is(err, store.ErrGoogleIdentityConflict) {
+		t.Fatalf("a second Google identity was linked to the same user: %v", err)
+	}
+}
+
 func TestTenantTokensInboxAndQueue(t *testing.T) {
 	s := testStore(t)
 	ctx := context.Background()

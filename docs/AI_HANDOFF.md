@@ -47,6 +47,12 @@ Subscription/payment scope olib tashlangan. Productda demo mode, demo credential
 - `web/components/motion-reveal.tsx` landing scroll-reveal’ni IntersectionObserver bilan boshqaradi; umumiy micro-interaction va reduced-motion guardlari `web/app/globals.css` oxiridagi motion system qatlamida.
 - `web/components/preferences-provider.tsx` UZ/RU/EN tanlovi, light/dark tema va browser persistence’ni boshqaradi.
 - Landing, legal, auth va barcha asosiy app modullari uch tilli matnlarga ulandi.
+- Google sign-in uchun server-side OAuth 2.0/OIDC authorization-code oqimi qo‘shildi (`api/internal/httpapi/google_oauth.go`); code, access token yoki client secret browserga berilmaydi.
+- Google ID token signature/issuer/audience/expiry/nonce/email_verified tekshirilib, `oauth_identities` jadvalida provider `sub` bog‘lanadi.
+- Google signup alohida owner workspace yaratadi; login intent yangi account ochmaydi. Verified email bilan mavjud local user xavfsiz link qilinadi.
+- OAuth state hashed/10-minute/one-time; PKCE S256, HttpOnly SameSite=Lax browser cookie va `Origin` allowlist tekshiruvi bilan login-CSRF/code interception himoyasi qo‘shildi.
+- Google credentials bo‘lmasa status `enabled=false` va UI aniq sozlanmagan holatni ko‘rsatadi. Migration `006_google_oauth.sql` additive.
+- OAuth callback’ning fake RSA issuer va disposable PostgreSQL bilan controlled E2E integration testi bor; bu live Google acceptance emas.
 
 ## Arxitektura qarorlari
 
@@ -60,6 +66,7 @@ Subscription/payment scope olib tashlangan. Productda demo mode, demo credential
 8. Provider-specific kod `api/internal/provider` ichida.
 9. Tenant isolation store signature va SQL’da `workspace_id` bilan majburiy.
 10. Legacy billing schema production data xavfsizligi uchun hozircha saqlanadi, lekin application ishlatmaydi.
+11. Google OIDC tekshiruvi `api/internal/httpapi/google_oauth.go`da; faqat server environment’da `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, callback URI. Access token persistence yo‘q.
 
 ## Qayta yozmang
 
@@ -70,6 +77,7 @@ Subscription/payment scope olib tashlangan. Productda demo mode, demo credential
 - Action-ledger idempotency modelini.
 - Tri-state follow semanticsni.
 - Existing migrationsni; yangi schema uchun yangi migration yozing.
+- Google OAuth/OIDC state, browser binding, verified claims va one-time callback semanticsni.
 
 ## Muhim fayllar
 
@@ -77,6 +85,9 @@ Subscription/payment scope olib tashlangan. Productda demo mode, demo credential
 - `api/internal/provider/provider.go` — Meta login/follow/private/public/message API
 - `api/internal/store/store.go` — rules, queue, action ledger, history, Inbox
 - `api/internal/migrations/005_core_comment_to_dm.sql` — additive data-preserving schema
+- `api/internal/httpapi/google_oauth.go` — server-side Google OAuth/OIDC start va callback
+- `api/internal/migrations/006_google_oauth.sql` — login state va OAuth identity schema
+- `web/components/google-auth-button.tsx` — status-aware, UZ/RU/EN login/register action
 - `api/internal/httpapi/instagram.go` — OAuth/webhook
 - `web/components/automation-form.tsx` — builder va execution history
 - `web/components/preferences-provider.tsx` — locale/theme state va umumiy controls
@@ -99,7 +110,8 @@ Subscription/payment scope olib tashlangan. Productda demo mode, demo credential
 - `go test ./...` — PASS
 - `go vet ./...` — PASS
 - `go build ./cmd/server ./cmd/migrate` — PASS
-- PostgreSQL integration `TestTenantTokensInboxAndQueue` — PASS
+- PostgreSQL integration `TestTenantTokensInboxAndQueue`, `TestGoogleLoginStateAndIdentityLinking` — PASS
+- Controlled OIDC integration `TestGoogleOAuthCallbackControlledProvider` — PASS (Google service emas)
 - `npm run lint:web` — PASS
 - `npm run test:web` — PASS, 2/2
 - `npm run build:web` — PASS, 21 route
@@ -115,6 +127,7 @@ PostgreSQL integration Windowsda embedded PostgreSQL 18.6.1 processiga qarshi o�
 - Real private reply delivery va one-reply/time-window response.
 - Real public comment reply va private-success/public-failure recovery.
 - Real inbound DM/manual send.
+- Real Google Cloud consent, client credentials bilan live Google signup/login va production callback.
 
 Controlled tests live dalil emas.
 
@@ -122,9 +135,17 @@ Controlled tests live dalil emas.
 
 Production server va public HTTPS ishlaydi, ammo active Meta credential Meta Graph tomonidan `OAuthException` code `190` bilan rad etildi. Database’da faqat tokeni yo‘q `disconnected` eski mock account bor; active rules, webhook events va executions yo‘q. `Config.MetaConfigurationReady()` qo‘shilib, placeholder credential endi UI/health’da configured deb ko‘rsatilmaydi. Keyingi agent valid App Secretni faqat server environment orqali qabul qilib, keyin real OAuth va live acceptance bajarishi kerak.
 
+## 2026-11-10 Google OAuth production state
+
+- Kod workspace branchida; production server SHA `2cb608a55c4e` Google patch’dan oldingi versiya.
+- Public site/health `200`; `/api/v1/auth/google/status` `404`, server `.env.production`da `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` yo‘q. Google login production’da hali yoqilmagan.
+- Server repo’da `.env.production`, compose va boshqa untracked operator fayllari mavjud. Ularni hech qachon tozalama yoki tracked repository nusxasi bilan ustidan yozma.
+- Google Cloud OAuth Client ID/Secretni serverga xavfsiz kiritish va yangi kodni mavjud server compose konfiguratsiyasi bilan deploy qilish kerak. Client Secretni Git/chat/logga kiritma.
+- Joriy production health `meta_configured=true` ko‘rsatgan bo‘lsa-da, bu live Graph API dalili emas; oldingi Meta credential check code `190` qaytargan.
+
 ## Qayerdan davom etish
 
-Birinchi topshiriq: `docs/NEXT_STEPS.md`dagi P0 Live Meta acceptance testini eligible test account bilan bajaring. Kodni taxminan o‘zgartirmang; avval real response va database action rowsni qayd eting. Incompatibility topilsa eng kichik provider/worker patch va regression test yozing.
+Birinchi topshiriq: `docs/NEXT_STEPS.md`dagi P0 Google OAuth deploy/config acceptance’ni bajaring: avval patchni commit/push qilib, production code’ni mavjud operator config/untracked data’ni saqlagan holda deploy qiling; so‘ng Google Client ID/Secretni server `.env.production`ga secure ravishda kiriting. Google’da Authorized redirect URI `https://instagram.schat.uz/api/v1/auth/google/callback` bo‘lsin. Keyin Google bilan real signup/login va database/session natijasini tekshiring. Secretni chat/Git/logga chiqarma. Google live acceptance tugagandan keyin alohida P0 Meta acceptance’ga o‘ting.
 
 ## Guardrail
 
@@ -132,6 +153,7 @@ Birinchi topshiriq: `docs/NEXT_STEPS.md`dagi P0 Live Meta acceptance testini eli
 - Mock product mode’ni qaytarmang.
 - Billing scope’ni qaytarmang.
 - Secret/tokenni commit/log/UI qilmang.
+- Google callback’da state cookie, database one-time state, OIDC nonce, signature va verified email talabini olib tashlamang.
 - Real test bo‘lmasa “Meta integration ishlaydi” deb yozmang.
 - Private failureda public success reply yubormang.
 - Unknown follow statusni non-follower deb ko‘rsatmang.

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Eye, EyeOff, LockKeyhole, Mail, User } from "lucide-react";
 import { FormEvent, useState } from "react";
 import { AuthShell } from "@/components/auth-shell";
+import { GoogleAuthButton } from "@/components/google-auth-button";
 import { usePreferences } from "@/components/preferences-provider";
 import { api, ApiError, jsonBody } from "@/lib/api";
 
@@ -67,6 +68,7 @@ export default function RegisterPage() {
       <label><span>{tr("Parolni takrorlang", "Повторите пароль", "Confirm password")}</span><div className="input-wrap"><LockKeyhole/><input type={show ? "text" : "password"} value={form.confirm} onChange={(event) => field("confirm", event.target.value)} autoComplete="new-password" placeholder={tr("Parolni takrorlang", "Повторите пароль", "Repeat password")} required minLength={8} maxLength={72}/></div></label>
       <label className="check terms"><input type="checkbox" checked={form.accept_terms} onChange={(event) => field("accept_terms", event.target.checked)} required/><span>{tr("Men", "Я принимаю", "I accept the")} <Link href="/terms">{tr("Foydalanish shartlari", "Условия использования", "Terms of use")}</Link> {tr("va", "и", "and")} <Link href="/privacy">{tr("Maxfiylik siyosati", "Политику конфиденциальности", "Privacy policy")}</Link></span></label>
       <button className="btn primary full large" disabled={loading}>{loading ? tr("Yaratilmoqda...", "Создание...", "Creating...") : tr("Ro‘yxatdan o‘tish", "Зарегистрироваться", "Create account")}</button>
+      <GoogleAuthButton intent="register" acceptTerms={form.accept_terms} />
     </form>
   </AuthShell>;
 }

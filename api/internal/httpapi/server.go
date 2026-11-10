@@ -35,10 +35,11 @@ type Server struct {
 	worker   *worker.Worker
 	mailer   mailer.Mailer
 	limiter  *rateLimiter
+	google   *googleOAuth
 }
 
 func New(cfg config.Config, s *store.Store, p provider.Instagram, c *security.TokenCipher, w *worker.Worker) *Server {
-	return &Server{cfg: cfg, store: s, provider: p, cipher: c, worker: w, mailer: mailer.New(cfg), limiter: newRateLimiter(10, time.Minute)}
+	return &Server{cfg: cfg, store: s, provider: p, cipher: c, worker: w, mailer: mailer.New(cfg), limiter: newRateLimiter(10, time.Minute), google: newGoogleOAuth(cfg)}
 }
 
 func (s *Server) Handler() http.Handler {
@@ -46,6 +47,9 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /healthz", s.health)
 	mux.HandleFunc("POST /api/v1/auth/register", s.rateLimit(s.register))
 	mux.HandleFunc("POST /api/v1/auth/login", s.rateLimit(s.login))
+	mux.HandleFunc("GET /api/v1/auth/google/status", s.googleStatus)
+	mux.HandleFunc("POST /api/v1/auth/google/start", s.rateLimit(s.googleStart))
+	mux.HandleFunc("GET /api/v1/auth/google/callback", s.googleCallback)
 	mux.HandleFunc("POST /api/v1/auth/forgot-password", s.rateLimit(s.forgotPassword))
 	mux.HandleFunc("POST /api/v1/auth/reset-password", s.rateLimit(s.resetPassword))
 	mux.HandleFunc("POST /api/v1/auth/verify-email", s.verifyEmail)

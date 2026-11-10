@@ -1,8 +1,11 @@
 package httpapi
 
 import (
+	"encoding/json"
+	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/ids-automate/ids-automate/api/internal/config"
 )
@@ -54,5 +57,26 @@ func TestValidClientRequestID(t *testing.T) {
 	}
 	if validClientRequestID("short") || validClientRequestID("550e8400-e29b-41d4-a716-44665544/000") {
 		t.Fatal("unsafe id should be rejected")
+	}
+}
+
+func TestGoogleOAuthUnavailableIsExplicit(t *testing.T) {
+	server := &Server{cfg: config.Config{AppURL: "https://example.test"}, limiter: newRateLimiter(10, time.Minute)}
+	status := httptest.NewRecorder()
+	server.Handler().ServeHTTP(status, httptest.NewRequest(http.MethodGet, "/api/v1/auth/google/status", nil))
+	if status.Code != http.StatusOK {
+		t.Fatalf("status endpoint returned %d", status.Code)
+	}
+	var statusBody struct {
+		Enabled bool `json:"enabled"`
+	}
+	if err := json.Unmarshal(status.Body.Bytes(), &statusBody); err != nil || statusBody.Enabled {
+		t.Fatalf("unconfigured Google OAuth reported enabled: body=%s err=%v", status.Body.String(), err)
+	}
+
+	start := httptest.NewRecorder()
+	server.Handler().ServeHTTP(start, httptest.NewRequest(http.MethodPost, "/api/v1/auth/google/start", nil))
+	if start.Code != http.StatusServiceUnavailable {
+		t.Fatalf("unconfigured Google OAuth start returned %d", start.Code)
 	}
 }

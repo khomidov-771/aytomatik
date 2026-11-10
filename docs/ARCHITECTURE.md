@@ -28,7 +28,7 @@ Meta Webhook
 | `web/lib` | API client, types, format helpers |
 | `api/cmd/server` | API va worker process entrypoint |
 | `api/cmd/migrate` | Schema migration runner |
-| `api/internal/httpapi` | Strict JSON, auth/RBAC/CSRF, routes, webhook/OAuth handlers |
+| `api/internal/httpapi` | Strict JSON, auth/RBAC/CSRF, routes, Google OIDC and Meta OAuth/webhook handlers |
 | `api/internal/provider` | Meta va test-only mock adapter |
 | `api/internal/worker` | Comment-to-DM state machine |
 | `api/internal/store` | Tenant-scoped PostgreSQL persistence va durable queue |
@@ -70,6 +70,8 @@ Asosiy jadvallar:
 | `sessions` | Hashed HttpOnly session token binding |
 | `one_time_tokens` | Email verification/password reset |
 | `oauth_states` | Bir martalik, expiry’li OAuth state |
+| `google_oauth_login_states` | Google login intent, nonce/PKCE verifier va remember-me holati; state hash, expiry va one-time consume |
+| `oauth_identities` | Verified Google `sub` provider identifikatorini tenant useriga bog‘lash |
 | `instagram_accounts` | Provider identity, scopes, encrypted token, status |
 | `automation_rules` | Match/follow/reply konfiguratsiyasi |
 | `webhook_events` | Idempotent durable queue va redacted payload |
@@ -89,6 +91,8 @@ Migration `005_core_comment_to_dm.sql`:
 - eski mock rule/accountlarni o‘chirmasdan deaktivatsiya qiladi;
 - ommaviy demo login sessiyalari va password hashini bekor qiladi.
 
+Migration `006_google_oauth.sql` additive ravishda Google login state va OAuth identity jadvallarini qo‘shadi. Mavjud foydalanuvchi ma’lumotini o‘zgartirmaydi yoki o‘chirmaydi.
+
 ## API endpointlar
 
 ### Public/auth
@@ -96,6 +100,9 @@ Migration `005_core_comment_to_dm.sql`:
 - `GET /healthz`
 - `POST /api/v1/auth/register`
 - `POST /api/v1/auth/login`
+- `GET /api/v1/auth/google/status`
+- `POST /api/v1/auth/google/start`
+- `GET /api/v1/auth/google/callback`
 - `POST /api/v1/auth/logout`
 - `POST /api/v1/auth/verify-email`
 - `POST /api/v1/auth/resend-verification`
@@ -142,6 +149,10 @@ Billing va mock-event endpointlari mavjud emas.
 ## Authentication va authorization
 
 - Session raw tokeni HttpOnly cookie’da, hash’i database’da.
+- Google login authorization code oqimida bajariladi. Google ID token signature, issuer, audience, expiry, `nonce` va `email_verified` tekshiriladi. Access token saqlanmaydi; Google `sub` va verified email identity link sifatida saqlanadi.
+- Login intent mavjud Google identity yoki shu verified email bilan mavjud hisobni bog‘laydi; ro‘yxatdan o‘tish intenti esa yangisiga alohida owner workspace yaratadi. Google signup mavjud hisob bilan email orqali mos kelsa, `oauth_identities` orqali shu hisobga bog‘lanadi.
+- OAuth state 10 daqiqaga database’da hash ko‘rinishida saqlanadi, callback’da bir marta ishlatiladi va shu browserga bog‘langan HttpOnly/SameSite=Lax cookie bilan tekshiriladi. PKCE S256 authorization-code almashinuvida ishlaydi; nonce OIDC token ichidan constant-time solishtiriladi.
+- Google Client ID/Secret backend environment’da bo‘lmasa status `enabled=false`, OAuth start esa aniq 503 qaytaradi; UI sozlanmaganini ko‘rsatadi.
 - Mutation endpointlar `X-CSRF-Token` talab qiladi.
 - Email tasdiqlanmaguncha authenticated app access berilmaydi.
 - RBAC: `customer < operator < manager < owner`.
@@ -160,9 +171,10 @@ Billing va mock-event endpointlari mavjud emas.
 
 ## Xavfsizlik chegaralari
 
-- OAuth token AES-256-GCM ciphertext sifatida saqlanadi.
+- Instagram OAuth access tokenlari AES-256-GCM ciphertext sifatida saqlanadi. Google login access tokeni faqat ID tokenni verifikatsiya qilish oqimida ishlatiladi va persistence qilinmaydi.
 - Meta webhook `X-Hub-Signature-256` tekshiruvisiz qabul qilinmaydi.
 - OAuth state hashed, expiry’li va bir martalik.
+- Google client secret faqat backend environment’da turadi; callback faqat ilovaning belgilangan `/login`, `/register` yoki `/app` route’iga qaytadi, foydalanuvchi yuborgan redirect URL qabul qilinmaydi.
 - Strict JSON decoder 1 MiB; webhook body 2 MiB limit.
 - CORS allowlist, security headers, trusted proxy CIDR va auth rate limit bor.
 - Secret/raw token yoki to‘liq sensitive provider payload log qilinmaydi.

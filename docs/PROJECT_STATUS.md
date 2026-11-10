@@ -1,12 +1,12 @@
 # Project status
 
-Tekshiruv: 2026-11-10. Branch: `main`. Holat faqat repository kodi va shu muhitda bajarilgan testlarga asoslangan.
+Tekshiruv: 2026-11-10. Branch: `main`. Holat faqat repository kodi, shu muhitda bajarilgan testlar va pastdagi production endpoint tekshiruviga asoslangan.
 
 ## Umumiy natija
 
-Tekshiriladigan 17 gate’dan 12 tasi o‘tdi, 5 ta live Meta gate credential/eligible account yo‘qligi sabab bloklangan: **70.6% verified readiness**.
+Oldingi 17-gate Meta auditining 70.6% ko‘rsatkichi Google OAuth va yangilangan production kuzatuvini o‘z ichiga olmaydi; shu sabab u joriy tayyorlik foizi sifatida ishlatilmasin. Joriy auditda Google oqimi controlled testlarda o‘tdi, lekin production serverda yangi route hali yo‘q va Google OAuth client qiymatlari yo‘q. Shu bois hozirgi holat **100% emas**, joriy foiz qayta hisoblanmagan.
 
-Bu product completion foizi emas. Kod tayyorligi yuqoriroq, lekin core biznes qiymatining live Meta dalili mavjud bo‘lmaguncha loyiha “to‘liq tayyor” emas.
+Bu product completion foizi emas. Meta yoki Google’dagi real foydalanuvchi oqimi controlled test dalili bilan almashtirilmaydi.
 
 ## Gate’lar
 
@@ -65,6 +65,46 @@ Bu product completion foizi emas. Kod tayyorligi yuqoriroq, lekin core biznes qi
 - API endi non-empty placeholderni `meta_configured=true` deb ko‘rsatmaydi va account connectni credential tuzatilmaguncha bloklaydi.
 
 Bu holatda real comment-to-DM oqimi ishlamaydi. Valid Meta App Secret serverga xavfsiz kiritilib, Professional account OAuth orqali ulangach va active automation yaratilgach live acceptance bajarilishi kerak.
+
+## 2026-11-10 joriy audit — Google OAuth qo‘shilishi
+
+### Kodda bajarilgan
+
+- Server-side Google OAuth 2.0 / OIDC authorization-code oqimi; `openid email profile` scope.
+- State 10 daqiqa amal qiladi, DB’da hash saqlanadi va bir marta consume qilinadi. HttpOnly/SameSite=Lax browser cookie, allowlisted `Origin`, PKCE S256 va OIDC nonce tekshiruvi mavjud.
+- Google ID token uchun Google issuer, client audience, imzo, expiry va `email_verified` tekshiriladi. Token saqlanmaydi; `sub` identity link sifatida saqlanadi.
+- Yangi signup alohida owner workspace yaratadi; login yangi hisob yaratmaydi. Google verified email mavjud local user bilan link qilinishi mumkin.
+- Migration `006_google_oauth.sql` additive. Client credentials yo‘q bo‘lsa API `enabled=false` va start 503 qaytaradi; UI bu holatni yashirmaydi.
+- Login va registration sahifalariga UZ/RU/EN Google holati va tugmasi qo‘shildi; registration Terms roziligini talab qiladi.
+
+### Joriy kod tekshiruvi
+
+```text
+go test ./...                                                   PASS
+go vet ./...                                                    PASS
+go build ./cmd/server ./cmd/migrate                              PASS
+go test -tags=integration ./internal/store                       PASS
+  - TestGoogleLoginStateAndIdentityLinking
+  - TestTenantTokensInboxAndQueue
+go test -tags=integration ./internal/httpapi -run TestGoogle... PASS
+  - Controlled OIDC issuer, RSA signature, state replay va nonce mismatch
+npm run lint:web                                                 PASS
+npm run test:web                                                 PASS (2/2)
+npm run build:web                                                PASS (21 routes)
+```
+
+Google OIDC controlled test haqiqiy Google akkaunti yoki live Google service deyilmaydi. U disposable PostgreSQL va lokal imzolangan test tokenidan foydalanadi. Frontend build Windows sandboxida `.next` katalogi uchun `EPERM` bergan; shu sabab ayni build workspace’da elevated ruxsat bilan yakunlandi.
+
+### Production server kuzatuvi
+
+- `https://instagram.schat.uz/` va `/healthz`: HTTP 200.
+- Joriy API `healthz` `status=ok`, `meta_configured=true` dedi. Bu credential ko‘rinishi/config flagidir; Meta Graph live acceptance dalili emas. Oldingi live Graph tekshiruvida code `190` qayd etilgan va bu safar secret ishlatib qayta tekshirilmadi.
+- Server branch SHA: `2cb608a55c4e`; Google OAuth o‘zgarishlari u yerga hali deploy qilinmagan.
+- `GET /api/v1/auth/google/status`: HTTP 404.
+- Server `.env.production` ichida Google Client ID va Client Secret qiymatlari yo‘q.
+- Server Git working tree’da `.env.production`, compose va boshqa untracked user fayllar bor. Ularni tozalash, almashtirish yoki commit qilish mumkin emas.
+
+Demak production’da Google login hali ishlamaydi. Kod va controlled database/OIDC oqimi tayyor, ammo GitHub push/deploy, Google Cloud OAuth credentials va real Google browser acceptance bajarilmaguncha “real Google login ishlaydi” deb yozilmasin. Meta live Comment-to-DM ham alohida, avvalgi bloklangan holatda qoladi.
 
 ## Comment-to-DM outcome matrix
 

@@ -38,6 +38,9 @@ type Config struct {
 	SMTPUser           string
 	SMTPPassword       string
 	SMTPStartTLS       bool
+	GoogleClientID     string
+	GoogleClientSecret string
+	GoogleRedirectURL  string
 	TrustedProxyCIDRs  []string
 	ShortSessionTTL    time.Duration
 	SessionTTL         time.Duration
@@ -58,6 +61,13 @@ func (c Config) MetaConfigurationReady() bool {
 		return false
 	}
 	return true
+}
+
+// GoogleOAuthReady only reports whether the server has enough values to start
+// the OIDC flow. A successful Google identity verification is still required
+// before an account can be authenticated.
+func (c Config) GoogleOAuthReady() bool {
+	return strings.TrimSpace(c.GoogleClientID) != "" && strings.TrimSpace(c.GoogleClientSecret) != "" && isAbsoluteURL(c.GoogleRedirectURL, c.Env == "production")
 }
 
 func numericMetaID(value string) bool {
@@ -81,11 +91,12 @@ func Load() (Config, error) {
 	if metaLoginConfigID != "" && os.Getenv("META_LOGIN_MODE") == "" {
 		metaLoginMode = "unified"
 	}
+	apiURL := strings.TrimRight(env("API_URL", "http://localhost:8080"), "/")
 	c := Config{
 		Env:                appEnv,
 		Port:               env("PORT", "8080"),
 		AppURL:             env("APP_URL", "http://localhost:3000"),
-		APIURL:             env("API_URL", "http://localhost:8080"),
+		APIURL:             apiURL,
 		DatabaseURL:        os.Getenv("DATABASE_URL"),
 		RedisURL:           os.Getenv("REDIS_URL"),
 		SessionSecret:      os.Getenv("SESSION_SECRET"),
@@ -107,6 +118,9 @@ func Load() (Config, error) {
 		SMTPUser:           os.Getenv("MAIL_SMTP_USER"),
 		SMTPPassword:       os.Getenv("MAIL_SMTP_PASSWORD"),
 		SMTPStartTLS:       env("MAIL_SMTP_STARTTLS", "true") == "true",
+		GoogleClientID:     strings.TrimSpace(os.Getenv("GOOGLE_CLIENT_ID")),
+		GoogleClientSecret: strings.TrimSpace(os.Getenv("GOOGLE_CLIENT_SECRET")),
+		GoogleRedirectURL:  strings.TrimSpace(env("GOOGLE_REDIRECT_URL", apiURL+"/api/v1/auth/google/callback")),
 		TrustedProxyCIDRs:  split(env("TRUSTED_PROXY_CIDRS", "127.0.0.1/32,::1/128,172.16.0.0/12")),
 		ShortSessionTTL:    24 * time.Hour,
 		SessionTTL:         30 * 24 * time.Hour,
@@ -147,6 +161,12 @@ func Load() (Config, error) {
 	if c.MailProvider == "smtp" && (c.SMTPHost == "" || c.MailFrom == "") {
 		return c, errors.New("smtp mail provider requires MAIL_SMTP_HOST and MAIL_FROM")
 	}
+	if (c.GoogleClientID == "") != (c.GoogleClientSecret == "") {
+		return c, errors.New("GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET must be configured together")
+	}
+	if c.GoogleClientID != "" && !isAbsoluteURL(c.GoogleRedirectURL, c.Env == "production") {
+		return c, errors.New("GOOGLE_REDIRECT_URL must be an absolute URL and HTTPS in production")
+	}
 	if c.Env == "production" && c.MailProvider != "smtp" {
 		return c, errors.New("production requires MAIL_PROVIDER=smtp")
 	}
@@ -184,6 +204,14 @@ func Load() (Config, error) {
 func isHTTPSURL(value string) bool {
 	parsed, err := url.Parse(value)
 	return err == nil && parsed.Scheme == "https" && parsed.Host != ""
+}
+
+func isAbsoluteURL(value string, requireHTTPS bool) bool {
+	parsed, err := url.Parse(value)
+	if err != nil || parsed.Host == "" || (parsed.Scheme != "https" && parsed.Scheme != "http") || parsed.User != nil || parsed.Fragment != "" || parsed.RawQuery != "" || parsed.Path != "/api/v1/auth/google/callback" {
+		return false
+	}
+	return !requireHTTPS || parsed.Scheme == "https"
 }
 
 func env(name, fallback string) string {
