@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/ids-automate/ids-automate/api/internal/domain"
+	"github.com/ids-automate/ids-automate/api/internal/provider"
 	"github.com/ids-automate/ids-automate/api/internal/security"
 	"github.com/ids-automate/ids-automate/api/internal/store"
 	"github.com/ids-automate/ids-automate/api/internal/worker"
@@ -82,6 +83,32 @@ func (s *Server) instagramAccounts(w http.ResponseWriter, r *http.Request, p dom
 func (s *Server) metaConfigured() bool {
 	return s.provider.Name() == "meta" && s.cfg.MetaConfigurationReady()
 }
+
+func (s *Server) instagramMedia(w http.ResponseWriter, r *http.Request, p domain.Principal) {
+	providerAccountID, encrypted, accountProvider, _, err := s.store.AccountSecretByID(r.Context(), p.WorkspaceID, r.PathValue("id"))
+	if err != nil {
+		statusError(w, err)
+		return
+	}
+	if accountProvider != s.provider.Name() {
+		fail(w, http.StatusConflict, "provider_mismatch", "Instagram akkauntini qayta ulang")
+		return
+	}
+	token, err := s.cipher.Decrypt(encrypted)
+	if err != nil {
+		slog.Error("instagram media token decrypt failed", "workspace_id", p.WorkspaceID, "account_id", r.PathValue("id"))
+		fail(w, http.StatusInternalServerError, "token_unavailable", "Instagram akkauntini qayta ulang")
+		return
+	}
+	items, err := s.provider.ListMedia(r.Context(), token, providerAccountID)
+	if err != nil {
+		slog.Warn("instagram media sync failed", "workspace_id", p.WorkspaceID, "account_id", r.PathValue("id"), "error_code", provider.ErrorCode(err))
+		fail(w, http.StatusBadGateway, "media_sync_failed", "Instagram postlari yuklanmadi. Akkauntni qayta ulang yoki Meta ruxsatlarini tekshiring")
+		return
+	}
+	respond(w, http.StatusOK, map[string]any{"items": items})
+}
+
 func (s *Server) instagramDisconnect(w http.ResponseWriter, r *http.Request, p domain.Principal) {
 	accountID := r.PathValue("id")
 	providerAccountID, encrypted, accountProvider, _, secretErr := s.store.AccountSecretByID(r.Context(), p.WorkspaceID, accountID)

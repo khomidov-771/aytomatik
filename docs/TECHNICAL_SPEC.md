@@ -20,7 +20,7 @@ Scope’dan chiqarilgan: subscription/payment, pricing plan, demo mode, demo cre
 Har bir rule:
 
 - Instagram account;
-- barcha eligible postlar yoki tanlangan media ID’lar;
+- barcha eligible postlar yoki real ulangan akkauntdan vizual tanlangan post/Reels’lar;
 - keywordlar va exclusions;
 - `exact`, `contains`, `keyword_list` matching;
 - private DM template;
@@ -146,6 +146,7 @@ Har bir rule:
 - Responsive UI: 360/768/1440.
 - Loading/error/empty/retry state.
 - Uzbek-first interface.
+- Product UI foydalanuvchidan raw Media ID so‘ramaydi; connected account media ro‘yxati server orqali official Meta API’dan olinadi.
 
 ## 11. Acceptance criteria
 

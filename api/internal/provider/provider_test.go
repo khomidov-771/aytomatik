@@ -150,6 +150,52 @@ func TestUnifiedOAuthExchangeSubscriptionAndMessageDelivery(t *testing.T) {
 	}
 }
 
+func TestListMediaUsesConnectedAccountAndOfficialMediaEdge(t *testing.T) {
+	for _, test := range []struct {
+		name, loginMode, host string
+	}{
+		{name: "Instagram Login", loginMode: "instagram", host: "graph.instagram.com"},
+		{name: "Unified Login", loginMode: "unified", host: "graph.facebook.com"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			client := &http.Client{Transport: roundTripFunc(func(request *http.Request) (*http.Response, error) {
+				if request.Method != http.MethodGet || request.URL.Host != test.host || request.URL.Path != "/v25.0/ig-1/media" {
+					t.Fatalf("unexpected media endpoint: %s %s", request.Method, request.URL.String())
+				}
+				if request.Header.Get("Authorization") != "Bearer token" || request.URL.Query().Get("limit") != "50" {
+					t.Fatal("media request did not use the connected account authorization")
+				}
+				fields := request.URL.Query().Get("fields")
+				for _, expected := range []string{"id", "caption", "media_type", "media_product_type", "thumbnail_url", "permalink", "timestamp"} {
+					if !strings.Contains(fields, expected) {
+						t.Fatalf("media request is missing %s: %s", expected, fields)
+					}
+				}
+				return jsonResponse(200, `{"data":[{"id":"media-1","caption":"Yangi mahsulot","media_type":"VIDEO","media_product_type":"REELS","media_url":"https://cdn.example.com/video.mp4","thumbnail_url":"https://cdn.example.com/cover.jpg","permalink":"https://www.instagram.com/reel/example/","timestamp":"2026-11-10T08:00:00Z"},{"caption":"missing id"}]}`), nil
+			})}
+			p := &Meta{cfg: config.Config{MetaAPIVersion: "v25.0", MetaLoginMode: test.loginMode}, client: client}
+			items, err := p.ListMedia(context.Background(), "token", "ig-1")
+			if err != nil || len(items) != 1 {
+				t.Fatalf("media list failed: %#v %v", items, err)
+			}
+			if items[0].ID != "media-1" || items[0].MediaProductType != "REELS" || items[0].ThumbnailURL == "" || items[0].Timestamp.IsZero() {
+				t.Fatalf("unexpected media: %#v", items[0])
+			}
+		})
+	}
+}
+
+func TestSafeProviderURLRequiresHTTPS(t *testing.T) {
+	if got := safeProviderURL("https://scontent.cdninstagram.com/image.jpg"); got == "" {
+		t.Fatal("valid HTTPS media URL was rejected")
+	}
+	for _, raw := range []string{"javascript:alert(1)", "http://example.com/image.jpg", "//example.com/image.jpg", "not a url"} {
+		if got := safeProviderURL(raw); got != "" {
+			t.Fatalf("unsafe provider URL accepted: %q", got)
+		}
+	}
+}
+
 func TestInstagramLoginFollowerStatusIsThreeState(t *testing.T) {
 	response := `{"is_user_follow_business":true}`
 	client := &http.Client{Transport: roundTripFunc(func(request *http.Request) (*http.Response, error) {

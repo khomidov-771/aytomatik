@@ -27,6 +27,19 @@ type Account struct {
 }
 type Delivery struct{ MessageID string }
 
+// Media is the provider-neutral subset used by the automation builder. Access
+// tokens and provider-only fields must never be returned to the browser.
+type Media struct {
+	ID               string    `json:"id"`
+	Caption          string    `json:"caption,omitempty"`
+	MediaType        string    `json:"media_type"`
+	MediaProductType string    `json:"media_product_type,omitempty"`
+	MediaURL         string    `json:"media_url,omitempty"`
+	ThumbnailURL     string    `json:"thumbnail_url,omitempty"`
+	Permalink        string    `json:"permalink,omitempty"`
+	Timestamp        time.Time `json:"timestamp"`
+}
+
 type APIError struct {
 	StatusCode int
 	Code       int
@@ -74,6 +87,7 @@ type Instagram interface {
 	AuthorizationURL(state string) (string, error)
 	ExchangeCode(ctx context.Context, code string) (Account, error)
 	DisconnectAccount(ctx context.Context, accessToken, accountID string) error
+	ListMedia(ctx context.Context, accessToken, accountID string) ([]Media, error)
 	CheckFollowerStatus(ctx context.Context, accessToken, participantID string, scopes []string) (domain.FollowerStatus, error)
 	SendPrivateReply(ctx context.Context, accessToken, accountID, commentID, text string) (Delivery, error)
 	SendPublicCommentReply(ctx context.Context, accessToken, commentID, text string) (Delivery, error)
@@ -103,6 +117,9 @@ func (m *Mock) ExchangeCode(_ context.Context, code string) (Account, error) {
 	return Account{ID: "mock-178414000000001", Username: "ids.demo", AccountType: "BUSINESS", AccessToken: "mock-access-token", ExpiresAt: &expiry, Scopes: []string{"instagram_business_basic", "instagram_business_manage_comments", "instagram_business_manage_messages"}}, nil
 }
 func (m *Mock) DisconnectAccount(_ context.Context, _, _ string) error { return nil }
+func (m *Mock) ListMedia(_ context.Context, _, _ string) ([]Media, error) {
+	return []Media{}, nil
+}
 func (m *Mock) CheckFollowerStatus(_ context.Context, _, participantID string, _ []string) (domain.FollowerStatus, error) {
 	switch {
 	case strings.Contains(participantID, "not-follower"):
@@ -318,6 +335,48 @@ func (m *Meta) deleteGraphResource(ctx context.Context, endpoint, token string) 
 		return errors.New("Meta did not confirm the operation")
 	}
 	return nil
+}
+
+func (m *Meta) ListMedia(ctx context.Context, token, accountID string) ([]Media, error) {
+	if strings.TrimSpace(token) == "" || strings.TrimSpace(accountID) == "" {
+		return nil, errors.New("Instagram account authorization is missing")
+	}
+	host := "https://graph.instagram.com"
+	if m.cfg.MetaLoginMode == "unified" {
+		host = "https://graph.facebook.com"
+	}
+	query := url.Values{
+		"fields": {"id,caption,media_type,media_product_type,media_url,thumbnail_url,permalink,timestamp"},
+		"limit":  {"50"},
+	}
+	endpoint := fmt.Sprintf("%s/%s/%s/media?%s", host, m.cfg.MetaAPIVersion, url.PathEscape(accountID), query.Encode())
+	req, _ := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	var response struct {
+		Data []Media `json:"data"`
+	}
+	if err := m.do(req, &response); err != nil {
+		return nil, err
+	}
+	items := make([]Media, 0, len(response.Data))
+	for _, item := range response.Data {
+		if strings.TrimSpace(item.ID) == "" {
+			continue
+		}
+		item.MediaURL = safeProviderURL(item.MediaURL)
+		item.ThumbnailURL = safeProviderURL(item.ThumbnailURL)
+		item.Permalink = safeProviderURL(item.Permalink)
+		items = append(items, item)
+	}
+	return items, nil
+}
+
+func safeProviderURL(raw string) string {
+	parsed, err := url.Parse(strings.TrimSpace(raw))
+	if err != nil || parsed.Scheme != "https" || parsed.Host == "" {
+		return ""
+	}
+	return parsed.String()
 }
 
 type unifiedInstagramAccount struct {

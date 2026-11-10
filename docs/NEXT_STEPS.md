@@ -29,13 +29,14 @@ Tekshiruv:
 
 1. OAuth boshidan oxirigacha, state reuse rejection.
 2. Token exchange, scopes, expiry va encrypted database qiymati.
-3. `subscribed_apps` yoki Instagram Login webhook subscription holati.
-4. Signed real comment webhook.
-5. FOLLOWER, NOT_FOLLOWER va permission/context yetishmagan UNKNOWN.
-6. Private reply provider ID va Instagram delivery ko‘rinishi.
-7. Private successdan keyingi public reply.
-8. Private failureda success public reply yo‘qligi.
-9. Bir comment qayta jo‘natilganda dublikat yo‘qligi.
+3. Ulangan akkaunt uchun media picker real post/Reels’larni thumbnail/caption bilan olishi va tanlangan media ID rule’da saqlanishi.
+4. `subscribed_apps` yoki Instagram Login webhook subscription holati.
+5. Signed real comment webhook.
+6. FOLLOWER, NOT_FOLLOWER va permission/context yetishmagan UNKNOWN.
+7. Private reply provider ID va Instagram delivery ko‘rinishi.
+8. Private successdan keyingi public reply.
+9. Private failureda success public reply yo‘qligi.
+10. Bir comment qayta jo‘natilganda dublikat yo‘qligi.
 
 Acceptance: har bir holat database execution/action row va Meta response ID bilan dalillanadi. Shundan oldin live integratsiya “tayyor” deb belgilanmaydi.
 

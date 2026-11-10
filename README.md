@@ -14,6 +14,8 @@ Obuna/to‘lov mahsulot scope’idan chiqarilgan. Product UI/API’da demo rejim
 
 Interfeys O‘zbek, Русский va English tillarida ishlaydi. Til hamda yorug‘/tungi tema public sahifalar, authentication va workspace ichidan almashtiriladi; tanlov browserda saqlanadi.
 
+Automation yaratishda foydalanuvchi Media ID yozmaydi: real OAuth orqali ulangan akkauntning so‘nggi post/Reels’lari rasm, matn va sana bilan Meta API’dan olinadi. Qoida barcha hozirgi/keyingi postlarga yoki foydalanuvchi tanlagan aniq videolarga qo‘llanadi.
+
 ## Holat
 
 - Backend, frontend va PostgreSQL integratsion testlar lokal muhitda o‘tgan.

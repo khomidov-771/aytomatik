@@ -40,7 +40,7 @@ Meta Webhook
 
 - Next.js 16, React 19, TypeScript strict mode.
 - Browser faqat application API bilan gaplashadi; Meta access token browserga berilmaydi.
-- Automation builder quyidagilarni saqlaydi: account, post scope, keyword/match mode, private reply, uchta public reply, follow toggle, UNKNOWN fallback, active flag va priority.
+- Automation builder quyidagilarni saqlaydi: account, post scope, keyword/match mode, private reply, uchta public reply, follow toggle, UNKNOWN fallback, active flag va priority. Tanlangan postlar uchun browser Media ID so‘ramaydi; backend tenantga tegishli encrypted tokenni ochib, Meta `/{ig-user-id}/media` edge’dan maksimal 50 ta post/Reels metadata olib beradi.
 - Execution history har bir `follow_check`, `private_reply`, `public_reply` natijasini alohida ko‘rsatadi.
 - Product UI’da demo, billing va fake account yo‘llari yo‘q.
 
@@ -110,6 +110,7 @@ Migration `005_core_comment_to_dm.sql`:
 - `GET /api/v1/instagram/connect`
 - `GET /api/v1/instagram/callback`
 - `GET /api/v1/instagram/accounts`
+- `GET /api/v1/instagram/accounts/{id}/media`
 - `DELETE /api/v1/instagram/accounts/{id}`
 
 ### Automation

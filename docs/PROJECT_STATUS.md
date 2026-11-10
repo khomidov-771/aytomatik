@@ -42,7 +42,7 @@ Bu product completion foizi emas. Kod tayyorligi yuqoriroq, lekin core biznes qi
 | Unified Login adapter | Auth URL, exchange, assigned asset, subscription controlled test bor; live tekshirilmagan |
 | Token encryption | AES-256-GCM implementation/test bor; real token saqlanmagan |
 | Webhook verify/parser | HMAC va Meta-shaped payload controlled test bor; live payload tekshirilmagan |
-| Automation builder | Account/post/keyword/templates/follow/fallback/active fields ishlaydi |
+| Automation builder | Account/keyword/templates/follow/fallback/active fields ishlaydi. Raw Media ID olib tashlangan; real connected account uchun Meta media edge’dan post/Reels preview tanlovi qo‘shilgan. Provider request controlled testdan o‘tgan, live token bilan hali tekshirilmagan |
 | Follow tri-state | Implemented. Unified → UNKNOWN. Instagram Login field/error semantics controlled testda |
 | Private reply | Official endpoint adapter va state machine implemented; live tekshirilmagan |
 | Public comment reply | Private successdan keyingi branch implemented; live tekshirilmagan |
@@ -92,6 +92,8 @@ npm run build:web                                               PASS (21 routes)
 
 Frontendning yangi UZ/RU/EN va light/dark o‘zgarishlari ham aynan shu lint, 2/2 unit test va 21-route production build bilan qayta tekshirildi.
 
+Visual post picker o‘zgarishidan keyin `go test ./...`, `go vet ./...`, frontend lint, 2/2 unit test va 21-route production build qayta PASS bo‘ldi. `/{ig-user-id}/media` request host/path/auth/fields ikkala login mode uchun controlled provider test bilan tekshirildi; bu live Meta media access dalili emas.
+
 Docker CLI bu Windows muhitida o‘rnatilmagan. PostgreSQL integration test cached embedded PostgreSQL 18.6.1 bilan real database processga qarshi o‘tdi. Bu in-memory/mock DB emas.
 
 Frontend build dastlab cheklangan Windows process huquqida `.next/standalone` yaratishda `EPERM` berdi; generated `.next` tozalanib odatiy Windows huquqida qayta bajarilganda PASS bo‘ldi.
@@ -104,6 +106,7 @@ Frontend build dastlab cheklangan Windows process huquqida `.next/standalone` ya
 - Meta rate-limit, revoked token, App Review va one-private-reply/time-window xatolari real response bilan tekshirilmagan.
 - Current queue process bir processli worker; horizontal deployment uchun distributed wake-up/lease observability kengaytirilishi kerak.
 - Data deletion hozir auditdagi `pending_manual_review`; avtomatik deletion workflow emas.
+- Media picker real connected account/access token bo‘lmagani sabab production Meta response bilan hali tekshirilmagan.
 
 ## Muhim aniqlik
 

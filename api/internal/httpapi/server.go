@@ -57,6 +57,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /api/v1/instagram/connect", s.auth(false, "manager", s.instagramConnect))
 	mux.HandleFunc("GET /api/v1/instagram/callback", s.instagramCallback)
 	mux.HandleFunc("GET /api/v1/instagram/accounts", s.auth(false, "customer", s.instagramAccounts))
+	mux.HandleFunc("GET /api/v1/instagram/accounts/{id}/media", s.auth(false, "manager", s.instagramMedia))
 	mux.HandleFunc("DELETE /api/v1/instagram/accounts/{id}", s.auth(true, "manager", s.instagramDisconnect))
 	mux.HandleFunc("GET /api/v1/automations", s.auth(false, "customer", s.automations))
 	mux.HandleFunc("POST /api/v1/automations", s.auth(true, "manager", s.createAutomation))

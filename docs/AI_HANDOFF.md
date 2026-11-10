@@ -79,6 +79,14 @@ Subscription/payment scope olib tashlangan. Productda demo mode, demo credential
 - `web/app/globals.css` — light/dark professional design token va override’lar
 - `web/app/app/accounts/page.tsx` — login mode/capability warning
 
+## 2026-11-10 soddalashtirilgan Instagram UX
+
+- Accounts sahifasi real OAuth’ni “Instagram bilan kirish” deb aniq ko‘rsatadi, Professional account va official Instagram/Meta oynasi ekanini tushuntiradi; parol IDS Automate’ga kelmaydi.
+- Automation builderdagi raw `Media ID` input olib tashlandi.
+- `GET /api/v1/instagram/accounts/{id}/media` tenant-scoped encrypted token orqali official Meta media edge’dan so‘nggi 50 post/Reels metadata oladi.
+- Builder thumbnail, caption, turi va sana bilan vizual multi-select beradi; “barcha postlar” kelajakdagi postlarni ham qamrab oladi.
+- Provider host/path/bearer/fields controlled testdan o‘tgan. Production’da valid Meta credential va real connected account yo‘qligi sabab live media list hali tekshirilmagan.
+
 ## Tekshirilgan testlar
 
 2026-11-10:

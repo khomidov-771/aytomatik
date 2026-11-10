@@ -24,6 +24,7 @@ Backend testlari:
 - Instagram Login follow `true`/`false`/missing-field semantics;
 - Unified follow → `UNKNOWN`;
 - private/public reply request construction;
+- connected account media list request host/path/bearer/fields for Instagram va Unified login;
 - webhook signature/payload parsing;
 - AES token encryption va auth/security primitives;
 - keyword/media matching;
@@ -59,6 +60,7 @@ Quyidagilar **NOT TESTED LIVE**:
 - public comment reply real delivery;
 - Meta rate limit va policy rejection;
 - real inbound DM/manual reply.
+- connected account `/{ig-user-id}/media` response va visual picker.
 
 Sabab: Meta App ID/App Secret, tasdiqlangan eligible account/test user va public HTTPS callback bu workspace’da mavjud emas.
 

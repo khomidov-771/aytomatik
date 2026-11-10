@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, Check, Instagram, Link2, Plus, RefreshCw, ShieldCheck, Trash2 } from "lucide-react";
+import { AlertTriangle, BadgeCheck, Check, Instagram, Link2, LockKeyhole, RefreshCw, ShieldCheck, Trash2 } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
 import { roleAtLeast, useSession } from "@/components/session-context";
@@ -69,19 +69,20 @@ function AccountsContent() {
   if (accounts.error) return <ErrorState message={accounts.error} retry={accounts.reload}/>;
   const data = accounts.data;
   const items = data?.items ?? [];
-  const providerLabel = data?.provider === "meta" && data.login_mode === "unified" ? "Meta · Unified Login" : data?.provider;
+  const providerLabel = data?.provider === "meta" ? (data.login_mode === "unified" ? "Meta · Unified Login" : "Instagram Login") : data?.provider;
 
   return <>
     <PageHeader
       eyebrow={tr("Integratsiyalar", "Интеграции", "Integrations")}
-      title={tr("Instagram akkauntlar", "Аккаунты Instagram", "Instagram accounts")}
-      description={tr("Professional Business yoki Creator akkauntlarini rasmiy OAuth orqali ulang.", "Подключайте Professional Business или Creator аккаунты через официальный OAuth.", "Connect Professional Business or Creator accounts through official OAuth.")}
-      action={canManage ? <button className="btn primary" onClick={() => void connect()} disabled={busy === "connect" || !data?.meta_configured}><Plus/>{busy === "connect" ? tr("Ulanmoqda...", "Подключение...", "Connecting...") : tr("Akkaunt ulash", "Подключить аккаунт", "Connect account")}</button> : undefined}
+      title={tr("Instagram bilan kirish", "Вход через Instagram", "Connect with Instagram")}
+      description={tr("O‘z Professional Business yoki Creator akkauntingizni rasmiy Instagram/Meta oynasi orqali ulang.", "Подключите свой Professional Business или Creator аккаунт через официальное окно Instagram/Meta.", "Connect your own Professional Business or Creator account through the official Instagram/Meta window.")}
+      action={canManage ? <button className="btn primary" onClick={() => void connect()} disabled={busy === "connect" || !data?.meta_configured}><Instagram/>{busy === "connect" ? tr("Instagram ochilmoqda...", "Открываем Instagram...", "Opening Instagram...") : tr("Instagram bilan kirish", "Войти через Instagram", "Continue with Instagram")}</button> : undefined}
     />
     {data && !data.meta_configured && <div className="notice-banner warning"><AlertTriangle/><div><strong>{tr("Meta integratsiyasi sozlanmagan", "Интеграция Meta не настроена", "Meta integration is not configured")}</strong><p>{tr("Serverga Meta credentials kiritilmaguncha akkaunt ulash bloklangan.", "Подключение заблокировано до добавления Meta credentials на сервер.", "Account connection is blocked until Meta credentials are configured on the server.")}</p></div></div>}
     {data?.login_mode === "unified" && <div className="notice-banner warning"><AlertTriangle/><div><strong>{tr("Follow verification cheklovi", "Ограничение проверки подписки", "Follow verification limitation")}</strong><p>{tr("Unified/Facebook login yo‘lida follow tekshiruvi tasdiqlanmagan; natija UNKNOWN fallbackga tushadi.", "Для Unified/Facebook Login проверка подписки не подтверждена; результат будет UNKNOWN.", "Follow verification is not confirmed for Unified/Facebook Login; the result falls back to UNKNOWN.")}</p></div></div>}
     {!canManage && <div className="notice-banner warning"><ShieldCheck/><span>{tr("Akkauntni boshqarish uchun Manager yoki Owner roli kerak.", "Для управления аккаунтами нужна роль Manager или Owner.", "Manager or Owner role is required to manage accounts.")}</span></div>}
     {(notice || callbackNotice) && <div className={`notice-banner ${callbackError || notice ? "warning" : ""}`}><AlertTriangle/><span>{notice || callbackNotice}</span></div>}
+    {items.length === 0 && canManage && <section className="instagram-login-flow panel"><div className="login-flow-copy"><span className="instagram-login-mark"><Instagram/></span><div><h2>{tr("Akkauntingizni xavfsiz ulang", "Безопасно подключите аккаунт", "Connect your account securely")}</h2><p>{tr("Tugmani bosganda rasmiy Instagram yoki Meta login oynasi ochiladi. Login va parol IDS Automate serveriga kelmaydi.", "Откроется официальное окно входа Instagram или Meta. Логин и пароль не передаются на сервер IDS Automate.", "The official Instagram or Meta login window opens. Your login and password never reach IDS Automate.")}</p></div></div><div className="login-flow-steps"><div><span>1</span><strong>{tr("Instagram bilan kiring", "Войдите через Instagram", "Sign in with Instagram")}</strong></div><div><span>2</span><strong>{tr("Professional akkauntni tanlang", "Выберите Professional аккаунт", "Choose a Professional account")}</strong></div><div><span>3</span><strong>{tr("Ruxsatlarni tasdiqlang", "Подтвердите разрешения", "Approve permissions")}</strong></div></div><div className="login-flow-security"><LockKeyhole/><span>{tr("Parol saqlanmaydi", "Пароль не сохраняется", "Password is not stored")}</span><BadgeCheck/><span>{tr("Faqat rasmiy Meta API", "Только официальный Meta API", "Official Meta API only")}</span></div><button className="btn primary" onClick={() => void connect()} disabled={busy === "connect" || !data?.meta_configured}><Instagram/>{busy === "connect" ? tr("Instagram ochilmoqda...", "Открываем Instagram...", "Opening Instagram...") : tr("Instagram bilan davom etish", "Продолжить через Instagram", "Continue with Instagram")}</button></section>}
     <div className="integration-summary">
       <div><span className="summary-icon"><Link2/></span><div><strong>{tr(`${items.filter((item) => item.status === "connected").length} ta ulangan`, `${items.filter((item) => item.status === "connected").length} подключено`, `${items.filter((item) => item.status === "connected").length} connected`)}</strong><p>Provider: {providerLabel}</p></div></div>
       <div className="security-note"><ShieldCheck/><span>{tr("Access tokenlar shifrlangan va UI’da ko‘rsatilmaydi", "Access token зашифрованы и не показываются в UI", "Access tokens are encrypted and never shown in the UI")}</span></div>
@@ -89,7 +90,7 @@ function AccountsContent() {
     {items.length === 0 ? <EmptyState
       title={tr("Instagram akkaunt ulanmagan", "Instagram аккаунт не подключён", "No Instagram account connected")}
       text={!canManage ? tr("Manager yoki Owner akkaunt ulashi mumkin.", "Аккаунт может подключить Manager или Owner.", "A Manager or Owner can connect an account.") : data?.login_mode === "unified" ? tr("Meta Unified Login orqali Professional akkauntni tanlang.", "Выберите Professional аккаунт через Meta Unified Login.", "Select a Professional account through Meta Unified Login.") : tr("Instagram Login orqali Professional akkauntni ulang.", "Подключите Professional аккаунт через Instagram Login.", "Connect a Professional account through Instagram Login.")}
-      action={canManage ? <button className="btn primary" onClick={() => void connect()} disabled={!data?.meta_configured}><Instagram/>{tr("Akkaunt ulash", "Подключить аккаунт", "Connect account")}</button> : undefined}
+      action={undefined}
     /> : <div className="account-grid">{items.map((account) => <article className="account-card" key={account.id}>
       <div className="account-card-top"><span className="account-avatar large"><Instagram/></span><div><h3>@{account.username}</h3><p>{account.account_type}</p></div><StatusPill status={account.status}/></div>
       <div className="account-details"><div><span>Provider</span><strong>{account.provider}</strong></div><div><span>{tr("Oxirgi sync", "Последняя синхронизация", "Last sync")}</span><strong>{account.last_sync_at ? timeAgo(account.last_sync_at) : "—"}</strong></div><div><span>{tr("Token muddati", "Срок токена", "Token expiry")}</span><strong>{formatDate(account.token_expires_at)}</strong></div></div>

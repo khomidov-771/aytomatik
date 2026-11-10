@@ -1,12 +1,12 @@
 "use client";
 
-import { AlertTriangle, ArrowRight, Bot, CheckCircle2, ChevronLeft, CircleHelp, Clock3, Eye, MessageCircle, Save, Send, Sparkles, TestTube2, UserCheck } from "lucide-react";
+import { AlertTriangle, ArrowRight, Bot, Check, CheckCircle2, ChevronLeft, CircleHelp, Clock3, ExternalLink, Film, Images, Eye, MessageCircle, RefreshCw, Save, Send, Sparkles, TestTube2, UserCheck } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useState } from "react";
 import { useApi } from "@/hooks/use-api";
 import { api, ApiError, jsonBody } from "@/lib/api";
-import type { Automation, AutomationExecution, InstagramAccount } from "@/lib/types";
+import type { Automation, AutomationExecution, InstagramAccount, InstagramMedia } from "@/lib/types";
 import { EmptyState, ErrorState, LoadingState, PageHeader, StatusPill } from "./ui";
 import { roleAtLeast, useSession } from "./session-context";
 import { usePreferences } from "./preferences-provider";
@@ -54,7 +54,7 @@ function automationForm(automation: Automation) {
 }
 
 export function AutomationForm({ id }: { id?: string }) {
-  const { tr } = usePreferences();
+  const { locale, tr } = usePreferences();
   const session = useSession();
   const canManage = roleAtLeast(session.user.role, "manager");
   const router = useRouter();
@@ -76,26 +76,48 @@ export function AutomationForm({ id }: { id?: string }) {
     public_not_follower_reply_text: tr("Avval sahifamizga obuna bo‘ling! 😊", "Сначала подпишитесь на нашу страницу! 😊", "Please follow our page first! 😊"),
     public_unknown_reply_text: tr("Iltimos, sahifamizga obuna bo‘ling va Direct orqali yozing.", "Пожалуйста, подпишитесь и напишите нам в Direct.", "Please follow our page and message us in Direct."),
   };
+  const connectedAccounts = accounts.data?.items.filter((account) => account.status === "connected") ?? [];
   const initial = existing.data
     ? automationForm(existing.data)
-    : { ...localizedEmpty, instagram_account_id: !id ? (accounts.data?.items[0]?.id ?? "") : "" };
+    : { ...localizedEmpty, instagram_account_id: !id ? (connectedAccounts[0]?.id ?? "") : "" };
   const form = draft ?? initial;
-  const keywordList = useMemo(() => form.keywords.split(",").map(normalize).filter(Boolean), [form.keywords]);
-  const matched = useMemo(() => {
+  const media = useApi<{items: InstagramMedia[]}>(form.instagram_account_id && form.media_scope === "selected" ? `/instagram/accounts/${encodeURIComponent(form.instagram_account_id)}/media` : null);
+  const selectedMediaIDs = form.media_ids.split(",").map((value) => value.trim()).filter(Boolean);
+  const keywordList = form.keywords.split(",").map(normalize).filter(Boolean);
+  const matched = (() => {
     const text = normalize(test);
     const excluded = form.exclusions.split(",").map(normalize).filter(Boolean).some((value) => text.includes(value));
     if (excluded) return false;
     return keywordList.some((value) => form.match_mode === "exact" ? text === value : form.match_mode === "keyword_list" ? text.split(" ").includes(value) : text.includes(value));
-  }, [test, keywordList, form.match_mode, form.exclusions]);
+  })();
 
   function field(name: string, value: string | boolean | number) {
     setDraft({ ...form, [name]: value });
   }
 
+  function selectAccount(accountID: string) {
+    setDraft({ ...form, instagram_account_id: accountID, media_scope: "all", media_ids: "" });
+  }
+
+  function selectMediaScope(scope: string) {
+    setDraft({ ...form, media_scope: scope, media_ids: scope === "all" ? "" : form.media_ids });
+  }
+
+  function toggleMedia(mediaID: string) {
+    const next = selectedMediaIDs.includes(mediaID)
+      ? selectedMediaIDs.filter((value) => value !== mediaID)
+      : [...selectedMediaIDs, mediaID];
+    setDraft({ ...form, media_ids: next.join(", ") });
+  }
+
   async function submit(event: FormEvent) {
     event.preventDefault();
-    setSaving(true);
     setError("");
+    if (form.media_scope === "selected" && selectedMediaIDs.length === 0) {
+      setError(tr("Kamida bitta video yoki postni tanlang.", "Выберите хотя бы одно видео или публикацию.", "Select at least one video or post."));
+      return;
+    }
+    setSaving(true);
     const payload = {
       name: form.name,
       instagram_account_id: form.instagram_account_id,
@@ -103,7 +125,7 @@ export function AutomationForm({ id }: { id?: string }) {
       keywords: form.keywords.split(",").map((value) => value.trim()).filter(Boolean),
       exclusions: form.exclusions.split(",").map((value) => value.trim()).filter(Boolean),
       media_scope: form.media_scope,
-      media_ids: form.media_ids.split(",").map((value) => value.trim()).filter(Boolean),
+      media_ids: selectedMediaIDs,
       private_reply_text: form.private_reply_text,
       public_success_reply_text: form.public_success_reply_text,
       public_not_follower_reply_text: form.public_not_follower_reply_text,
@@ -131,14 +153,14 @@ export function AutomationForm({ id }: { id?: string }) {
   return <>
     <PageHeader eyebrow={tr("Qoida muharriri", "Редактор правила", "Rule editor")} title={copyMode ? tr("Qoidadan nusxa yaratish", "Создать копию правила", "Copy automation") : id ? tr("Qoidani tahrirlash", "Редактировать правило", "Edit automation") : tr("Yangi avtomatlashtirish", "Новая автоматизация", "New automation")} description={tr("Har bir comment event faqat bir marta ishlanadi.", "Каждый комментарий обрабатывается только один раз.", "Each comment event is processed only once.")} action={<Link className="btn secondary" href="/app/automations"><ChevronLeft/>{tr("Orqaga", "Назад", "Back")}</Link>}/>
     {error && <div className="form-alert error">{error}</div>}
-    {!accounts.data?.items.length ? <div className="notice-banner warning">{tr("Avval Instagram akkaunt ulang.", "Сначала подключите Instagram аккаунт.", "Connect an Instagram account first.")} <Link href="/app/accounts">{tr("Akkauntlar sahifasi", "Страница аккаунтов", "Accounts page")}</Link></div> :
+    {!connectedAccounts.length ? <div className="connect-first-card panel"><div className="connect-first-icon"><Images/></div><div><h2>{tr("Avval Instagram akkauntingizni ulang", "Сначала подключите свой Instagram", "Connect your Instagram first")}</h2><p>{tr("O‘z Professional akkauntingiz bilan rasmiy Instagram/Meta oynasida kirasiz. IDS Automate parolingizni ko‘rmaydi.", "Войдите в свой Professional аккаунт через официальное окно Instagram/Meta. IDS Automate не видит ваш пароль.", "Sign in to your Professional account in the official Instagram/Meta window. IDS Automate never sees your password.")}</p></div><Link className="btn primary" href="/app/accounts">{tr("Instagram bilan kirish", "Войти через Instagram", "Continue with Instagram")}</Link></div> :
       <form className="builder-layout" onSubmit={submit}>
         <div className="builder-form">
           <section className="panel form-section">
             <div className="form-section-title"><span>1</span><div><h2>{tr("Asosiy ma’lumot", "Основные данные", "Basics")}</h2><p>{tr("Qoida va akkauntni tanlang", "Выберите правило и аккаунт", "Choose the rule and account")}</p></div></div>
             <div className="form-grid">
               <label><span>{tr("Qoida nomi", "Название правила", "Rule name")}</span><input value={form.name} onChange={(event) => field("name", event.target.value)} required placeholder={tr("Masalan: Narx so‘rovi", "Например: Запрос цены", "For example: Price request")}/></label>
-              <label><span>{tr("Instagram akkaunt", "Instagram аккаунт", "Instagram account")}</span><select value={form.instagram_account_id} onChange={(event) => field("instagram_account_id", event.target.value)} required><option value="">{tr("Tanlang", "Выберите", "Select")}</option>{accounts.data.items.filter((account) => account.status === "connected").map((account) => <option value={account.id} key={account.id}>@{account.username}</option>)}</select></label>
+              <label><span>{tr("Instagram akkauntingiz", "Ваш Instagram аккаунт", "Your Instagram account")}</span><select value={form.instagram_account_id} onChange={(event) => selectAccount(event.target.value)} required><option value="">{tr("Akkauntni tanlang", "Выберите аккаунт", "Select account")}</option>{connectedAccounts.map((account) => <option value={account.id} key={account.id}>@{account.username}</option>)}</select></label>
             </div>
           </section>
           <section className="panel form-section">
@@ -148,8 +170,16 @@ export function AutomationForm({ id }: { id?: string }) {
               <label><span>{tr("Kalit so‘zlar", "Ключевые слова", "Keywords")} <small>{tr("vergul bilan", "через запятую", "comma-separated")}</small></span><input value={form.keywords} onChange={(event) => field("keywords", event.target.value)} required placeholder={tr("narx, qancha, katalog", "цена, сколько, каталог", "price, cost, catalog")}/></label>
               <label><span>{tr("Istisnolar", "Исключения", "Exclusions")} <small>{tr("ixtiyoriy", "необязательно", "optional")}</small></span><input value={form.exclusions} onChange={(event) => field("exclusions", event.target.value)} placeholder={tr("bepul, spam", "бесплатно, спам", "free, spam")}/></label>
             </div>
-            <label><span>Post scope</span><select value={form.media_scope} onChange={(event) => field("media_scope", event.target.value)}><option value="all">{tr("Barcha eligible media", "Все доступные media", "All eligible media")}</option><option value="selected">{tr("Tanlangan media ID", "Выбранные media ID", "Selected media IDs")}</option></select></label>
-            {form.media_scope === "selected" && <label><span>Media ID</span><input value={form.media_ids} onChange={(event) => field("media_ids", event.target.value)} placeholder="1789..., 1789..." required/></label>}
+            <div className="post-scope-field"><span>{tr("Qaysi videolarda ishlasin?", "Для каких видео это работает?", "Which videos should use this automation?")}</span><div className="scope-choice-grid"><button type="button" className={form.media_scope === "all" ? "active" : ""} onClick={() => selectMediaScope("all")}><Images/><span><strong>{tr("Barcha video va postlar", "Все видео и публикации", "All videos and posts")}</strong><small>{tr("Hozirgi va keyingi postlarda ishlaydi", "Работает для текущих и будущих публикаций", "Works on current and future posts")}</small></span>{form.media_scope === "all" && <CheckCircle2/>}</button><button type="button" className={form.media_scope === "selected" ? "active" : ""} onClick={() => selectMediaScope("selected")}><Film/><span><strong>{tr("Aniq videolarni tanlash", "Выбрать конкретные видео", "Choose specific videos")}</strong><small>{tr("Instagram’dan rasmlari bilan ko‘rsatiladi", "Показываются с обложками из Instagram", "Shown with Instagram thumbnails")}</small></span>{form.media_scope === "selected" && <CheckCircle2/>}</button></div></div>
+            {form.media_scope === "selected" && <div className="media-picker" aria-live="polite">
+              <div className="media-picker-heading"><div><strong>{tr("Instagram postlaringiz", "Ваши публикации Instagram", "Your Instagram posts")}</strong><small>{tr(`${selectedMediaIDs.length} ta tanlandi`, `Выбрано: ${selectedMediaIDs.length}`, `${selectedMediaIDs.length} selected`)}</small></div><button type="button" className="btn secondary small" onClick={() => void media.reload()} disabled={media.loading}><RefreshCw/>{tr("Yangilash", "Обновить", "Refresh")}</button></div>
+              {media.loading ? <div className="media-picker-state"><span className="spinner"/>{tr("Postlar Instagram’dan olinmoqda...", "Загружаем публикации из Instagram...", "Loading posts from Instagram...")}</div> : media.error ? <div className="media-picker-state error"><AlertTriangle/><span>{media.error}</span><button type="button" className="btn secondary small" onClick={() => void media.reload()}>{tr("Qayta urinish", "Повторить", "Try again")}</button></div> : !media.data?.items.length ? <div className="media-picker-state"><Film/><span>{tr("Bu akkauntda tanlash mumkin bo‘lgan post topilmadi.", "В этом аккаунте нет доступных публикаций.", "No eligible posts were found for this account.")}</span></div> : <div className="media-grid">{media.data.items.map((item) => {
+                const selected = selectedMediaIDs.includes(item.id);
+                const preview = item.thumbnail_url || (item.media_type === "IMAGE" || item.media_type === "CAROUSEL_ALBUM" ? item.media_url : "");
+                const label = item.media_product_type === "REELS" ? "Reels" : item.media_type === "VIDEO" ? tr("Video", "Видео", "Video") : tr("Post", "Публикация", "Post");
+                return <article className={`media-card ${selected ? "selected" : ""}`} key={item.id}><button type="button" aria-pressed={selected} onClick={() => toggleMedia(item.id)}><span className="media-cover" style={preview ? { backgroundImage: `url(${JSON.stringify(preview)})` } : undefined}>{!preview && <Film/>}<small>{label}</small>{selected && <b><Check/></b>}</span><span className="media-copy"><strong>{item.caption?.trim() || tr("Matnsiz post", "Публикация без текста", "Post without a caption")}</strong><small>{item.timestamp ? new Date(item.timestamp).toLocaleDateString(locale === "ru" ? "ru-RU" : locale === "en" ? "en-US" : "uz-UZ") : ""}</small></span></button>{item.permalink && <a href={item.permalink} target="_blank" rel="noreferrer" aria-label={tr("Instagram’da ochish", "Открыть в Instagram", "Open on Instagram")}><ExternalLink/></a>}</article>;
+              })}</div>}
+            </div>}
           </section>
           <section className="panel form-section">
             <div className="form-section-title"><span>3</span><div><h2>{tr("Follow tekshiruvi", "Проверка подписки", "Follow verification")}</h2><p>{tr("Faqat rasmiy Meta field mavjud bo‘lsa aniq natija olinadi", "Точный результат доступен только при наличии официального Meta field", "A definitive result is available only when the official Meta field is present")}</p></div></div>
