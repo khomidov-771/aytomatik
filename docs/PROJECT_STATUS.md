@@ -1,10 +1,10 @@
 # Project status
 
-Tekshiruv: 2026-11-10. Branch: `main`. Holat faqat repository kodi, shu muhitda bajarilgan testlar va pastdagi production endpoint tekshiruviga asoslangan.
+Tekshiruv: 2026-11-11. Branch: `main`, commit `8c15cde`. Holat repository kodi, shu muhitda bajarilgan testlar va production serverdagi endpoint/container tekshiruvlariga asoslangan.
 
 ## Umumiy natija
 
-Oldingi 17-gate Meta auditining 70.6% ko‘rsatkichi Google OAuth va yangilangan production kuzatuvini o‘z ichiga olmaydi; shu sabab u joriy tayyorlik foizi sifatida ishlatilmasin. Joriy auditda Google oqimi controlled testlarda o‘tdi, lekin production serverda yangi route hali yo‘q va Google OAuth client qiymatlari yo‘q. Shu bois hozirgi holat **100% emas**, joriy foiz qayta hisoblanmagan.
+Oldingi 17-gate Meta auditining 70.6% ko‘rsatkichi Google OAuth va yangilangan production kuzatuvini o‘z ichiga olmaydi; shu sabab u joriy tayyorlik foizi sifatida ishlatilmasin. Google oqimi controlled testlarda o‘tdi va yangi kod production’ga deploy qilindi. Production status endpoint `enabled=false` qaytaryapti, chunki Google OAuth client qiymatlari serverda yo‘q. Shu bois hozirgi holat **100% emas**, joriy foiz qayta hisoblanmagan.
 
 Bu product completion foizi emas. Meta yoki Google’dagi real foydalanuvchi oqimi controlled test dalili bilan almashtirilmaydi.
 
@@ -66,7 +66,7 @@ Bu product completion foizi emas. Meta yoki Google’dagi real foydalanuvchi oqi
 
 Bu holatda real comment-to-DM oqimi ishlamaydi. Valid Meta App Secret serverga xavfsiz kiritilib, Professional account OAuth orqali ulangach va active automation yaratilgach live acceptance bajarilishi kerak.
 
-## 2026-11-10 joriy audit — Google OAuth qo‘shilishi
+## 2026-11-11 joriy audit — Google OAuth va production deploy
 
 ### Kodda bajarilgan
 
@@ -95,16 +95,18 @@ npm run build:web                                                PASS (21 routes
 
 Google OIDC controlled test haqiqiy Google akkaunti yoki live Google service deyilmaydi. U disposable PostgreSQL va lokal imzolangan test tokenidan foydalanadi. Frontend build Windows sandboxida `.next` katalogi uchun `EPERM` bergan; shu sabab ayni build workspace’da elevated ruxsat bilan yakunlandi.
 
-### Production server kuzatuvi
+### Production server kuzatuvi — 2026-11-11
 
 - `https://instagram.schat.uz/` va `/healthz`: HTTP 200.
-- Joriy API `healthz` `status=ok`, `meta_configured=true` dedi. Bu credential ko‘rinishi/config flagidir; Meta Graph live acceptance dalili emas. Oldingi live Graph tekshiruvida code `190` qayd etilgan va bu safar secret ishlatib qayta tekshirilmadi.
-- Server branch SHA: `2cb608a55c4e`; Google OAuth o‘zgarishlari u yerga hali deploy qilinmagan.
-- `GET /api/v1/auth/google/status`: HTTP 404.
-- Server `.env.production` ichida Google Client ID va Client Secret qiymatlari yo‘q.
-- Server Git working tree’da `.env.production`, compose va boshqa untracked user fayllar bor. Ularni tozalash, almashtirish yoki commit qilish mumkin emas.
+- API, web va PostgreSQL konteynerlari ishlayapti; PostgreSQL migration ro‘yxatida `006_google_oauth.sql` mavjud.
+- `GET /api/v1/auth/google/status`: HTTP 200, `{"enabled":false}`. Credentialsiz `POST /api/v1/auth/google/start`: HTTP 503 — server sozlanmaganini ochiq bildiradi.
+- GitHub `main` va production repo commit: `8c15cde` (`Add secure Google OIDC sign-in`). Web va API image’lari shu koddan deploy qilindi.
+- Deployning birinchi urinishida Compose `.env.production` faylini `--env-file` bilan yuklamagani uchun API database environment qiymatlarisiz qayta yaratilib restart loopga tushdi. Production DB konteyneriga tegilmagan. To‘g‘ri `.env.production`ni Compose’ga bergach API tiklandi; health va Google status endpointlari qayta tekshirildi.
+- Server `.env.production` ichida Google Client ID va Client Secret qiymatlari yo‘q. Haqiqiy Google consent/signup/login hali bajarilmagan.
+- Server Git working tree’dagi `.env.production`, compose va boshqa untracked operator fayllari saqlandi; ular tozalanmadi yoki tracked nusxa bilan almashtirilmadi.
+- Meta Graph credential oldingi live tekshiruvda OAuth code `190` bilan rad etilgan; bu deployda secret bilan qayta tekshirilmagan. `meta_configured` flag live Meta acceptance dalili emas.
 
-Demak production’da Google login hali ishlamaydi. Kod va controlled database/OIDC oqimi tayyor, ammo GitHub push/deploy, Google Cloud OAuth credentials va real Google browser acceptance bajarilmaguncha “real Google login ishlaydi” deb yozilmasin. Meta live Comment-to-DM ham alohida, avvalgi bloklangan holatda qoladi.
+Production’da Google OAuth kodi mavjud, lekin Google client credentialsiz real Google login ishlamaydi. Meta live Comment-to-DM ham avvalgi bloklangan holatda. Controlled testlar real tashqi xizmat muvaffaqiyati hisoblanmaydi.
 
 ## Comment-to-DM outcome matrix
 

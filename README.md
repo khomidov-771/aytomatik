@@ -22,7 +22,7 @@ Automation yaratishda foydalanuvchi Media ID yozmaydi: real OAuth orqali ulangan
 - Meta OAuth, webhook, private/public reply va follow requestlari controlled HTTP testlarda tekshirilgan.
 - Professional light/dark UI va uch tilli asosiy product oqimlari frontend lint, unit test va production builddan o‘tgan.
 - Google OAuth server-side authorization-code/OIDC, PKCE, signed ID-token va Postgres account linking oqimi kodga qo‘shilgan; disposable PostgreSQL va controlled OIDC server bilan tekshirilgan.
-- Production serverning oxirgi auditida Google status endpoint `404` va Google client credentiallari yo‘q edi. Yangi kod deploy qilinib, Google Cloud Client ID/Secret serverga qo‘yilmaguncha real Google sign-in **ishlamaydi**.
+- Google OAuth kodi GitHub `main` va production serverga `8c15cde` commitida deploy qilindi. Production `GET /api/v1/auth/google/status` HTTP 200 bilan `enabled=false`, credentialsiz start esa HTTP 503 qaytardi. Google Cloud Client ID/Secret production serverga qo‘yilib, real Google browser flow qabul qilinmaguncha real Google sign-in **ishlamaydi**.
 - Production auditda joriy Meta App Secret Meta tomonidan rad etildi (`OAuthException`, code `190`); real connected Instagram akkaunt, active rule va webhook event yo‘q. Shu sabab live OAuth, live webhook, `is_user_follow_business`, real private reply va public reply **live tekshirilmagan**.
 - Meta bergan Unified Login Configuration ID `.env.example`da public konfiguratsiya sifatida ko‘rsatilgan. Secretlar repositoryga yozilmaydi.
 

@@ -1,6 +1,6 @@
 # AI handoff
 
-Yangilangan: 2026-11-10.
+Yangilangan: 2026-11-11.
 
 ## Birinchi o‘qiladigan fayllar
 
@@ -135,17 +135,19 @@ Controlled tests live dalil emas.
 
 Production server va public HTTPS ishlaydi, ammo active Meta credential Meta Graph tomonidan `OAuthException` code `190` bilan rad etildi. Database’da faqat tokeni yo‘q `disconnected` eski mock account bor; active rules, webhook events va executions yo‘q. `Config.MetaConfigurationReady()` qo‘shilib, placeholder credential endi UI/health’da configured deb ko‘rsatilmaydi. Keyingi agent valid App Secretni faqat server environment orqali qabul qilib, keyin real OAuth va live acceptance bajarishi kerak.
 
-## 2026-11-10 Google OAuth production state
+## 2026-11-11 Google OAuth production state
 
-- Kod workspace branchida; production server SHA `2cb608a55c4e` Google patch’dan oldingi versiya.
-- Public site/health `200`; `/api/v1/auth/google/status` `404`, server `.env.production`da `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` yo‘q. Google login production’da hali yoqilmagan.
-- Server repo’da `.env.production`, compose va boshqa untracked operator fayllari mavjud. Ularni hech qachon tozalama yoki tracked repository nusxasi bilan ustidan yozma.
-- Google Cloud OAuth Client ID/Secretni serverga xavfsiz kiritish va yangi kodni mavjud server compose konfiguratsiyasi bilan deploy qilish kerak. Client Secretni Git/chat/logga kiritma.
-- Joriy production health `meta_configured=true` ko‘rsatgan bo‘lsa-da, bu live Graph API dalili emas; oldingi Meta credential check code `190` qaytargan.
+- Kod GitHub `main` branchga push qilinib, server `/opt/ids-automate` repo’siga `8c15cde` commitida deploy qilindi.
+- Public site va `/healthz`: HTTP 200. API, web va PostgreSQL konteynerlari ishlaydi. Database `schema_migrations` ichida `006_google_oauth.sql` bor.
+- `GET /api/v1/auth/google/status`: HTTP 200, `enabled=false`; Google credentialsiz `POST /api/v1/auth/google/start`: HTTP 503. `.env.production`da Google Client ID/Secret yo‘q, shuning uchun live Google login hali yoqilmagan.
+- Deployning ilk urinishida Compose `.env.production` env faylisiz ishga tushgani sabab API bo‘sh DB ulanish parametrlarida restart loopga tushdi. PostgreSQL konteyneri restart qilinmadi. To‘g‘ri `--env-file .env.production` bilan API qayta yaratildi, keyin `/healthz` va status endpointlari `200` bo‘ldi.
+- Server repo’dagi `.env.production`, compose va boshqa untracked operator fayllari saqlandi; ularni hech qachon tozalama yoki tracked nusxa bilan ustidan yozma.
+- Google Cloud OAuth Client ID/Secretni serverga xavfsiz kiritib, `.env.production` bilan API’ni qayta yaratish va real consent/signup/login acceptance qilish kerak. Client Secretni Git/chat/logga kiritma.
+- Avvalgi Meta Graph credential tekshiruvi OAuth code `190` qaytargan; bu deployda secret bilan qayta tekshirilmagan. Health/config flag live Graph API dalili emas.
 
 ## Qayerdan davom etish
 
-Birinchi topshiriq: `docs/NEXT_STEPS.md`dagi P0 Google OAuth deploy/config acceptance’ni bajaring: avval patchni commit/push qilib, production code’ni mavjud operator config/untracked data’ni saqlagan holda deploy qiling; so‘ng Google Client ID/Secretni server `.env.production`ga secure ravishda kiriting. Google’da Authorized redirect URI `https://instagram.schat.uz/api/v1/auth/google/callback` bo‘lsin. Keyin Google bilan real signup/login va database/session natijasini tekshiring. Secretni chat/Git/logga chiqarma. Google live acceptance tugagandan keyin alohida P0 Meta acceptance’ga o‘ting.
+Birinchi topshiriq: `docs/NEXT_STEPS.md`dagi P0 Google OAuth production sozlamasini bajaring. Kod allaqachon push/deploy qilingan. Google Cloud Web OAuth Client ID/Secretni server `.env.production`ga xavfsiz kiriting; Authorized redirect URI `https://instagram.schat.uz/api/v1/auth/google/callback` bo‘lsin. Deployda `docker compose --env-file .env.production -f docker-compose.ids.yml ...` ishlatib, PostgreSQL’ni `--no-deps` bilan saqlang. Keyin status `enabled:true` bo‘lishini va real consent/signup/login hamda DB identity/workspace/session natijalarini tekshiring. Secretni chat/Git/logga chiqarmang. Google live acceptance tugagach alohida P0 Meta acceptance’ga o‘ting.
 
 ## Guardrail
 

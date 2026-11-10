@@ -1,12 +1,12 @@
 # Keyingi qadamlar
 
-Ustuvorliklar 2026-11-10 holatiga ko‘ra. Avval Google OAuth patchini deploy qilib, client credentials bilan live browser oqimini qabul qilish; keyin real Meta eligible account bilan alohida end-to-end acceptance.
+Ustuvorliklar 2026-11-11 holatiga ko‘ra. Google OAuth kodi GitHub va production serverga deploy qilingan. Keyingi qadam Google client credentialsni xavfsiz sozlab, real browser oqimini qabul qilish; keyin real Meta eligible account bilan alohida end-to-end acceptance.
 
 Joriy frontendda UZ/RU/EN va light/dark tema tayyor. Yangi ekran qo‘shilganda matnni `usePreferences().tr(uz, ru, en)` orqali uchala tilda berish va ikkala temada ko‘rish talab qilinadi.
 
 ## P0 — Google OAuth production sozlamasi va live acceptance
 
-Server-side Google OAuth/OIDC oqimi kodga qo‘shilgan. Haqiqiy loginni yoqish uchun Google Cloud Console’dagi Web OAuth Client ID va Client Secret production serverning `.env.production`iga xavfsiz kiritilishi, so‘ng API container qayta ishga tushishi kerak. Secretni Git, log yoki chatga yozmang.
+Server-side Google OAuth/OIDC oqimi deploy qilingan. Production status hozir `{"enabled":false}`; credentialsiz start `503` qaytarishi shart. Haqiqiy loginni yoqish uchun Google Cloud Console’dagi Web OAuth Client ID va Client Secret production serverning `.env.production` fayliga xavfsiz kiritilib, API container shu env fayl bilan qayta ishga tushishi kerak. Secretni Git, log yoki chatga yozmang.
 
 Google Cloud Console’dagi Authorized redirect URI aynan quyidagicha bo‘lsin:
 
@@ -14,7 +14,7 @@ Google Cloud Console’dagi Authorized redirect URI aynan quyidagicha bo‘lsin:
 https://instagram.schat.uz/api/v1/auth/google/callback
 ```
 
-Serverdan `GET /api/v1/auth/google/status` `{"enabled":true}` qaytarishi kerak. Bu faqat sozlama mavjudligini bildiradi; real Google consent, birinchi signup, oldin yaratilgan emailni bog‘lash, login, state/nonce replay va bekor qilingan consent oqimlarini production’da sinab, database `oauth_identities`, workspace membership va session cookie’ni tekshirish shart.
+Tekshirilgan server natijasi: `GET /api/v1/auth/google/status` HTTP 200, `{"enabled":false}`; `POST /api/v1/auth/google/start` HTTP 503. Credentials kiritilgach status `enabled:true` bo‘lishi kutiladi, lekin bu ham real sign-in muvaffaqiyatli degani emas. Google consent, birinchi signup, oldin yaratilgan emailni bog‘lash, login, state/nonce replay va bekor qilingan consent oqimlarini production’da sinab, database `oauth_identities`, workspace membership va session cookie’ni tekshirish shart.
 
 Kod/konfiguratsiya fayllari:
 
