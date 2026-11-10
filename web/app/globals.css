@@ -119,3 +119,207 @@ html[data-theme="dark"] .app-shell{--bg:#070b18;--surface:#10182b;--surface-2:#1
 html[data-theme="dark"] .login-flow-steps>div,html[data-theme="dark"] .scope-choice-grid>button,html[data-theme="dark"] .media-picker{background:#0d1629}html[data-theme="dark"] .scope-choice-grid>button.active{background:rgba(107,76,255,.14)}html[data-theme="dark"] .media-card{background:#111b30}html[data-theme="dark"] .media-cover{background-color:#17233a}html[data-theme="dark"] .media-card>a{background:rgba(107,76,255,.18);color:#b5a5ff}
 @media(max-width:900px){.media-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.connect-first-card{align-items:flex-start;flex-wrap:wrap}.connect-first-card>.btn{width:100%}}
 @media(max-width:680px){.instagram-login-flow{padding:19px}.login-flow-copy{align-items:flex-start}.login-flow-steps{grid-template-columns:1fr}.login-flow-security{flex-wrap:wrap}.instagram-login-flow>.btn{width:100%}.scope-choice-grid,.media-grid{grid-template-columns:1fr}.scope-choice-grid>button{min-height:72px}.media-cover{height:180px}.media-picker-heading{align-items:flex-start}.media-picker-heading .btn{width:auto}}
+
+/* Professional product polish: readable scale, calmer surfaces, guided first-run flow. */
+.app-shell{grid-template-columns:264px minmax(0,1fr);font-size:15px}
+.app-shell .sidebar{width:264px;padding:20px 15px 14px;background:linear-gradient(180deg,#0c1329 0%,#0a1023 62%,#080d1d 100%);border-right-color:rgba(255,255,255,.07);box-shadow:18px 0 54px rgba(20,24,48,.08)}
+.app-shell .sidebar-brand{height:50px;padding:0 10px}
+.app-shell .sidebar nav{margin-top:22px;gap:6px}
+.app-shell .sidebar nav a{height:48px;padding:0 14px;border-radius:13px;gap:12px;font-size:13px;font-weight:650;letter-spacing:-.01em}
+.app-shell .sidebar nav a svg{width:20px;height:20px}
+.app-shell .sidebar nav a.active{background:linear-gradient(120deg,#7250ef,#6241cf);box-shadow:0 12px 30px rgba(85,53,192,.34)}
+.app-shell .usage-card{padding:16px;border-radius:14px;background:linear-gradient(145deg,rgba(255,255,255,.075),rgba(255,255,255,.035));border-color:rgba(255,255,255,.1)}
+.app-shell .usage-card>div:first-child{display:grid;gap:4px;font-size:11px}
+.app-shell .usage-card strong{font-size:13px;color:#fff}
+.app-shell .usage-card a{display:inline-flex;margin-top:12px;font-size:11px;font-weight:700;color:#c7baff}
+.app-shell .sidebar-collapse{height:42px;font-size:11px;border-radius:11px}
+.app-shell .sidebar-collapse:hover{background:rgba(255,255,255,.05);color:#fff}
+.app-shell .topbar{height:76px;padding:0 34px;background:rgba(255,255,255,.9);border-color:rgba(38,45,77,.08);box-shadow:0 8px 30px rgba(45,49,78,.04)}
+.app-shell .workspace-switch{height:48px;padding:0 14px;border-radius:14px;gap:11px;border-color:#e5e7ef}
+.app-shell .workspace-icon{width:30px;height:30px;border-radius:9px}
+.app-shell .workspace-switch small{font-size:10px}
+.app-shell .workspace-switch strong{font-size:12px}
+.app-shell .profile-chip{padding:6px 9px;border-radius:13px}
+.app-shell .avatar{width:36px;height:36px;border-radius:11px;font-size:11px}
+.app-shell .profile-chip strong{font-size:12px}
+.app-shell .profile-chip small{font-size:9px}
+.app-shell .icon-btn{width:40px;height:40px;border-radius:11px}
+.app-shell .app-content{max-width:1520px;padding:36px 40px 56px}
+.app-shell .page-header{align-items:center;margin-bottom:28px}
+.app-shell .eyebrow{margin-bottom:7px;font-size:10px;letter-spacing:.15em}
+.app-shell .page-header h1{font-size:30px;line-height:1.15;letter-spacing:-.04em}
+.app-shell .page-header p{max-width:760px;font-size:13px;line-height:1.6}
+.app-shell .panel,.app-shell .stat-card,.app-shell .account-card,.app-shell .automation-row{border-color:#e7e9f1;border-radius:20px;box-shadow:0 14px 36px rgba(45,50,84,.065)}
+.app-shell .panel-header{min-height:78px;padding:20px 24px}
+.app-shell .panel-header h2{font-size:16px;letter-spacing:-.02em}
+.app-shell .panel-header p{margin-top:4px;font-size:12px;line-height:1.45}
+.app-shell .btn{min-height:42px;padding:0 16px;border-radius:12px;font-size:12px;font-weight:750}
+.app-shell .btn.large{min-height:48px;padding:0 20px;font-size:13px}
+.app-shell input,.app-shell textarea,.app-shell select{min-height:46px;border-radius:12px;font-size:13px;border-color:#e1e4ed}
+.app-shell textarea{padding:13px 14px;line-height:1.55}
+
+.setup-hero{position:relative;overflow:hidden;display:grid;grid-template-columns:minmax(0,1.04fr) minmax(360px,.96fr);gap:38px;align-items:center;margin-bottom:22px;padding:34px;border-radius:24px;color:#fff;background:radial-gradient(circle at 86% 18%,rgba(177,136,255,.32),transparent 32%),linear-gradient(125deg,#151d3f 0%,#31226e 48%,#6942d6 100%);box-shadow:0 22px 54px rgba(69,47,153,.22)}
+.setup-hero:after{content:"";position:absolute;right:-80px;bottom:-130px;width:320px;height:320px;border:1px solid rgba(255,255,255,.12);border-radius:50%;box-shadow:0 0 0 46px rgba(255,255,255,.025),0 0 0 92px rgba(255,255,255,.018);pointer-events:none}
+.setup-copy,.setup-steps{position:relative;z-index:1}
+.setup-kicker{display:inline-flex;align-items:center;gap:8px;padding:7px 10px;border:1px solid rgba(255,255,255,.16);border-radius:999px;background:rgba(255,255,255,.1);font-size:10px;font-weight:800;letter-spacing:.04em;text-transform:uppercase}
+.setup-kicker svg{width:15px}
+.setup-copy h2{max-width:680px;margin:16px 0 10px;font-size:clamp(24px,2.2vw,34px);line-height:1.15;letter-spacing:-.04em}
+.setup-copy p{max-width:680px;margin:0;color:#ded9f6;font-size:13px;line-height:1.65}
+.setup-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:23px}
+.setup-hero .btn.primary{background:#fff;color:#4e31ba;box-shadow:0 12px 28px rgba(17,13,47,.2)}
+.setup-hero .btn.primary:hover{background:#f5f2ff;transform:translateY(-1px)}
+.setup-hero .btn.secondary{color:#fff;background:rgba(255,255,255,.09);border-color:rgba(255,255,255,.2);box-shadow:none}
+.setup-steps{padding:20px;border:1px solid rgba(255,255,255,.14);border-radius:18px;background:rgba(9,13,36,.25);backdrop-filter:blur(12px)}
+.setup-steps>div{display:flex;align-items:center;gap:13px;min-height:52px;opacity:.58;transition:.2s}
+.setup-steps>div.current{opacity:1}
+.setup-steps>div>span{width:36px;height:36px;flex:0 0 36px;display:grid;place-items:center;border:1px solid rgba(255,255,255,.2);border-radius:11px;background:rgba(255,255,255,.1);font-size:12px;font-weight:800}
+.setup-steps>div.current>span{background:#fff;color:#5b3bc7;border-color:#fff;box-shadow:0 7px 18px rgba(13,9,45,.18)}
+.setup-steps>div>span svg{width:17px;color:#1aaf7e}
+.setup-steps>div>div{display:grid;gap:3px}
+.setup-steps strong{font-size:12px}
+.setup-steps small{color:#c8c3e5;font-size:10px}
+.setup-steps>i{display:block;width:1px;height:14px;margin:1px 0 1px 18px;background:rgba(255,255,255,.22)}
+.setup-hero.ready{background:radial-gradient(circle at 86% 18%,rgba(106,235,194,.22),transparent 32%),linear-gradient(125deg,#12253a 0%,#174f58 50%,#257761 100%)}
+
+.app-shell .stat-grid{gap:16px;margin-bottom:18px}
+.app-shell .stat-card{min-height:130px;padding:21px;gap:16px}
+.app-shell .stat-icon{width:48px;height:48px;border-radius:15px}
+.app-shell .stat-icon svg{width:21px;height:21px}
+.app-shell .stat-meta{gap:2px}
+.app-shell .stat-meta>span{font-size:12px;line-height:1.4}
+.app-shell .stat-meta strong{font-size:30px;line-height:1.2}
+.app-shell .stat-meta small{margin-top:3px;font-size:10px}
+.dashboard-grid,.dashboard-lower-three{gap:18px;margin-bottom:18px}
+.app-shell .chart-panel,.app-shell .connected-panel{min-height:360px}
+.app-shell .chart-legend{gap:16px;font-size:10px}
+.chart-empty{min-height:270px;padding:34px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}
+.chart-empty>span{width:54px;height:54px;display:grid;place-items:center;border-radius:16px;color:#7050df;background:#f0ecff}
+.chart-empty>span svg{width:24px}
+.chart-empty strong{margin-top:15px;font-size:14px}
+.chart-empty p{max-width:430px;margin:6px 0 0;color:var(--muted);font-size:11px;line-height:1.6}
+.app-shell .empty-state{min-height:240px;padding:38px}
+.app-shell .empty-icon{width:54px;height:54px;border-radius:16px}
+.app-shell .empty-state h3{margin:15px 0 6px;font-size:15px}
+.app-shell .empty-state p{font-size:12px;line-height:1.55}
+.app-shell .list-row{min-height:76px;padding:13px 22px;gap:13px}
+.app-shell .row-icon,.app-shell .account-avatar,.app-shell .summary-icon{width:40px;height:40px;border-radius:12px}
+.app-shell .list-row strong{font-size:12px}
+.app-shell .list-row small{font-size:10px;line-height:1.45}
+.app-shell .status-pill{padding:5px 9px;font-size:9px}
+.app-shell .flow-score{margin:0 20px 18px;padding:18px;border-radius:15px}
+.app-shell .flow-score strong{font-size:24px}
+.app-shell .flow-score small{font-size:10px}
+.app-shell .quick-action-list{padding:0 16px 16px;gap:9px}
+.app-shell .quick-action-list>a{min-height:68px;padding:11px 12px;border-radius:13px}
+.app-shell .quick-action-list>a>span{width:38px;height:38px;border-radius:11px}
+.app-shell .quick-action-list strong{font-size:11px}
+.app-shell .quick-action-list small{font-size:9px;line-height:1.35}
+
+.app-shell .instagram-login-flow{padding:30px;gap:24px}
+.app-shell .login-flow-copy h2,.app-shell .connect-first-card h2{font-size:18px}
+.app-shell .login-flow-copy p,.app-shell .connect-first-card p{font-size:12px}
+.app-shell .login-flow-steps>div{min-height:78px;padding:15px;border-radius:14px}
+.app-shell .login-flow-steps strong{font-size:12px}
+.app-shell .login-flow-security{font-size:11px}
+.app-shell .form-section{padding:26px}
+.app-shell .form-section h2{font-size:17px}
+.app-shell .form-section p{font-size:12px;line-height:1.55}
+.app-shell .form-section label,.app-shell .field>span{font-size:12px}
+.app-shell .automation-row{min-height:116px;padding:19px 21px}
+.app-shell .automation-row h3,.app-shell .account-card h3{font-size:15px}
+.app-shell .automation-row p,.app-shell .account-card p{font-size:11px;line-height:1.5}
+.app-shell .account-card{padding:22px}
+.app-shell .account-details span,.app-shell .automation-summary span{font-size:10px}
+.app-shell .segmented button{min-height:40px;font-size:11px}
+.app-shell .scope-choice-grid>button{min-height:92px;padding:16px;border-radius:14px}
+.app-shell .scope-choice-grid strong{font-size:12px}
+.app-shell .scope-choice-grid small{font-size:10px}
+.app-shell .media-picker{padding:17px;border-radius:15px}
+.app-shell .media-picker-heading strong{font-size:13px}
+.app-shell .media-picker-heading small,.app-shell .media-picker-state{font-size:10px}
+.app-shell .media-copy{min-height:66px;padding:11px 38px 11px 11px}
+.app-shell .media-copy strong{font-size:10px}
+.app-shell .media-copy small{font-size:9px}
+.app-shell .execution-heading strong{font-size:12px}
+.app-shell .execution-heading span,.app-shell .execution-meta{font-size:10px}
+.app-shell .action-ledger>div>span{font-size:10px}
+.app-shell .action-ledger small{font-size:9px}
+
+.app-shell .inbox-layout{border-radius:20px}
+.app-shell .conversation-list>button{min-height:74px;padding:13px 15px}
+.app-shell .conversation-list strong{font-size:12px}
+.app-shell .conversation-list small,.app-shell .thread-header small{font-size:10px}
+.app-shell .message>div{font-size:12px;line-height:1.55}
+.app-shell .settings-nav{padding:10px;border-radius:15px}
+.app-shell .settings-nav a{height:44px;padding:0 12px;border-radius:10px;font-size:12px}
+.app-shell .table-row,.app-shell .table-head{font-size:11px}
+.app-shell .profile-details small{font-size:10px}
+.app-shell .profile-details strong{font-size:12px}
+
+.marketing-page .public-header{height:76px}
+.marketing-page .public-nav nav{font-size:14px}
+.marketing-page .hero{min-height:680px}
+.marketing-page .hero h1{font-size:clamp(48px,4.8vw,70px);line-height:1.02}
+.marketing-page .hero-copy>p{font-size:17px;line-height:1.65}
+.marketing-page .feature-card{padding:30px;border-radius:20px}
+.marketing-page .feature-card h3{font-size:18px}
+.marketing-page .feature-card p{font-size:13px;line-height:1.6}
+.marketing-page .trust-strip span{font-size:12px}
+.auth-page .auth-card{width:min(100%,460px);padding:42px;border-radius:24px}
+.auth-page .auth-heading h1{font-size:28px}
+.auth-page .auth-heading p{font-size:13px}
+.auth-page .auth-form{gap:18px}
+.auth-page .auth-form label,.auth-page .form-row,.auth-page .auth-footer{font-size:12px}
+.auth-page .auth-form .input-wrap input{height:50px;font-size:13px}
+
+html[data-theme="dark"] .app-shell .topbar{background:rgba(7,11,24,.9);border-color:rgba(255,255,255,.08)}
+html[data-theme="dark"] .app-shell .panel,html[data-theme="dark"] .app-shell .stat-card,html[data-theme="dark"] .app-shell .account-card,html[data-theme="dark"] .app-shell .automation-row{border-color:rgba(255,255,255,.085);box-shadow:0 16px 44px rgba(0,0,0,.18)}
+html[data-theme="dark"] .chart-empty>span{background:rgba(112,80,223,.16);color:#b7a7ff}
+html[data-theme="dark"] .app-shell input,html[data-theme="dark"] .app-shell textarea,html[data-theme="dark"] .app-shell select{border-color:rgba(255,255,255,.11)}
+
+.app-shell.sidebar-collapsed{grid-template-columns:76px minmax(0,1fr)}
+.app-shell.sidebar-collapsed .sidebar{width:76px;padding-left:10px;padding-right:10px}
+
+@media(max-width:1180px){
+  .setup-hero{grid-template-columns:1fr;gap:24px}
+  .setup-steps{display:grid;grid-template-columns:1fr auto 1fr auto 1fr}
+  .setup-steps>i{width:24px;height:1px;margin:26px 4px 0;background:rgba(255,255,255,.22)}
+  .setup-steps>div{align-items:flex-start}
+}
+@media(max-width:900px){
+  .app-shell,.app-shell.sidebar-collapsed{grid-template-columns:1fr}
+  .app-shell .sidebar{width:280px}
+  .app-shell .app-content{padding:28px 24px 48px}
+  .setup-steps{display:block}
+  .setup-steps>i{width:1px;height:12px;margin:2px 0 2px 18px}
+}
+@media(max-width:680px){
+  .app-shell .topbar{height:64px;padding:0 14px}
+  .app-shell .workspace-switch{height:42px;padding:0 6px}
+  .app-shell .app-content{padding:22px 15px 92px}
+  .app-shell .page-header{display:grid;align-items:start;margin-bottom:22px}
+  .app-shell .page-header h1{font-size:25px}
+  .app-shell .page-header p{font-size:12px}
+  .setup-hero{padding:23px 20px;border-radius:20px}
+  .setup-copy h2{font-size:25px}
+  .setup-copy p{font-size:12px}
+  .setup-actions{display:grid}
+  .setup-actions .btn{width:100%}
+  .setup-steps{padding:16px}
+  .app-shell .stat-grid{grid-template-columns:1fr 1fr;gap:10px}
+  .app-shell .stat-card{min-height:122px;padding:16px;display:grid;gap:10px}
+  .app-shell .stat-meta strong{font-size:25px}
+  .app-shell .panel-header{padding:18px 19px}
+  .app-shell .list-row{padding:13px 17px}
+  .app-shell .form-section{padding:20px}
+  .app-shell .segmented{grid-template-columns:repeat(3,minmax(96px,1fr));overflow-x:auto}
+  .app-shell .mobile-bottom a{font-size:9px;gap:2px}
+  .marketing-page .hero h1{font-size:clamp(39px,12vw,50px)}
+  .auth-page .auth-card{padding:30px 23px;border-radius:20px}
+}
+@media(max-width:390px){
+  .app-shell .app-content{padding-left:12px;padding-right:12px}
+  .app-shell .stat-grid{grid-template-columns:1fr}
+  .app-shell .stat-card{min-height:108px;display:flex}
+  .setup-hero{padding:21px 17px}
+}

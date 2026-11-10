@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import {
+  ArrowRight,
   ArrowUpRight,
   Bot,
   ChevronRight,
@@ -23,7 +24,7 @@ import type { Automation, InstagramAccount, Metrics } from "@/lib/types";
 export default function DashboardPage() {
   const { tr } = usePreferences();
   const analytics = useApi<{ summary: Metrics }>("/analytics/summary?days=7");
-  const accounts = useApi<{ items: InstagramAccount[] }>("/instagram/accounts");
+  const accounts = useApi<{ items: InstagramAccount[]; meta_configured?: boolean }>("/instagram/accounts");
   const automations = useApi<{ items: Automation[] }>("/automations");
 
   if (analytics.loading || accounts.loading || automations.loading) {
@@ -57,6 +58,12 @@ export default function DashboardPage() {
     { label: tr("Faol avtomatlashtirish", "Активные автоматизации", "Active automations"), value: activeAutomations.length, delta: tr(`${automationItems.length} jami qoida`, `${automationItems.length} правил`, `${automationItems.length} total rules`), icon: Bot, color: "green" },
     { label: tr("Ulangan akkauntlar", "Подключённые аккаунты", "Connected accounts"), value: connectedAccounts.length, delta: tr(`${accountItems.length} jami akkaunt`, `${accountItems.length} аккаунтов`, `${accountItems.length} total accounts`), icon: Instagram, color: "pink" },
   ];
+  const setupStep = connectedAccounts.length === 0 ? 1 : activeAutomations.length === 0 ? 2 : 3;
+  const setupAction = setupStep === 1
+    ? { href: "/app/accounts", label: tr("Instagram bilan kirish", "Войти через Instagram", "Connect Instagram") }
+    : setupStep === 2
+      ? { href: "/app/automations/new", label: tr("Birinchi avtomatlashtirishni yaratish", "Создать первую автоматизацию", "Create first automation") }
+      : { href: "/app/automations", label: tr("Faol qoidalarni ko‘rish", "Посмотреть активные правила", "View active rules") };
 
   return <>
     <PageHeader
@@ -65,6 +72,22 @@ export default function DashboardPage() {
       description={tr("Instagram Comment-to-DM oqimining real holati.", "Реальное состояние Instagram Comment-to-DM.", "Real status of your Instagram Comment-to-DM flow.")}
       action={<Link href="/app/automations/new" className="btn primary"><Plus /> {tr("Yangi avtomatlashtirish", "Новая автоматизация", "New automation")}</Link>}
     />
+
+    <section className={`setup-hero ${setupStep === 3 ? "ready" : ""}`}>
+      <div className="setup-copy">
+        <span className="setup-kicker"><ShieldCheck /> {tr("3 qadamda ishga tushiring", "Запуск за 3 шага", "Launch in 3 steps")}</span>
+        <h2>{setupStep === 1 ? tr("Instagram akkauntingizni ulang", "Подключите Instagram аккаунт", "Connect your Instagram account") : setupStep === 2 ? tr("Birinchi Comment-to-DM oqimini yarating", "Создайте первый Comment-to-DM поток", "Create your first Comment-to-DM flow") : tr("Avtomatlashtirish qabul qilishga tayyor", "Автоматизация готова принимать события", "Automation is ready for events")}</h2>
+        <p>{setupStep === 1 ? tr("Rasmiy Instagram/Meta oynasida Professional akkauntingiz bilan kiring. Parolingiz IDS Automate’ga berilmaydi.", "Войдите в Professional аккаунт через официальное окно Instagram/Meta. IDS Automate не получает ваш пароль.", "Sign in to your Professional account through the official Instagram/Meta window. IDS Automate never receives your password.") : setupStep === 2 ? tr("Video yoki postni tanlang, kalit so‘z va yuboriladigan Direct xabarni yozing.", "Выберите видео или публикацию, ключевые слова и сообщение Direct.", "Choose a video or post, add keywords, and write the Direct message.") : tr("Yangi real commentlar webhook orqali kelganda natijalar shu dashboardda ko‘rinadi.", "Результаты новых реальных комментариев появятся здесь после webhook.", "Results from new real comments will appear here after the webhook arrives.")}</p>
+        <div className="setup-actions"><Link href={setupAction.href} className="btn primary large">{setupAction.label}<ArrowRight /></Link><Link href="/app/automations" className="btn secondary large">{tr("Qoidalar", "Правила", "Rules")}</Link></div>
+      </div>
+      <div className="setup-steps" aria-label={tr("Sozlash bosqichlari", "Этапы настройки", "Setup steps")}>
+        <div className={setupStep >= 1 ? "current" : ""}><span>{connectedAccounts.length ? <CircleCheckBig /> : "1"}</span><div><strong>{tr("Instagram’ni ulang", "Подключите Instagram", "Connect Instagram")}</strong><small>{connectedAccounts.length ? tr("Akkaunt ulangan", "Аккаунт подключён", "Account connected") : tr("Professional Business yoki Creator", "Professional Business или Creator", "Professional Business or Creator")}</small></div></div>
+        <i />
+        <div className={setupStep >= 2 ? "current" : ""}><span>{activeAutomations.length ? <CircleCheckBig /> : "2"}</span><div><strong>{tr("Post va keyword", "Публикация и keyword", "Post and keyword")}</strong><small>{activeAutomations.length ? tr("Faol qoida mavjud", "Есть активное правило", "Active rule exists") : tr("Barcha yoki aniq videolar", "Все или выбранные видео", "All or selected videos")}</small></div></div>
+        <i />
+        <div className={setupStep === 3 ? "current" : ""}><span>3</span><div><strong>{tr("Comment → DM", "Комментарий → DM", "Comment → DM")}</strong><small>{tr("Natijani kuzating", "Следите за результатом", "Track confirmed results")}</small></div></div>
+      </div>
+    </section>
 
     <div className="stat-grid">
       {stats.map((item) => {
@@ -86,7 +109,7 @@ export default function DashboardPage() {
           <div><h2>{tr("Faollik dinamikasi", "Динамика активности", "Activity trend")}</h2><p>{tr("So‘nggi 7 kunlik real eventlar", "Реальные события за 7 дней", "Real events from the last 7 days")}</p></div>
           <div className="chart-legend"><span><i className="violet-dot" /> {tr("Comment", "Комментарии", "Comments")}</span><span><i className="cyan-dot" /> {tr("Tasdiqlangan DM", "Подтверждённые DM", "Confirmed DMs")}</span></div>
         </div>
-        <LineChart data={metrics.series} />
+        {metrics.series.length ? <LineChart data={metrics.series} /> : <div className="chart-empty"><span><MessageCircle /></span><strong>{tr("Hali real comment kelmagan", "Реальных комментариев пока нет", "No real comments yet")}</strong><p>{tr("Instagram ulangan va qoida faol bo‘lgach, webhook eventlari shu yerda grafik bo‘lib ko‘rinadi.", "После подключения Instagram и активации правила webhook-события появятся на графике.", "After Instagram is connected and a rule is active, webhook events will appear in this chart.")}</p></div>}
       </section>
 
       <section className="panel connected-panel">

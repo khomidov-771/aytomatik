@@ -50,7 +50,7 @@ Bu product completion foizi emas. Kod tayyorligi yuqoriroq, lekin core biznes qi
 | Execution history | API + UI implemented; actionlar alohida ko‘rinadi |
 | Inbox | Inbound store/manual reply window implemented; live DM tekshirilmagan |
 | Analytics | Database’dagi real event/actionlardan hisoblanadi; fake seed yo‘q |
-| UI/lokalizatsiya | UZ/RU/EN tanlovi va light/dark tema public, auth va workspace sahifalariga ulangan; browserda saqlanadi |
+| UI/lokalizatsiya | UZ/RU/EN tanlovi va light/dark tema public, auth va workspace sahifalariga ulangan; browserda saqlanadi. Workspace typography/spacing professional o‘lchamga oshirildi, birinchi kirish uchun real holatga asoslangan 3 bosqichli onboarding qo‘shildi |
 | Billing/subscription | Product scope’dan olib tashlangan; route/UI/config yo‘q |
 | Demo/mock product mode | Olib tashlangan; mock adapter faqat automated test uchun |
 
@@ -90,7 +90,7 @@ npm run test:web                                                PASS (2/2)
 npm run build:web                                               PASS (21 routes)
 ```
 
-Frontendning yangi UZ/RU/EN va light/dark o‘zgarishlari ham aynan shu lint, 2/2 unit test va 21-route production build bilan qayta tekshirildi.
+Frontendning UZ/RU/EN, light/dark va 2026-11-10 professional UI yangilanishlari aynan shu lint, 2/2 unit test va 21-route production build bilan qayta tekshirildi. Dashboard onboarding faqat real account/active automation holatidan foydalanadi; fake progress yoki fake analytics yaratmaydi. Real series bo‘lmasa grafik o‘rnida aniq bo‘sh holat ko‘rsatiladi.
 
 Visual post picker o‘zgarishidan keyin `go test ./...`, `go vet ./...`, frontend lint, 2/2 unit test va 21-route production build qayta PASS bo‘ldi. `/{ig-user-id}/media` request host/path/auth/fields ikkala login mode uchun controlled provider test bilan tekshirildi; bu live Meta media access dalili emas.
 
