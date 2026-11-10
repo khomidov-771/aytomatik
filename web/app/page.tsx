@@ -6,6 +6,7 @@ import { InstagramOrb } from "@/components/marketing-icons";
 import { Logo } from "@/components/logo";
 import { PublicHeader } from "@/components/public-header";
 import { usePreferences } from "@/components/preferences-provider";
+import { MotionReveal } from "@/components/motion-reveal";
 
 export default function LandingPage() {
   const { tr } = usePreferences();
@@ -17,38 +18,39 @@ export default function LandingPage() {
   ];
 
   return <div className="marketing-page">
+    <MotionReveal />
     <PublicHeader />
     <main>
       <section className="hero">
         <div className="hero-glow" />
-        <div className="hero-copy">
+        <div className="hero-copy" data-reveal="left">
           <span className="hero-kicker"><Sparkles size={15} /> {tr("Instagram Professional uchun rasmiy automation", "Официальная автоматизация для Instagram Professional", "Official automation for Instagram Professional")}</span>
           <h1>{tr("Commentni", "Превращайте", "Turn comments into")} <span>{tr("aniq va xavfsiz", "точно и безопасно", "precise and safe")}</span> {tr("Direct oqimiga aylantiring", "комментарии в Direct", "Direct conversations")}</h1>
           <p>{tr("Real comment → keyword match → ixtiyoriy follow tekshiruvi → private reply → tasdiqlangandan keyin public javob.", "Реальный комментарий → ключевое слово → проверка подписки → личный ответ → публичный ответ после подтверждения.", "Real comment → keyword match → optional follow check → private reply → public reply after confirmation.")}</p>
           <div className="hero-actions"><Link className="btn primary large" href="/register">{tr("Workspace yaratish", "Создать workspace", "Create workspace")} <ArrowRight size={18} /></Link><Link className="btn secondary large" href="/login">{tr("Kirish", "Войти", "Sign in")}</Link></div>
           <div className="hero-note"><ShieldCheck size={16} /> {tr("Instagram paroli so‘ralmaydi. Faqat rasmiy Meta API.", "Пароль Instagram не запрашивается. Только официальный Meta API.", "We never ask for your Instagram password. Official Meta API only.")}</div>
         </div>
-        <InstagramOrb />
+        <div className="hero-visual" data-reveal="scale"><InstagramOrb /></div>
       </section>
 
       <section className="trust-strip" aria-label={tr("Platforma tamoyillari", "Принципы платформы", "Platform principles")} id="safety">
-        <div><strong>Official API</strong><span>{tr("Scraping va private API yo‘q", "Без scraping и private API", "No scraping or private APIs")}</span></div>
-        <div><strong>Fail closed</strong><span>{tr("Noma’lum holat aniq ko‘rsatiladi", "Неизвестный статус показан явно", "Unknown states are explicit")}</span></div>
-        <div><strong>Idempotent</strong><span>{tr("Takroriy reply bloklanadi", "Дубликаты блокируются", "Duplicate replies are blocked")}</span></div>
-        <div><strong>Multi-tenant</strong><span>{tr("Workspace ma’lumotlari ajratilgan", "Данные workspace изолированы", "Workspace data is isolated")}</span></div>
+        <div data-reveal style={{transitionDelay:"0ms"}}><strong>Official API</strong><span>{tr("Scraping va private API yo‘q", "Без scraping и private API", "No scraping or private APIs")}</span></div>
+        <div data-reveal style={{transitionDelay:"70ms"}}><strong>Fail closed</strong><span>{tr("Noma’lum holat aniq ko‘rsatiladi", "Неизвестный статус показан явно", "Unknown states are explicit")}</span></div>
+        <div data-reveal style={{transitionDelay:"140ms"}}><strong>Idempotent</strong><span>{tr("Takroriy reply bloklanadi", "Дубликаты блокируются", "Duplicate replies are blocked")}</span></div>
+        <div data-reveal style={{transitionDelay:"210ms"}}><strong>Multi-tenant</strong><span>{tr("Workspace ma’lumotlari ajratilgan", "Данные workspace изолированы", "Workspace data is isolated")}</span></div>
       </section>
 
       <section className="marketing-section" id="features">
-        <div className="section-heading"><span>{tr("Asosiy imkoniyatlar", "Основные возможности", "Core capabilities")}</span><h2>{tr("Bitta vazifa, to‘liq nazorat", "Одна задача, полный контроль", "One job, complete control")}</h2><p>{tr("Ortiqcha modullarsiz, faqat haqiqiy Comment-to-DM oqimi.", "Без лишних модулей — только реальный Comment-to-DM поток.", "No unnecessary modules—only the real Comment-to-DM flow.")}</p></div>
-        <div className="feature-grid">{features.map(({ icon: Icon, ...item }) => <article className="feature-card" key={item.title}><span className="feature-icon"><Icon /></span><h3>{item.title}</h3><p>{item.text}</p></article>)}</div>
+        <div className="section-heading" data-reveal><span>{tr("Asosiy imkoniyatlar", "Основные возможности", "Core capabilities")}</span><h2>{tr("Bitta vazifa, to‘liq nazorat", "Одна задача, полный контроль", "One job, complete control")}</h2><p>{tr("Ortiqcha modullarsiz, faqat haqiqiy Comment-to-DM oqimi.", "Без лишних модулей — только реальный Comment-to-DM поток.", "No unnecessary modules—only the real Comment-to-DM flow.")}</p></div>
+        <div className="feature-grid">{features.map(({ icon: Icon, ...item }, index) => <article className="feature-card" data-reveal key={item.title} style={{transitionDelay:`${index * 75}ms`}}><span className="feature-icon"><Icon /></span><h3>{item.title}</h3><p>{item.text}</p></article>)}</div>
       </section>
 
-      <section className="workflow-section" id="guide">
+      <section className="workflow-section" id="guide" data-reveal="scale">
         <div className="workflow-copy"><span className="section-label">{tr("Qanday ishlaydi?", "Как это работает?", "How it works")}</span><h2>{tr("Natijaga qarab to‘g‘ri javob", "Правильное действие для каждого результата", "The right response for every outcome")}</h2><p>{tr("Follow tekshiruvi o‘chirilishi yoki qo‘llab-quvvatlanmagan holat uchun workspace egasi aniq fallback siyosatini tanlaydi.", "Владелец workspace выбирает явную fallback-политику, если проверка подписки отключена или недоступна.", "The workspace owner chooses an explicit fallback policy when follow verification is disabled or unavailable.")}</p><ul><li><Check /> FOLLOWER: {tr("private reply, so‘ng muvaffaqiyatli public javob", "личный ответ, затем публичный ответ", "private reply, then public reply")}</li><li><Check /> NOT_FOLLOWER: {tr("DM yo‘q, follow qilishga chaqiruvchi public javob", "без DM, публичная просьба подписаться", "no DM, public follow prompt")}</li><li><Check /> UNKNOWN: {tr("tanlangan fallback qoidasiga qat’iy amal qilinadi", "строго применяется выбранная fallback-политика", "the selected fallback policy is applied")}</li></ul></div>
         <div className="workflow-canvas"><div className="flow-node trigger"><MousePointerClick /><span><small>{tr("Trigger", "Триггер", "Trigger")}</small>{tr("Real comment", "Реальный комментарий", "Real comment")}</span></div><ArrowRight /><div className="flow-node condition"><Sparkles /><span><small>{tr("Shart", "Условие", "Condition")}</small>Keyword + follow</span></div><ArrowRight /><div className="flow-node action"><MessageCircle /><span><small>{tr("Harakat", "Действие", "Action")}</small>DM → public reply</span></div></div>
       </section>
 
-      <section className="cta-panel"><div><span className="section-label">{tr("Boshlash", "Начать", "Get started")}</span><h2>{tr("Instagram Professional akkauntingizni ulang.", "Подключите Instagram Professional аккаунт.", "Connect your Instagram Professional account.")}</h2><p>{tr("Meta OAuth, webhook va ruxsatlar tayyor bo‘lgach, real commentlar qayta ishlanadi.", "После настройки Meta OAuth, webhook и разрешений будут обрабатываться реальные комментарии.", "Real comments are processed after Meta OAuth, webhooks, and permissions are ready.")}</p></div><Link className="btn primary large" href="/register">{tr("Workspace yaratish", "Создать workspace", "Create workspace")} <ArrowRight /></Link></section>
+      <section className="cta-panel" data-reveal="scale"><div><span className="section-label">{tr("Boshlash", "Начать", "Get started")}</span><h2>{tr("Instagram Professional akkauntingizni ulang.", "Подключите Instagram Professional аккаунт.", "Connect your Instagram Professional account.")}</h2><p>{tr("Meta OAuth, webhook va ruxsatlar tayyor bo‘lgach, real commentlar qayta ishlanadi.", "После настройки Meta OAuth, webhook и разрешений будут обрабатываться реальные комментарии.", "Real comments are processed after Meta OAuth, webhooks, and permissions are ready.")}</p></div><Link className="btn primary large" href="/register">{tr("Workspace yaratish", "Создать workspace", "Create workspace")} <ArrowRight /></Link></section>
     </main>
     <footer className="public-footer"><Logo /><p>Instagram Comment-to-DM · Official Meta API</p><div><Link href="/login">{tr("Kirish", "Войти", "Sign in")}</Link><Link href="/terms">{tr("Shartlar", "Условия", "Terms")}</Link><span>© 2026 IDS Automate</span></div></footer>
   </div>;
