@@ -40,6 +40,9 @@ Subscription/payment scope olib tashlangan. Productda demo mode, demo credential
 - Legacy mock account/rulelar migration bilan data yo‘qotmasdan deaktivatsiya qilinadi.
 - Seed command olib tashlandi; API Dockerfile faqat server quradi.
 - Landing/dashboard/analytics faqat core product va database natijasini ko‘rsatadi.
+- Public, auth va workspace UI professional light-first uslubga yangilandi; deep-navy sidebar saqlandi.
+- `web/components/preferences-provider.tsx` UZ/RU/EN tanlovi, light/dark tema va browser persistence’ni boshqaradi.
+- Landing, legal, auth va barcha asosiy app modullari uch tilli matnlarga ulandi.
 
 ## Arxitektura qarorlari
 
@@ -72,6 +75,8 @@ Subscription/payment scope olib tashlangan. Productda demo mode, demo credential
 - `api/internal/migrations/005_core_comment_to_dm.sql` — additive data-preserving schema
 - `api/internal/httpapi/instagram.go` — OAuth/webhook
 - `web/components/automation-form.tsx` — builder va execution history
+- `web/components/preferences-provider.tsx` — locale/theme state va umumiy controls
+- `web/app/globals.css` — light/dark professional design token va override’lar
 - `web/app/app/accounts/page.tsx` — login mode/capability warning
 
 ## Tekshirilgan testlar

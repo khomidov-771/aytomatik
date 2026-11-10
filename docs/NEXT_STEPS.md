@@ -2,6 +2,8 @@
 
 Ustuvorliklar 2026-11-10 holatiga ko‘ra. Birinchi vazifa — real Meta eligible account bilan end-to-end dalil olish.
 
+Joriy frontendda UZ/RU/EN va light/dark tema tayyor. Yangi ekran qo‘shilganda matnni `usePreferences().tr(uz, ru, en)` orqali uchala tilda berish va ikkala temada ko‘rish talab qilinadi.
+
 ## P0 — Live Meta acceptance test
 
 Kerak:

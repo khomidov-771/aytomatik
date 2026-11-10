@@ -50,6 +50,7 @@ Bu product completion foizi emas. Kod tayyorligi yuqoriroq, lekin core biznes qi
 | Execution history | API + UI implemented; actionlar alohida ko‘rinadi |
 | Inbox | Inbound store/manual reply window implemented; live DM tekshirilmagan |
 | Analytics | Database’dagi real event/actionlardan hisoblanadi; fake seed yo‘q |
+| UI/lokalizatsiya | UZ/RU/EN tanlovi va light/dark tema public, auth va workspace sahifalariga ulangan; browserda saqlanadi |
 | Billing/subscription | Product scope’dan olib tashlangan; route/UI/config yo‘q |
 | Demo/mock product mode | Olib tashlangan; mock adapter faqat automated test uchun |
 
@@ -76,6 +77,8 @@ npm run lint:web                                                PASS
 npm run test:web                                                PASS (2/2)
 npm run build:web                                               PASS (21 routes)
 ```
+
+Frontendning yangi UZ/RU/EN va light/dark o‘zgarishlari ham aynan shu lint, 2/2 unit test va 21-route production build bilan qayta tekshirildi.
 
 Docker CLI bu Windows muhitida o‘rnatilmagan. PostgreSQL integration test cached embedded PostgreSQL 18.6.1 bilan real database processga qarshi o‘tdi. Bu in-memory/mock DB emas.
 

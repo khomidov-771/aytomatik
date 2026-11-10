@@ -1,7 +1,7 @@
 # Design guide — IDS Automate
 
 ## Visual direction
-Premium dark SaaS, deep navy canvas, violet/indigo action color, restrained cyan status accents. Use subtle borders and soft shadows rather than heavy glow.
+Referencega yaqin hybrid SaaS: marketingda yorug‘ premium canvas, app ichida deep-navy sidebar va oq/light content maydoni. Violet/indigo asosiy action rangi, yashil success va restrained cyan status aksenti. Kartalarda nozik border, yumshoq shadow va yetarli white-space ishlatiladi; og‘ir glow ishlatilmaydi.
 
 ## Main screens
 1. Public landing page
@@ -28,8 +28,8 @@ Premium dark SaaS, deep navy canvas, violet/indigo action color, restrained cyan
 
 ## Components
 - Button variants: primary violet, secondary outline, ghost, destructive.
-- Cards: dark surface, 1px subtle border, 16px radius.
-- Inputs: dark surface, visible labels, focus ring.
+- App cards: oq surface, 1px cool-gray border, 16px radius.
+- Inputs: oq surface, visible labels, violet focus ring.
 - Status: connected green, warning amber, disconnected muted red.
 - Charts: clear axes and tooltips; never fabricate production metrics.
 - Tables: responsive cards on narrow screens.

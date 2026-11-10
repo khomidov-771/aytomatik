@@ -9,17 +9,18 @@ import type { Session } from "@/lib/types";
 import { useApi } from "@/hooks/use-api";
 import { ErrorState, LoadingState } from "./ui";
 import { Logo } from "./logo";
+import { PreferencesControls, usePreferences } from "./preferences-provider";
 import { roleAtLeast, SessionProvider } from "./session-context";
 
 const navigation = [
-  { href: "/app", label: "Bosh sahifa", icon: Home, minimumRole: "customer" as const },
-  { href: "/app/accounts", label: "Instagram akkauntlar", icon: Instagram, minimumRole: "customer" as const },
-  { href: "/app/automations", label: "Avtomatlashtirish", icon: Bot, minimumRole: "customer" as const },
-  { href: "/app/inbox", label: "Inbox (Direct)", icon: MessageSquareText, minimumRole: "operator" as const },
-  { href: "/app/analytics", label: "Analitika", icon: BarChart3, minimumRole: "manager" as const },
-  { href: "/app/team", label: "Jamoa", icon: Users, minimumRole: "manager" as const },
-  { href: "/app/audit", label: "Audit jurnali", icon: ClipboardList, minimumRole: "manager" as const },
-  { href: "/app/settings", label: "Sozlamalar", icon: Settings, minimumRole: "customer" as const },
+  { href: "/app", label: ["Bosh sahifa", "Главная", "Dashboard"], icon: Home, minimumRole: "customer" as const },
+  { href: "/app/accounts", label: ["Instagram akkauntlar", "Аккаунты Instagram", "Instagram accounts"], icon: Instagram, minimumRole: "customer" as const },
+  { href: "/app/automations", label: ["Avtomatlashtirish", "Автоматизации", "Automations"], icon: Bot, minimumRole: "customer" as const },
+  { href: "/app/inbox", label: ["Inbox (Direct)", "Входящие (Direct)", "Inbox (Direct)"], icon: MessageSquareText, minimumRole: "operator" as const },
+  { href: "/app/analytics", label: ["Analitika", "Аналитика", "Analytics"], icon: BarChart3, minimumRole: "manager" as const },
+  { href: "/app/team", label: ["Jamoa", "Команда", "Team"], icon: Users, minimumRole: "manager" as const },
+  { href: "/app/audit", label: ["Audit jurnali", "Журнал аудита", "Audit log"], icon: ClipboardList, minimumRole: "manager" as const },
+  { href: "/app/settings", label: ["Sozlamalar", "Настройки", "Settings"], icon: Settings, minimumRole: "customer" as const },
 ];
 
 type WorkspaceList = {
@@ -28,6 +29,7 @@ type WorkspaceList = {
 };
 
 function WorkspaceSwitcher({ session }: { session: Session }) {
+  const { tr } = usePreferences();
   const workspaces = useApi<WorkspaceList>("/workspaces");
   const [switching, setSwitching] = useState(false);
 
@@ -44,8 +46,8 @@ function WorkspaceSwitcher({ session }: { session: Session }) {
 
   return <label className="workspace-switch" style={{ position: "relative" }}>
     <span className="workspace-icon">I</span>
-    <span><small>Workspace</small><strong>{session.user.workspace_name}</strong></span>
-    <select style={{ position: "absolute", inset: 0, opacity: 0, cursor: "pointer" }} aria-label="Workspace almashtirish" value={workspaces.data?.active_workspace_id ?? session.user.workspace_id} disabled={switching || workspaces.loading || !workspaces.data || workspaces.data.items.length < 2} onChange={(event) => void switchWorkspace(event.target.value)}>
+    <span><small>{tr("Workspace", "Рабочая область", "Workspace")}</small><strong>{session.user.workspace_name}</strong></span>
+    <select style={{ position: "absolute", inset: 0, opacity: 0, cursor: "pointer" }} aria-label={tr("Workspace almashtirish", "Сменить рабочую область", "Switch workspace")} value={workspaces.data?.active_workspace_id ?? session.user.workspace_id} disabled={switching || workspaces.loading || !workspaces.data || workspaces.data.items.length < 2} onChange={(event) => void switchWorkspace(event.target.value)}>
       {(workspaces.data?.items ?? [{ id: session.user.workspace_id, name: session.user.workspace_name, role: session.user.role }]).map((workspace) => <option value={workspace.id} key={workspace.id}>{workspace.name} · {workspace.role}</option>)}
     </select>
     <ChevronDown/>
@@ -53,6 +55,7 @@ function WorkspaceSwitcher({ session }: { session: Session }) {
 }
 
 export function AppShell({ children }: { children: React.ReactNode }) {
+  const { tr } = usePreferences();
   const router = useRouter();
   const path = usePathname();
   const { data: session, loading, error, reload } = useApi<Session>("/me");
@@ -64,28 +67,28 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     router.push("/login");
   }
 
-  if (loading) return <div className="center-screen"><LoadingState label="Workspace yuklanmoqda..."/></div>;
-  if (error || !session) return <div className="center-screen"><ErrorState message={error || "Sessiya topilmadi"} retry={() => { if (error.includes("Kirish") || error.includes("Sessiya")) router.push("/login"); else void reload(); }}/></div>;
+  if (loading) return <div className="center-screen"><LoadingState label={tr("Workspace yuklanmoqda...", "Workspace загружается...", "Loading workspace...")}/></div>;
+  if (error || !session) return <div className="center-screen"><ErrorState message={error || tr("Sessiya topilmadi", "Сессия не найдена", "Session not found")} retry={() => { if (error.includes("Kirish") || error.includes("Sessiya")) router.push("/login"); else void reload(); }}/></div>;
   const initials = session.user.name.split(" ").map((value) => value[0]).join("").slice(0, 2).toUpperCase();
-  const visibleNavigation = navigation.filter((item) => roleAtLeast(session.user.role, item.minimumRole));
+  const visibleNavigation = navigation.filter((item) => roleAtLeast(session.user.role, item.minimumRole)).map((item) => ({ ...item, translatedLabel: tr(item.label[0], item.label[1], item.label[2]) }));
 
   return <SessionProvider session={session}><div className={`app-shell ${collapsed ? "sidebar-collapsed" : ""}`}>
     <aside className={`sidebar ${open ? "open" : ""}`}>
-      <div className="sidebar-brand"><Logo compact={collapsed}/><button className="icon-btn sidebar-close" aria-label="Menyuni yopish" onClick={() => setOpen(false)}><X/></button></div>
-      <nav aria-label="Dashboard navigatsiyasi">{visibleNavigation.map((item) => { const Icon = item.icon; const active = item.href === "/app" ? path === item.href : path.startsWith(item.href); return <Link href={item.href} key={item.href} className={active ? "active" : ""} onClick={() => setOpen(false)} title={collapsed ? item.label : undefined}><Icon/><span>{item.label}</span></Link>; })}</nav>
+      <div className="sidebar-brand"><Logo compact={collapsed}/><button className="icon-btn sidebar-close" aria-label={tr("Menyuni yopish", "Закрыть меню", "Close menu")} onClick={() => setOpen(false)}><X/></button></div>
+      <nav aria-label={tr("Dashboard navigatsiyasi", "Навигация панели", "Dashboard navigation")}>{visibleNavigation.map((item) => { const Icon = item.icon; const active = item.href === "/app" ? path === item.href : path.startsWith(item.href); return <Link href={item.href} key={item.href} className={active ? "active" : ""} onClick={() => setOpen(false)} title={collapsed ? item.translatedLabel : undefined}><Icon/><span>{item.translatedLabel}</span></Link>; })}</nav>
       <div className="sidebar-bottom">
-        <div className="usage-card"><div><span>Asosiy oqim</span><strong>Comment → DM</strong></div><Link href="/app/automations">Qoidalarni ko‘rish</Link></div>
-        <button className="sidebar-collapse" onClick={() => setCollapsed(!collapsed)}><PanelLeftClose/><span>Yon panelni yig‘ish</span></button>
+        <div className="usage-card"><div><span>{tr("Asosiy oqim", "Основной поток", "Core flow")}</span><strong>Comment → DM</strong></div><Link href="/app/automations">{tr("Qoidalarni ko‘rish", "Посмотреть правила", "View rules")}</Link></div>
+        <button className="sidebar-collapse" onClick={() => setCollapsed(!collapsed)}><PanelLeftClose/><span>{tr("Yon panelni yig‘ish", "Свернуть панель", "Collapse sidebar")}</span></button>
       </div>
     </aside>
-    {open && <button className="sidebar-overlay" aria-label="Menyuni yopish" onClick={() => setOpen(false)}/>}
+    {open && <button className="sidebar-overlay" aria-label={tr("Menyuni yopish", "Закрыть меню", "Close menu")} onClick={() => setOpen(false)}/>}
     <div className="app-main">
       <header className="topbar">
-        <div className="topbar-left"><button className="icon-btn mobile-menu" aria-label="Menyuni ochish" onClick={() => setOpen(true)}><Menu/></button><WorkspaceSwitcher session={session}/></div>
-        <div className="topbar-actions"><Link href="/app/settings#notifications" className="icon-btn" aria-label="Bildirishnoma sozlamalari" title="Bildirishnoma sozlamalari"><Bell/></Link><Link href="/app/profile" className="profile-chip"><span className="avatar">{initials}</span><span><strong>{session.user.name}</strong><small>{session.user.role}</small></span><ChevronDown/></Link><button className="icon-btn logout" aria-label="Chiqish" onClick={() => void logout()}><LogOut/></button></div>
+        <div className="topbar-left"><button className="icon-btn mobile-menu" aria-label={tr("Menyuni ochish", "Открыть меню", "Open menu")} onClick={() => setOpen(true)}><Menu/></button><WorkspaceSwitcher session={session}/></div>
+        <div className="topbar-actions"><PreferencesControls compact/><Link href="/app/settings#notifications" className="icon-btn" aria-label={tr("Bildirishnoma sozlamalari", "Настройки уведомлений", "Notification settings")} title={tr("Bildirishnoma sozlamalari", "Настройки уведомлений", "Notification settings")}><Bell/></Link><Link href="/app/profile" className="profile-chip"><span className="avatar">{initials}</span><span><strong>{session.user.name}</strong><small>{session.user.role}</small></span><ChevronDown/></Link><button className="icon-btn logout" aria-label={tr("Chiqish", "Выйти", "Sign out")} onClick={() => void logout()}><LogOut/></button></div>
       </header>
       <main className="app-content">{children}</main>
     </div>
-    <nav className="mobile-bottom" aria-label="Mobil navigatsiya">{visibleNavigation.slice(0, 5).map((item) => { const Icon = item.icon; const active = item.href === "/app" ? path === item.href : path.startsWith(item.href); return <Link key={item.href} href={item.href} className={active ? "active" : ""}><Icon/><span>{item.label.split(" ")[0]}</span></Link>; })}</nav>
+    <nav className="mobile-bottom" aria-label={tr("Mobil navigatsiya", "Мобильная навигация", "Mobile navigation")}>{visibleNavigation.slice(0, 5).map((item) => { const Icon = item.icon; const active = item.href === "/app" ? path === item.href : path.startsWith(item.href); return <Link key={item.href} href={item.href} className={active ? "active" : ""}><Icon/><span>{item.translatedLabel.split(" ")[0]}</span></Link>; })}</nav>
   </div></SessionProvider>;
 }

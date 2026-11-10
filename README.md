@@ -12,10 +12,13 @@ Public “DM yuborildi” javobi faqat Meta private reply’ni muvaffaqiyatli qa
 
 Obuna/to‘lov mahsulot scope’idan chiqarilgan. Product UI/API’da demo rejim, demo akkaunt, fake analytics yoki mock event endpoint yo‘q. Test-only mock adapter faqat `APP_ENV=test` da ishlaydi.
 
+Interfeys O‘zbek, Русский va English tillarida ishlaydi. Til hamda yorug‘/tungi tema public sahifalar, authentication va workspace ichidan almashtiriladi; tanlov browserda saqlanadi.
+
 ## Holat
 
 - Backend, frontend va PostgreSQL integratsion testlar lokal muhitda o‘tgan.
 - Meta OAuth, webhook, private/public reply va follow requestlari controlled HTTP testlarda tekshirilgan.
+- Professional light/dark UI va uch tilli asosiy product oqimlari frontend lint, unit test va production builddan o‘tgan.
 - Real Meta App credentials va eligible Instagram Professional akkaunt bu workspace’da yo‘q. Shu sabab live OAuth, live webhook, `is_user_follow_business`, real private reply va public reply **live tekshirilmagan**.
 - Meta bergan Unified Login Configuration ID `.env.example`da public konfiguratsiya sifatida ko‘rsatilgan. Secretlar repositoryga yozilmaydi.
 

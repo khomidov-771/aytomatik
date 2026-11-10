@@ -5,9 +5,11 @@ import { useSearchParams } from "next/navigation";
 import { LockKeyhole } from "lucide-react";
 import { FormEvent, Suspense, useState } from "react";
 import { AuthShell } from "@/components/auth-shell";
+import { usePreferences } from "@/components/preferences-provider";
 import { api, ApiError, jsonBody } from "@/lib/api";
 
 function ResetPasswordForm() {
+  const { tr } = usePreferences();
   const token = useSearchParams().get("token") ?? "";
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -17,7 +19,7 @@ function ResetPasswordForm() {
   async function submit(event: FormEvent) {
     event.preventDefault();
     if (password !== confirm) {
-      setError("Parollar bir xil emas");
+      setError(tr("Parollar bir xil emas", "Пароли не совпадают", "Passwords do not match"));
       return;
     }
     try {
@@ -25,18 +27,18 @@ function ResetPasswordForm() {
       setMessage(result.message);
       setError("");
     } catch (requestError) {
-      setError(requestError instanceof ApiError ? requestError.message : "Server bilan aloqa bo‘lmadi");
+      setError(requestError instanceof ApiError ? requestError.message : tr("Server bilan aloqa bo‘lmadi", "Нет связи с сервером", "Could not reach the server"));
     }
   }
 
   return (
-    <AuthShell title="Yangi parol" subtitle="Kuchli va noyob parol tanlang" footer={<Link href="/login">Kirish sahifasiga qaytish</Link>}>
+    <AuthShell title={tr("Yangi parol", "Новый пароль", "New password")} subtitle={tr("Kuchli va noyob parol tanlang", "Выберите надёжный уникальный пароль", "Choose a strong, unique password")} footer={<Link href="/login">{tr("Kirish sahifasiga qaytish", "Вернуться ко входу", "Back to sign in")}</Link>}>
       <form className="auth-form" onSubmit={submit}>
-        {message && <div className="form-alert success">{message}. <Link href="/login">Kirish</Link></div>}
+        {message && <div className="form-alert success">{message}. <Link href="/login">{tr("Kirish", "Войти", "Sign in")}</Link></div>}
         {error && <div className="form-alert error">{error}</div>}
-        <label><span>Yangi parol</span><div className="input-wrap"><LockKeyhole/><input type="password" value={password} onChange={(event) => setPassword(event.target.value)} required minLength={8} maxLength={72}/></div></label>
-        <label><span>Parolni takrorlang</span><div className="input-wrap"><LockKeyhole/><input type="password" value={confirm} onChange={(event) => setConfirm(event.target.value)} required minLength={8} maxLength={72}/></div></label>
-        <button className="btn primary full large" disabled={!token}>Parolni yangilash</button>
+        <label><span>{tr("Yangi parol", "Новый пароль", "New password")}</span><div className="input-wrap"><LockKeyhole/><input type="password" value={password} onChange={(event) => setPassword(event.target.value)} required minLength={8} maxLength={72}/></div></label>
+        <label><span>{tr("Parolni takrorlang", "Повторите пароль", "Confirm password")}</span><div className="input-wrap"><LockKeyhole/><input type="password" value={confirm} onChange={(event) => setConfirm(event.target.value)} required minLength={8} maxLength={72}/></div></label>
+        <button className="btn primary full large" disabled={!token}>{tr("Parolni yangilash", "Обновить пароль", "Update password")}</button>
       </form>
     </AuthShell>
   );

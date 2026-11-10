@@ -5,9 +5,11 @@ import { useRouter } from "next/navigation";
 import { Eye, EyeOff, LockKeyhole, Mail } from "lucide-react";
 import { FormEvent, useState } from "react";
 import { AuthShell } from "@/components/auth-shell";
+import { usePreferences } from "@/components/preferences-provider";
 import { api, ApiError, jsonBody } from "@/lib/api";
 
 function LoginForm() {
+  const { tr } = usePreferences();
   const router = useRouter();
   const [show, setShow] = useState(false);
   const [email, setEmail] = useState("");
@@ -27,7 +29,7 @@ function LoginForm() {
       await api("/auth/login", { method: "POST", ...jsonBody({ email, password, remember_me: rememberMe }) });
       router.push("/app");
     } catch (requestError) {
-      setError(requestError instanceof ApiError ? requestError.message : "Server bilan aloqa bo‘lmadi");
+      setError(requestError instanceof ApiError ? requestError.message : tr("Server bilan aloqa bo‘lmadi", "Нет связи с сервером", "Could not reach the server"));
       setNeedsVerification(requestError instanceof ApiError && requestError.code === "email_unverified");
     } finally {
       setLoading(false);
@@ -41,24 +43,24 @@ function LoginForm() {
       setError(result.message);
       setVerificationToken(result.dev_verification_token ?? "");
     } catch (requestError) {
-      setError(requestError instanceof ApiError ? requestError.message : "Tasdiqlash xati tayyorlanmadi");
+      setError(requestError instanceof ApiError ? requestError.message : tr("Tasdiqlash xati tayyorlanmadi", "Не удалось подготовить письмо подтверждения", "Could not prepare the verification email"));
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <AuthShell title="Xush kelibsiz" subtitle="Hisobingizga xavfsiz kiring" footer={<>Hisobingiz yo‘qmi? <Link href="/register">Ro‘yxatdan o‘ting</Link></>}>
+    <AuthShell title={tr("Xush kelibsiz", "Добро пожаловать", "Welcome back")} subtitle={tr("Hisobingizga xavfsiz kiring", "Безопасный вход в аккаунт", "Sign in securely to your account")} footer={<>{tr("Hisobingiz yo‘qmi?", "Нет аккаунта?", "No account?")} <Link href="/register">{tr("Ro‘yxatdan o‘ting", "Зарегистрироваться", "Create one")}</Link></>}>
       <form className="auth-form" onSubmit={submit}>
         {error && <div className="form-alert error">{error}</div>}
-        {needsVerification && <button className="btn secondary full" type="button" disabled={loading || !email} onClick={() => void resendVerification()}>Tasdiqlash xatini qayta yuborish</button>}
-        {verificationToken && <Link className="btn secondary full" href={`/verify-email?token=${encodeURIComponent(verificationToken)}`}>Development tasdiqlash havolasi</Link>}
+        {needsVerification && <button className="btn secondary full" type="button" disabled={loading || !email} onClick={() => void resendVerification()}>{tr("Tasdiqlash xatini qayta yuborish", "Отправить письмо повторно", "Resend verification email")}</button>}
+        {verificationToken && <Link className="btn secondary full" href={`/verify-email?token=${encodeURIComponent(verificationToken)}`}>{tr("Development tasdiqlash havolasi", "Ссылка подтверждения для разработки", "Development verification link")}</Link>}
         <label><span>Email</span><div className="input-wrap"><Mail/><input type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="siz@kompaniya.uz" required/></div></label>
-        <label><span>Parol</span><div className="input-wrap"><LockKeyhole/><input type={show ? "text" : "password"} autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="••••••••" required maxLength={72}/><button type="button" aria-label="Parolni ko‘rsatish" onClick={() => setShow(!show)}>{show ? <EyeOff/> : <Eye/>}</button></div></label>
-        <div className="form-row"><label className="check"><input type="checkbox" checked={rememberMe} onChange={(event) => setRememberMe(event.target.checked)}/> <span>Eslab qolish</span></label><Link href="/forgot-password">Parolni unutdingizmi?</Link></div>
-        <button className="btn primary full large" disabled={loading}>{loading ? "Kirilmoqda..." : "Kirish"}</button>
-        <div className="auth-divider"><span>yoki</span></div>
-        <button className="btn secondary full" type="button" disabled>Google bilan kirish · Tez orada</button>
+        <label><span>{tr("Parol", "Пароль", "Password")}</span><div className="input-wrap"><LockKeyhole/><input type={show ? "text" : "password"} autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="••••••••" required maxLength={72}/><button type="button" aria-label={tr("Parolni ko‘rsatish", "Показать пароль", "Show password")} onClick={() => setShow(!show)}>{show ? <EyeOff/> : <Eye/>}</button></div></label>
+        <div className="form-row"><label className="check"><input type="checkbox" checked={rememberMe} onChange={(event) => setRememberMe(event.target.checked)}/> <span>{tr("Eslab qolish", "Запомнить меня", "Remember me")}</span></label><Link href="/forgot-password">{tr("Parolni unutdingizmi?", "Забыли пароль?", "Forgot password?")}</Link></div>
+        <button className="btn primary full large" disabled={loading}>{loading ? tr("Kirilmoqda...", "Вход...", "Signing in...") : tr("Kirish", "Войти", "Sign in")}</button>
+        <div className="auth-divider"><span>{tr("yoki", "или", "or")}</span></div>
+        <button className="btn secondary full" type="button" disabled>{tr("Google bilan kirish · Tez orada", "Вход через Google · Скоро", "Sign in with Google · Soon")}</button>
       </form>
     </AuthShell>
   );
