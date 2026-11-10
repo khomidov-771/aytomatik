@@ -323,3 +323,67 @@ html[data-theme="dark"] .app-shell input,html[data-theme="dark"] .app-shell text
   .app-shell .stat-card{min-height:108px;display:flex}
   .setup-hero{padding:21px 17px}
 }
+
+/* Unified custom dropdowns: avoids unstyled native browser menus. */
+.select-menu{position:relative;min-width:0}
+.select-menu-trigger{width:100%;min-height:46px;padding:0 13px;display:flex;align-items:center;justify-content:space-between;gap:12px;border:1px solid #e1e4ed;border-radius:12px;background:#fff;color:var(--text);font:inherit;font-size:13px;font-weight:650;text-align:left;box-shadow:0 5px 16px rgba(43,47,76,.035);transition:border-color .18s,box-shadow .18s,background .18s,transform .18s}
+.select-menu-trigger:hover:not(:disabled){border-color:#c9c0f6;background:#fdfcff}
+.select-menu.open .select-menu-trigger,.select-menu-trigger:focus-visible{outline:0;border-color:#7957e8;box-shadow:0 0 0 4px rgba(112,79,224,.12),0 8px 22px rgba(49,38,96,.08)}
+.select-menu-trigger:disabled{cursor:not-allowed;opacity:.58;background:#f2f4f8}
+.select-menu-trigger>span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.select-menu-trigger>svg{width:17px;height:17px;flex:0 0 17px;color:#778097;transition:transform .18s}
+.select-menu.open .select-menu-trigger>svg{transform:rotate(180deg)}
+.select-menu-popover{position:absolute;z-index:200;top:calc(100% + 8px);left:0;width:max-content;min-width:max(100%,190px);max-width:min(340px,calc(100vw - 24px));padding:7px;border:1px solid rgba(56,61,91,.12);border-radius:15px;background:rgba(255,255,255,.98);box-shadow:0 20px 55px rgba(34,37,64,.18),0 3px 12px rgba(34,37,64,.08);backdrop-filter:blur(18px);animation:select-menu-in .16s ease-out}
+.select-menu.align-right .select-menu-popover{right:0;left:auto}
+.select-menu.wide .select-menu-popover{min-width:min(320px,calc(100vw - 24px))}
+.select-menu-popover>button{width:100%;min-height:42px;padding:9px 10px;display:flex;align-items:center;justify-content:space-between;gap:18px;border:0;border-radius:10px;background:transparent;color:#25293b;font:inherit;text-align:left;cursor:pointer;transition:background .15s,color .15s}
+.select-menu-popover>button:hover,.select-menu-popover>button:focus-visible{outline:0;background:#f3f0ff;color:#5d3fd1}
+.select-menu-popover>button.selected{background:#eee9ff;color:#5d3fd1}
+.select-menu-popover>button>span{display:grid;gap:2px;min-width:0}
+.select-menu-popover strong{font-size:12px;line-height:1.3;white-space:nowrap}
+.select-menu-popover small{color:#7b8295;font-size:9px;line-height:1.35;white-space:normal}
+.select-menu-popover>button>svg{width:17px;height:17px;flex:0 0 17px;color:#6848dd}
+.select-menu.compact .select-menu-trigger{min-height:40px;padding:0 11px;font-size:11px}
+@keyframes select-menu-in{from{opacity:0;transform:translateY(-5px) scale(.98)}to{opacity:1;transform:translateY(0) scale(1)}}
+
+.preferences-controls{position:relative;z-index:3}
+.preferences-controls .locale-control{width:auto;min-width:72px}
+.preferences-controls:not(.compact) .locale-control{min-width:126px}
+.preferences-controls .locale-control .select-menu-trigger{height:40px;min-height:40px;border-radius:11px;background:rgba(255,255,255,.76);font-size:11px;font-weight:800;letter-spacing:.03em}
+.preferences-controls .locale-control .select-menu-popover{min-width:178px}
+.preferences-controls .locale-control .select-menu-popover strong{font-size:12px}
+.theme-toggle{width:40px;height:40px;border-radius:11px;background:rgba(255,255,255,.76);border-color:#e1e4ed;box-shadow:0 5px 16px rgba(43,47,76,.035)}
+.theme-toggle:hover{transform:translateY(-1px);box-shadow:0 9px 22px rgba(59,49,105,.1)}
+
+.workspace-switch{padding:0 8px 0 10px}
+.workspace-switch .workspace-select{min-width:150px}
+.workspace-switch .workspace-select .select-menu-trigger{height:44px;min-height:44px;padding:0 4px;border:0;background:transparent;box-shadow:none}
+.workspace-switch .workspace-select .select-menu-trigger>span{font-size:12px;font-weight:750}
+.workspace-switch .workspace-select .select-menu-popover{min-width:230px}
+.workspace-switch .workspace-select .select-menu-popover small{text-transform:capitalize}
+
+html[data-theme="dark"] .select-menu-trigger{background:#0d1629;border-color:rgba(255,255,255,.1);color:#f5f7ff;box-shadow:none}
+html[data-theme="dark"] .select-menu-trigger:hover:not(:disabled){background:#121d33;border-color:rgba(154,132,255,.45)}
+html[data-theme="dark"] .select-menu-trigger:disabled{background:#0a1222}
+html[data-theme="dark"] .select-menu-popover{background:rgba(14,22,41,.98);border-color:rgba(255,255,255,.1);box-shadow:0 24px 60px rgba(0,0,0,.42)}
+html[data-theme="dark"] .select-menu-popover>button{color:#eef1f8}
+html[data-theme="dark"] .select-menu-popover>button:hover,html[data-theme="dark"] .select-menu-popover>button:focus-visible{background:rgba(112,79,224,.16);color:#c4b8ff}
+html[data-theme="dark"] .select-menu-popover>button.selected{background:rgba(112,79,224,.22);color:#c4b8ff}
+html[data-theme="dark"] .select-menu-popover small{color:#929db4}
+html[data-theme="dark"] .preferences-controls .locale-control .select-menu-trigger,html[data-theme="dark"] .theme-toggle{background:rgba(255,255,255,.045);border-color:rgba(255,255,255,.1)}
+
+@media(max-width:680px){
+  .preferences-controls{gap:6px}
+  .preferences-controls .locale-control{min-width:66px}
+  .preferences-controls:not(.compact) .locale-control{min-width:112px}
+  .preferences-controls .locale-control .select-menu-popover{min-width:min(178px,calc(100vw - 24px))}
+  .workspace-switch .workspace-select{min-width:0;width:34px}
+  .workspace-switch .workspace-select .select-menu-trigger{width:34px;padding:0 7px}
+  .workspace-switch .workspace-select .select-menu-trigger>span{display:none}
+  .workspace-switch .workspace-select .select-menu-popover{min-width:min(230px,calc(100vw - 24px))}
+}
+@media(max-width:390px){
+  .public-nav{gap:10px}
+  .public-nav>.logo>span:last-child{display:none}
+  .auth-preferences{right:10px}
+}

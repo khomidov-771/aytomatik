@@ -10,6 +10,7 @@ import type { Automation, AutomationExecution, InstagramAccount, InstagramMedia 
 import { EmptyState, ErrorState, LoadingState, PageHeader, StatusPill } from "./ui";
 import { roleAtLeast, useSession } from "./session-context";
 import { usePreferences } from "./preferences-provider";
+import { SelectMenu } from "./select-menu";
 
 const empty = {
   name: "",
@@ -160,7 +161,7 @@ export function AutomationForm({ id }: { id?: string }) {
             <div className="form-section-title"><span>1</span><div><h2>{tr("Asosiy ma’lumot", "Основные данные", "Basics")}</h2><p>{tr("Qoida va akkauntni tanlang", "Выберите правило и аккаунт", "Choose the rule and account")}</p></div></div>
             <div className="form-grid">
               <label><span>{tr("Qoida nomi", "Название правила", "Rule name")}</span><input value={form.name} onChange={(event) => field("name", event.target.value)} required placeholder={tr("Masalan: Narx so‘rovi", "Например: Запрос цены", "For example: Price request")}/></label>
-              <label><span>{tr("Instagram akkauntingiz", "Ваш Instagram аккаунт", "Your Instagram account")}</span><select value={form.instagram_account_id} onChange={(event) => selectAccount(event.target.value)} required><option value="">{tr("Akkauntni tanlang", "Выберите аккаунт", "Select account")}</option>{connectedAccounts.map((account) => <option value={account.id} key={account.id}>@{account.username}</option>)}</select></label>
+              <label><span>{tr("Instagram akkauntingiz", "Ваш Instagram аккаунт", "Your Instagram account")}</span><SelectMenu value={form.instagram_account_id} onChange={selectAccount} ariaLabel={tr("Instagram akkauntni tanlang", "Выберите Instagram аккаунт", "Select Instagram account")} placeholder={tr("Akkauntni tanlang", "Выберите аккаунт", "Select account")} options={[{ value: "", label: tr("Akkauntni tanlang", "Выберите аккаунт", "Select account") }, ...connectedAccounts.map((account) => ({ value: account.id, label: `@${account.username}` }))]} /></label>
             </div>
           </section>
           <section className="panel form-section">
@@ -185,7 +186,7 @@ export function AutomationForm({ id }: { id?: string }) {
             <div className="form-section-title"><span>3</span><div><h2>{tr("Follow tekshiruvi", "Проверка подписки", "Follow verification")}</h2><p>{tr("Faqat rasmiy Meta field mavjud bo‘lsa aniq natija olinadi", "Точный результат доступен только при наличии официального Meta field", "A definitive result is available only when the official Meta field is present")}</p></div></div>
             <label className="toggle-row"><div><strong>{tr("Follower holatini tekshirish", "Проверять статус подписчика", "Verify follower status")}</strong><small>{tr("Xato yoki field yo‘q bo‘lsa natija UNKNOWN bo‘ladi.", "При ошибке или отсутствии field результат будет UNKNOWN.", "Errors or missing fields result in UNKNOWN.")}</small></div><input type="checkbox" checked={form.follow_verification_enabled} onChange={(event) => field("follow_verification_enabled", event.target.checked)}/></label>
             {form.follow_verification_enabled && <>
-              <label><span>UNKNOWN fallback</span><select value={form.unknown_fallback_policy} onChange={(event) => field("unknown_fallback_policy", event.target.value)}><option value="skip_dm_neutral_reply">{tr("DM yubormaslik va neutral public reply", "Не отправлять DM, оставить нейтральный ответ", "Skip DM and post a neutral reply")}</option><option value="send_private_reply">{tr("Follow tekshiruvisiz private reply yuborish", "Отправить private reply без проверки подписки", "Send private reply without follow verification")}</option></select></label>
+              <label><span>UNKNOWN fallback</span><SelectMenu value={form.unknown_fallback_policy} onChange={(value) => field("unknown_fallback_policy", value)} ariaLabel="UNKNOWN fallback" className="wide" options={[{ value: "skip_dm_neutral_reply", label: tr("DM yubormaslik", "Не отправлять DM", "Skip DM"), description: tr("Neutral public reply yuboriladi", "Будет оставлен нейтральный ответ", "Post a neutral public reply") }, { value: "send_private_reply", label: tr("Private reply yuborish", "Отправить private reply", "Send private reply"), description: tr("Follow tekshiruvisiz", "Без проверки подписки", "Without follow verification") }]} /></label>
               <label><span>{tr("Follower emas — public reply", "Не подписан — публичный ответ", "Not a follower — public reply")}</span><textarea value={form.public_not_follower_reply_text} onChange={(event) => field("public_not_follower_reply_text", event.target.value)} maxLength={1000} rows={3} required/></label>
               <label><span>UNKNOWN — {tr("neutral public reply", "нейтральный публичный ответ", "neutral public reply")}</span><textarea value={form.public_unknown_reply_text} onChange={(event) => field("public_unknown_reply_text", event.target.value)} maxLength={1000} rows={3} required/></label>
             </>}

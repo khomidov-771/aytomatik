@@ -11,6 +11,7 @@ import { ErrorState, LoadingState } from "./ui";
 import { Logo } from "./logo";
 import { PreferencesControls, usePreferences } from "./preferences-provider";
 import { roleAtLeast, SessionProvider } from "./session-context";
+import { SelectMenu } from "./select-menu";
 
 const navigation = [
   { href: "/app", label: ["Bosh sahifa", "Главная", "Dashboard"], icon: Home, minimumRole: "customer" as const },
@@ -44,14 +45,12 @@ function WorkspaceSwitcher({ session }: { session: Session }) {
     }
   }
 
-  return <label className="workspace-switch" style={{ position: "relative" }}>
+  const workspaceOptions = (workspaces.data?.items ?? [{ id: session.user.workspace_id, name: session.user.workspace_name, role: session.user.role }]).map((workspace) => ({ value: workspace.id, label: workspace.name, description: workspace.role }));
+
+  return <div className="workspace-switch">
     <span className="workspace-icon">I</span>
-    <span><small>{tr("Workspace", "Рабочая область", "Workspace")}</small><strong>{session.user.workspace_name}</strong></span>
-    <select style={{ position: "absolute", inset: 0, opacity: 0, cursor: "pointer" }} aria-label={tr("Workspace almashtirish", "Сменить рабочую область", "Switch workspace")} value={workspaces.data?.active_workspace_id ?? session.user.workspace_id} disabled={switching || workspaces.loading || !workspaces.data || workspaces.data.items.length < 2} onChange={(event) => void switchWorkspace(event.target.value)}>
-      {(workspaces.data?.items ?? [{ id: session.user.workspace_id, name: session.user.workspace_name, role: session.user.role }]).map((workspace) => <option value={workspace.id} key={workspace.id}>{workspace.name} · {workspace.role}</option>)}
-    </select>
-    <ChevronDown/>
-  </label>;
+    <SelectMenu value={workspaces.data?.active_workspace_id ?? session.user.workspace_id} options={workspaceOptions} onChange={(workspaceID) => void switchWorkspace(workspaceID)} ariaLabel={tr("Workspace almashtirish", "Сменить рабочую область", "Switch workspace")} disabled={switching || workspaces.loading || !workspaces.data || workspaces.data.items.length < 2} className="workspace-select" />
+  </div>;
 }
 
 export function AppShell({ children }: { children: React.ReactNode }) {

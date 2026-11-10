@@ -43,6 +43,7 @@ Subscription/payment scope olib tashlangan. Productda demo mode, demo credential
 - Public, auth va workspace UI professional light-first uslubga yangilandi; deep-navy sidebar saqlandi.
 - Workspace bo‘ylab shrift, spacing, card, form, Inbox, builder va responsive o‘lchamlar o‘qiladigan professional scale’ga ko‘tarildi.
 - Dashboardga real `connected accounts` va `active automations` holatidan hisoblanadigan 3 bosqichli onboarding hero qo‘shildi; bo‘sh chart fake nuqtalar bilan to‘ldirilmaydi.
+- Til, workspace, analytics oralig‘i, account/fallback va team role tanlovlari `web/components/select-menu.tsx` orqali bir xil light/dark custom dropdown ishlatadi; native browser menu’ni qaytarmang.
 - `web/components/preferences-provider.tsx` UZ/RU/EN tanlovi, light/dark tema va browser persistence’ni boshqaradi.
 - Landing, legal, auth va barcha asosiy app modullari uch tilli matnlarga ulandi.
 

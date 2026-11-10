@@ -2,6 +2,7 @@
 
 import { Moon, Sun } from "lucide-react";
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { SelectMenu } from "./select-menu";
 
 export type Locale = "uz" | "ru" | "en";
 export type Theme = "light" | "dark";
@@ -72,15 +73,13 @@ export function usePreferences() {
 
 export function PreferencesControls({ compact = false }: { compact?: boolean }) {
   const { locale, setLocale, theme, setTheme, tr } = usePreferences();
+  const languageOptions = [
+    { value: "uz" as const, label: compact ? "UZ" : "O‘zbekcha", description: compact ? "O‘zbekcha" : undefined },
+    { value: "ru" as const, label: compact ? "RU" : "Русский", description: compact ? "Русский" : undefined },
+    { value: "en" as const, label: compact ? "EN" : "English", description: compact ? "English" : undefined },
+  ];
   return <div className={`preferences-controls ${compact ? "compact" : ""}`}>
-    <label className="locale-control">
-      <span className="sr-only">{tr("Til", "Язык", "Language")}</span>
-      <select aria-label={tr("Til", "Язык", "Language")} value={locale} onChange={(event) => setLocale(event.target.value as Locale)}>
-        <option value="uz">UZ</option>
-        <option value="ru">RU</option>
-        <option value="en">EN</option>
-      </select>
-    </label>
+    <SelectMenu value={locale} options={languageOptions} onChange={setLocale} ariaLabel={tr("Til", "Язык", "Language")} compact={compact} align="right" className="locale-control" />
     <button
       type="button"
       className="theme-toggle"

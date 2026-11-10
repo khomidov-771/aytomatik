@@ -50,7 +50,7 @@ Bu product completion foizi emas. Kod tayyorligi yuqoriroq, lekin core biznes qi
 | Execution history | API + UI implemented; actionlar alohida ko‘rinadi |
 | Inbox | Inbound store/manual reply window implemented; live DM tekshirilmagan |
 | Analytics | Database’dagi real event/actionlardan hisoblanadi; fake seed yo‘q |
-| UI/lokalizatsiya | UZ/RU/EN tanlovi va light/dark tema public, auth va workspace sahifalariga ulangan; browserda saqlanadi. Workspace typography/spacing professional o‘lchamga oshirildi, birinchi kirish uchun real holatga asoslangan 3 bosqichli onboarding qo‘shildi |
+| UI/lokalizatsiya | UZ/RU/EN tanlovi va light/dark tema public, auth va workspace sahifalariga ulangan; browserda saqlanadi. Workspace typography/spacing professional o‘lchamga oshirildi, birinchi kirish uchun real holatga asoslangan 3 bosqichli onboarding qo‘shildi. Native browser dropdownlari yagona accessible custom menu bilan almashtirildi |
 | Billing/subscription | Product scope’dan olib tashlangan; route/UI/config yo‘q |
 | Demo/mock product mode | Olib tashlangan; mock adapter faqat automated test uchun |
 

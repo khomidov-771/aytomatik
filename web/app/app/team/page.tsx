@@ -9,6 +9,7 @@ import { api, ApiError, jsonBody } from "@/lib/api";
 import { formatDate } from "@/lib/format";
 import type { Member } from "@/lib/types";
 import { usePreferences } from "@/components/preferences-provider";
+import { SelectMenu } from "@/components/select-menu";
 
 type Invitation = { id: string; email: string; role: string; expires_at: string; created_at: string };
 
@@ -111,7 +112,7 @@ export default function TeamPage() {
     {isOwner && open && <form className="panel invite-form" onSubmit={invite}>
       <div><h2>{tr("Yangi taklif", "Новое приглашение", "New invitation")}</h2><p>{tr("Taklif 7 kun amal qiladi.", "Приглашение действительно 7 дней.", "The invitation is valid for 7 days.")}</p></div>
       <label><span>Email</span><div className="input-wrap"><Mail/><input type="email" value={email} onChange={(event) => setEmail(event.target.value)} required placeholder="hamkasb@kompaniya.uz"/></div></label>
-      <label><span>{tr("Rol", "Роль", "Role")}</span><select value={role} onChange={(event) => setRole(event.target.value)}><option value="manager">Manager</option><option value="operator">Operator</option><option value="customer">Customer</option></select></label>
+      <label><span>{tr("Rol", "Роль", "Role")}</span><SelectMenu value={role} onChange={setRole} ariaLabel={tr("Rol", "Роль", "Role")} options={[{value: "manager", label: "Manager"}, {value: "operator", label: "Operator"}, {value: "customer", label: "Customer"}]} /></label>
       <button className="btn primary" disabled={busy === "invite"}><Plus/>{busy === "invite" ? tr("Yaratilmoqda...", "Создание...", "Creating...") : tr("Taklif yaratish", "Создать приглашение", "Create invitation")}</button>
     </form>}
     <section className="panel team-panel">
@@ -120,7 +121,7 @@ export default function TeamPage() {
         <div className="table-head"><span>{tr("A’zo", "Участник", "Member")}</span><span>{tr("Rol", "Роль", "Role")}</span><span>{tr("Qo‘shilgan", "Добавлен", "Joined")}</span><span>{tr("Amal", "Действие", "Action")}</span></div>
         {team.data.items.map((member) => <div className="table-row" key={member.id}>
           <span className="member-cell"><b className="avatar">{member.name.slice(0, 2).toUpperCase()}</b><span><strong>{member.name}</strong><small>{member.email}</small></span></span>
-          <span>{isOwner && member.role !== "owner" ? <select aria-label={`${member.name} roli`} value={member.role} disabled={busy === member.id} onChange={(event) => void updateRole(member, event.target.value)}><option value="manager">Manager</option><option value="operator">Operator</option><option value="customer">Customer</option></select> : <StatusPill status={member.role}/>}</span>
+          <span>{isOwner && member.role !== "owner" ? <SelectMenu ariaLabel={`${member.name} roli`} value={member.role} disabled={busy === member.id} onChange={(value) => void updateRole(member, value)} compact align="right" options={[{value: "manager", label: "Manager"}, {value: "operator", label: "Operator"}, {value: "customer", label: "Customer"}]} /> : <StatusPill status={member.role}/>}</span>
           <span>{formatDate(member.created_at)}</span>
           <span>{isOwner && member.role !== "owner" ? <button className="btn danger ghost small" disabled={busy === member.id} onClick={() => void removeMember(member)}><Trash2/>{tr("Olib tashlash", "Удалить", "Remove")}</button> : <StatusPill status="active"/>}</span>
         </div>)}
