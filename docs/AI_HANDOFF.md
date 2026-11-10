@@ -105,6 +105,10 @@ PostgreSQL integration Windowsda embedded PostgreSQL 18.6.1 processiga qarshi o�
 
 Controlled tests live dalil emas.
 
+## 2026-11-10 production auditi
+
+Production server va public HTTPS ishlaydi, ammo active Meta credential Meta Graph tomonidan `OAuthException` code `190` bilan rad etildi. Database’da faqat tokeni yo‘q `disconnected` eski mock account bor; active rules, webhook events va executions yo‘q. `Config.MetaConfigurationReady()` qo‘shilib, placeholder credential endi UI/health’da configured deb ko‘rsatilmaydi. Keyingi agent valid App Secretni faqat server environment orqali qabul qilib, keyin real OAuth va live acceptance bajarishi kerak.
+
 ## Qayerdan davom etish
 
 Birinchi topshiriq: `docs/NEXT_STEPS.md`dagi P0 Live Meta acceptance testini eligible test account bilan bajaring. Kodni taxminan o‘zgartirmang; avval real response va database action rowsni qayd eting. Incompatibility topilsa eng kichik provider/worker patch va regression test yozing.

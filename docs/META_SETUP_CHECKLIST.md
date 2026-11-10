@@ -68,4 +68,4 @@ Commentning o‘zi follow/profile permissionni kafolatlamaydi. Scraping/private 
 
 ## Joriy holat
 
-Controlled provider tests PASS. Real Meta acceptance **NOT TESTED LIVE**, chunki App credentials, eligible account/test user va public HTTPS callback bu workspace’da berilmagan.
+Controlled provider tests PASS. Public HTTPS callback ishlaydi, ammo productiondagi joriy App Secret Meta tomonidan `OAuthException` code `190` bilan rad etildi. Real connected account, active automation va webhook event yo‘q. Real Meta acceptance **NOT TESTED LIVE**.

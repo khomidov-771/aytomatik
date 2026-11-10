@@ -6,6 +6,7 @@ import (
 	"net/netip"
 	"net/url"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -40,6 +41,37 @@ type Config struct {
 	TrustedProxyCIDRs  []string
 	ShortSessionTTL    time.Duration
 	SessionTTL         time.Duration
+}
+
+// MetaConfigurationReady reports whether the configured values are plausible
+// production credentials. It intentionally does not claim that Meta accepted
+// them; the OAuth exchange remains the authoritative live verification.
+// This prevents non-empty placeholders from being exposed as "configured".
+func (c Config) MetaConfigurationReady() bool {
+	if c.InstagramProvider != "meta" || !numericMetaID(c.MetaAppID) || !plausibleMetaSecret(c.MetaAppSecret) {
+		return false
+	}
+	if len(strings.TrimSpace(c.WebhookVerifyToken)) < 20 || !plausibleMetaSecret(c.WebhookAppSecret) {
+		return false
+	}
+	if c.MetaLoginMode == "unified" && !numericMetaID(c.MetaLoginConfigID) {
+		return false
+	}
+	return true
+}
+
+func numericMetaID(value string) bool {
+	value = strings.TrimSpace(value)
+	if len(value) < 5 || len(value) > 32 {
+		return false
+	}
+	_, err := strconv.ParseUint(value, 10, 64)
+	return err == nil
+}
+
+func plausibleMetaSecret(value string) bool {
+	value = strings.TrimSpace(value)
+	return len(value) >= 20 && !strings.ContainsAny(value, " <>\t\r\n")
 }
 
 func Load() (Config, error) {

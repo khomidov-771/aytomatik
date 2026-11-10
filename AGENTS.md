@@ -47,7 +47,7 @@ Bu fayl Claude Code, Cursor, Codex va boshqa coding agentlar uchun majburiy repo
 - `strict` TypeScriptni saqlang; `any`dan faqat asoslangan holatda foydalaning.
 - Async sahifalarda loading, error, empty va retry holatlari bo‘lsin.
 - React effect ichida synchronous state derivation yozmang; render-time derivation yoki async callback ishlating.
-- Uzbek-first matnni saqlang. RU/EN hozir faqat scaffold; tarjima ishlayotgandek ko‘rsatmang.
+- Uzbek-first matnni saqlang. Mavjud UZ/RU/EN tarjimalarini yangi ekran va holatlarda ham to‘liq davom ettiring.
 - 360px, 768px va 1440px breakpointlarni tekshiring; keyboard focus va form label’larini saqlang.
 - Test fixture’lari product UI/API’ga chiqmasin.
 

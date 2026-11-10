@@ -6,6 +6,8 @@ Joriy frontendda UZ/RU/EN va light/dark tema tayyor. Yangi ekran qo‘shilganda 
 
 ## P0 — Live Meta acceptance test
 
+Oldin production `.env.production`dagi `META_APP_SECRET` va `META_WEBHOOK_APP_SECRET`ni Meta Dashboarddagi haqiqiy App Secret bilan serverning o‘zida yangilang. Secretni chat, Git yoki logga yubormang. Yangilagandan keyin API container restart qilinadi va Meta Graph credential check code `190` bermasligi shart.
+
 Kerak:
 
 - Meta App ID/App Secret;

@@ -80,10 +80,7 @@ func (s *Server) instagramAccounts(w http.ResponseWriter, r *http.Request, p dom
 }
 
 func (s *Server) metaConfigured() bool {
-	if s.provider.Name() != "meta" || s.cfg.MetaAppID == "" || s.cfg.MetaAppSecret == "" || s.cfg.WebhookVerifyToken == "" || s.cfg.WebhookAppSecret == "" {
-		return false
-	}
-	return s.cfg.MetaLoginMode != "unified" || s.cfg.MetaLoginConfigID != ""
+	return s.provider.Name() == "meta" && s.cfg.MetaConfigurationReady()
 }
 func (s *Server) instagramDisconnect(w http.ResponseWriter, r *http.Request, p domain.Principal) {
 	accountID := r.PathValue("id")

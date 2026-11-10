@@ -19,7 +19,7 @@ Interfeys O‘zbek, Русский va English tillarida ishlaydi. Til hamda yoru
 - Backend, frontend va PostgreSQL integratsion testlar lokal muhitda o‘tgan.
 - Meta OAuth, webhook, private/public reply va follow requestlari controlled HTTP testlarda tekshirilgan.
 - Professional light/dark UI va uch tilli asosiy product oqimlari frontend lint, unit test va production builddan o‘tgan.
-- Real Meta App credentials va eligible Instagram Professional akkaunt bu workspace’da yo‘q. Shu sabab live OAuth, live webhook, `is_user_follow_business`, real private reply va public reply **live tekshirilmagan**.
+- Production auditda joriy Meta App Secret Meta tomonidan rad etildi (`OAuthException`, code `190`); real connected Instagram akkaunt, active rule va webhook event yo‘q. Shu sabab live OAuth, live webhook, `is_user_follow_business`, real private reply va public reply **live tekshirilmagan**.
 - Meta bergan Unified Login Configuration ID `.env.example`da public konfiguratsiya sifatida ko‘rsatilgan. Secretlar repositoryga yozilmaydi.
 
 Batafsil: [PROJECT_STATUS.md](docs/PROJECT_STATUS.md), [NEXT_STEPS.md](docs/NEXT_STEPS.md), [AI_HANDOFF.md](docs/AI_HANDOFF.md).
@@ -77,6 +77,7 @@ Manzillar:
 - Health: `http://localhost:8080/healthz`
 
 Meta credentials bo‘lmasa development UI/API ishga tushadi, ammo Instagram ulash va webhook integratsiyasi aniq `sozlanmagan` holatda bloklanadi. Production credentialsiz start qilmaydi va hech qachon mock rejimga avtomatik o‘tmaydi.
+Non-empty placeholder qiymatlar ham `meta_configured=true` deb ko‘rsatilmaydi; App ID/config ID numeric va server-only secretlar production credentialga o‘xshash bo‘lishi kerak. Haqiqiy tekshiruv OAuth/Meta API success bilan yakunlanadi.
 
 ### Servislarni alohida ishga tushirish
 

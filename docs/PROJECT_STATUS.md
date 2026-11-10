@@ -54,6 +54,18 @@ Bu product completion foizi emas. Kod tayyorligi yuqoriroq, lekin core biznes qi
 | Billing/subscription | Product scope’dan olib tashlangan; route/UI/config yo‘q |
 | Demo/mock product mode | Olib tashlangan; mock adapter faqat automated test uchun |
 
+## Production Meta audit — 2026-11-10
+
+- Web va API health: `200`; PostgreSQL container healthy.
+- Active environment `production`, provider `meta`, login mode `unified`, redirect HTTPS va Unified configuration ID mavjud.
+- Active App ID/App Secret bilan Meta Graph credential check `HTTP 400`, `OAuthException` code `190` qaytardi.
+- App Secret va webhook App Secret 10 belgilik placeholder ko‘rinishida; valid Meta credential sifatida qabul qilinmaydi.
+- Database: 1 ta eski `mock` account `disconnected`, encrypted token yo‘q; real Meta account `0`.
+- Active automation `0`, webhook event `0`, execution/action `0`.
+- API endi non-empty placeholderni `meta_configured=true` deb ko‘rsatmaydi va account connectni credential tuzatilmaguncha bloklaydi.
+
+Bu holatda real comment-to-DM oqimi ishlamaydi. Valid Meta App Secret serverga xavfsiz kiritilib, Professional account OAuth orqali ulangach va active automation yaratilgach live acceptance bajarilishi kerak.
+
 ## Comment-to-DM outcome matrix
 
 | Follow setting/status | Private reply | Public reply |
@@ -86,7 +98,7 @@ Frontend build dastlab cheklangan Windows process huquqida `.next/standalone` ya
 
 ## Aniqlangan cheklovlar
 
-- Real Meta credentials va public HTTPS callback yo‘q.
+- Public HTTPS callback mavjud, ammo joriy Meta App credential Meta tomonidan code `190` bilan rad etilgan.
 - `is_user_follow_business` Unified/Facebook Login yo‘lida tasdiqlanmagan; kod bu holatda `UNKNOWN` qiladi.
 - Instagram Login yo‘lida ham follow field real eligible user/account bilan sinovdan o‘tmagan.
 - Meta rate-limit, revoked token, App Review va one-private-reply/time-window xatolari real response bilan tekshirilmagan.

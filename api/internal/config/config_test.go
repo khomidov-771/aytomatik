@@ -35,12 +35,12 @@ func validProductionEnv(t *testing.T) {
 func setMetaEnv(t *testing.T) {
 	t.Helper()
 	t.Setenv("INSTAGRAM_PROVIDER", "meta")
-	t.Setenv("META_APP_ID", "app-id")
-	t.Setenv("META_APP_SECRET", "app-secret")
-	t.Setenv("META_WEBHOOK_VERIFY_TOKEN", "verify-token")
-	t.Setenv("META_WEBHOOK_APP_SECRET", "webhook-secret")
+	t.Setenv("META_APP_ID", "1234567890123456")
+	t.Setenv("META_APP_SECRET", strings.Repeat("a", 32))
+	t.Setenv("META_WEBHOOK_VERIFY_TOKEN", strings.Repeat("v", 32))
+	t.Setenv("META_WEBHOOK_APP_SECRET", strings.Repeat("a", 32))
 	t.Setenv("META_LOGIN_MODE", "unified")
-	t.Setenv("META_LOGIN_CONFIG_ID", "config-id")
+	t.Setenv("META_LOGIN_CONFIG_ID", "2331645327602552")
 }
 
 func TestDevelopmentAllowsExplicitLogMailer(t *testing.T) {
@@ -121,5 +121,29 @@ func TestUnifiedMetaRequiresConfigurationID(t *testing.T) {
 	t.Setenv("META_LOGIN_CONFIG_ID", "")
 	if _, err := Load(); err == nil || !strings.Contains(err.Error(), "META_LOGIN_CONFIG_ID") {
 		t.Fatalf("unified login without configuration id must be rejected, got %v", err)
+	}
+}
+
+func TestMetaConfigurationReadyRejectsPlaceholders(t *testing.T) {
+	cfg := Config{
+		InstagramProvider:  "meta",
+		MetaAppID:          "1234567890123456",
+		MetaAppSecret:      "app-secret",
+		MetaLoginMode:      "unified",
+		MetaLoginConfigID:  "2331645327602552",
+		WebhookVerifyToken: strings.Repeat("v", 32),
+		WebhookAppSecret:   "app-secret",
+	}
+	if cfg.MetaConfigurationReady() {
+		t.Fatal("placeholder Meta secrets must not be reported as configured")
+	}
+	cfg.MetaAppSecret = strings.Repeat("a", 32)
+	cfg.WebhookAppSecret = strings.Repeat("a", 32)
+	if !cfg.MetaConfigurationReady() {
+		t.Fatal("plausible Meta production configuration should be ready for live OAuth verification")
+	}
+	cfg.MetaLoginConfigID = "config-id"
+	if cfg.MetaConfigurationReady() {
+		t.Fatal("non-numeric Unified Login configuration ID must be rejected")
 	}
 }
