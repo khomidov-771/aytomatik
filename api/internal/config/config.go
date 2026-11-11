@@ -67,7 +67,7 @@ func (c Config) MetaConfigurationReady() bool {
 // Meta OAuth exchange. It does not mean Meta has accepted the credentials or
 // that webhooks and messaging permissions are ready.
 func (c Config) MetaOAuthReady() bool {
-	if c.InstagramProvider != "meta" || !numericMetaID(c.MetaAppID) || !plausibleMetaSecret(c.MetaAppSecret) || !isAbsoluteURL(c.MetaRedirectURI, c.Env == "production") {
+	if c.InstagramProvider != "meta" || !numericMetaID(c.MetaAppID) || !plausibleMetaSecret(c.MetaAppSecret) || !isMetaOAuthRedirectURL(c.MetaRedirectURI, c.Env == "production") {
 		return false
 	}
 	if c.MetaLoginMode == "unified" && !numericMetaID(c.MetaLoginConfigID) {
@@ -227,6 +227,14 @@ func isAbsoluteURL(value string, requireHTTPS bool) bool {
 	return !requireHTTPS || parsed.Scheme == "https"
 }
 
+func isMetaOAuthRedirectURL(value string, requireHTTPS bool) bool {
+	parsed, err := url.Parse(strings.TrimSpace(value))
+	if err != nil || parsed.Host == "" || (parsed.Scheme != "https" && parsed.Scheme != "http") || parsed.User != nil || parsed.Fragment != "" || parsed.RawQuery != "" || parsed.Path != "/api/v1/instagram/callback" {
+		return false
+	}
+	return !requireHTTPS || parsed.Scheme == "https"
+}
+
 func env(name, fallback string) string {
 	if value := os.Getenv(name); value != "" {
 		return value
@@ -241,3 +249,4 @@ func split(value string) []string {
 	}
 	return parts
 }
+
