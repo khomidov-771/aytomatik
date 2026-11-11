@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { AlertCircle, ArrowLeft, ArrowRight, BadgeCheck, Check, CheckCircle2, ChevronLeft, CircleHelp, Film, Instagram, LoaderCircle, MessageCircle, RefreshCw, Send, ShieldCheck, Sparkles, UserCheck, Video, Zap } from "lucide-react";
+import { AlertCircle, ArrowLeft, ArrowRight, BadgeCheck, Check, CheckCircle2, ChevronLeft, CircleHelp, Film, Instagram, LoaderCircle, LockKeyhole, MessageCircle, RefreshCw, Send, ShieldCheck, Sparkles, UserCheck, Video, Zap } from "lucide-react";
 import { FormEvent, useEffect, useState } from "react";
 import { Logo } from "@/components/logo";
 import { PreferencesControls, usePreferences } from "@/components/preferences-provider";
