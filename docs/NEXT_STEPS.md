@@ -1,12 +1,12 @@
 # Keyingi qadamlar
 
-Ustuvorliklar 2026-11-11 holatiga ko‘ra. Google OAuth kodi GitHub va production serverga deploy qilingan. Keyingi qadam Google client credentialsni xavfsiz sozlab, real browser oqimini qabul qilish; keyin real Meta eligible account bilan alohida end-to-end acceptance.
+Ustuvorliklar 2026-11-11 holatiga ko‘ra. Public onboarding 4 qadamli wizardga yangilandi; login/register faqat email/parol oqimini ko‘rsatadi, Google OAuth backend kodi esa saqlangan. Birinchi bajariladigan ish — valid Meta credential bilan real Meta acceptance; oldingi credential production Graph tekshiruvida code `190` bilan rad etilgan.
 
 Joriy frontendda UZ/RU/EN va light/dark tema tayyor. Yangi ekran qo‘shilganda matnni `usePreferences().tr(uz, ru, en)` orqali uchala tilda berish va ikkala temada ko‘rish talab qilinadi.
 
-## P0 — Google OAuth production sozlamasi va live acceptance
+## Ixtiyoriy — Google OAuth backend (public UI’da yo‘q)
 
-Server-side Google OAuth/OIDC oqimi deploy qilingan. Production status hozir `{"enabled":false}`; credentialsiz start `503` qaytarishi shart. Haqiqiy loginni yoqish uchun Google Cloud Console’dagi Web OAuth Client ID va Client Secret production serverning `.env.production` fayliga xavfsiz kiritilib, API container shu env fayl bilan qayta ishga tushishi kerak. Secretni Git, log yoki chatga yozmang.
+Server-side Google OAuth/OIDC oqimi bor, ammo joriy public login/register UI unga ulanmagan. Product egasi Google’ni public authentication’ga qaytarishga alohida qaror qilmaguncha bu credential setup joriy onboarding’ni unblock qilmaydi. Agar kelajakda so‘ralsa, production status `enabled=false`; client ID/secret Google Cloud Console’dan server `.env.production`ga xavfsiz kiritilib, real consent acceptance alohida bajariladi. Secretni Git, log yoki chatga yozmang.
 
 Google Cloud Console’dagi Authorized redirect URI aynan quyidagicha bo‘lsin:
 
@@ -14,7 +14,7 @@ Google Cloud Console’dagi Authorized redirect URI aynan quyidagicha bo‘lsin:
 https://instagram.schat.uz/api/v1/auth/google/callback
 ```
 
-Tekshirilgan server natijasi: `GET /api/v1/auth/google/status` HTTP 200, `{"enabled":false}`; `POST /api/v1/auth/google/start` HTTP 503. Credentials kiritilgach status `enabled:true` bo‘lishi kutiladi, lekin bu ham real sign-in muvaffaqiyatli degani emas. Google consent, birinchi signup, oldin yaratilgan emailni bog‘lash, login, state/nonce replay va bekor qilingan consent oqimlarini production’da sinab, database `oauth_identities`, workspace membership va session cookie’ni tekshirish shart.
+Oxirgi tekshirilgan server natijasi: `GET /api/v1/auth/google/status` HTTP 200, `{"enabled":false}`; credentialsiz start HTTP 503.
 
 Kod/konfiguratsiya fayllari:
 
@@ -22,10 +22,19 @@ Kod/konfiguratsiya fayllari:
 - `api/internal/store/store.go`
 - `api/internal/migrations/006_google_oauth.sql`
 - `api/internal/config/config.go`
-- `web/components/google-auth-button.tsx`
+- `web/components/google-auth-button.tsx` (orphan component; public login/register sahifalarida ishlatilmaydi)
 - `.env.example`, `docker-compose.prod.yml`, `deploy/nginx/default.conf.template`
 
-Local Google testi uchun Google Cloud’da `http://localhost:8080/api/v1/auth/google/callback` callback URI va `GOOGLE_REDIRECT_URL` kerak. Haqiqiy Google credential bo‘lmasa OAuth’ni live ishlaydi deb ko‘rsatmang.
+Local Google backend testi uchun Google Cloud’da `http://localhost:8080/api/v1/auth/google/callback` callback URI va `GOOGLE_REDIRECT_URL` kerak. Haqiqiy Google credential bo‘lmasa OAuth’ni live ishlaydi deb ko‘rsatmang.
+
+## P0 — Yangi onboarding’ni Meta eligible account bilan live tekshirish
+
+Yangi `/setup` flow production web’ga deploy qilingach, email/password user session bilan login/register, Meta callbackdan qaytish va “Sozlashni davom ettirish” orqali akkauntga qaytishni tekshiring. App Secret `OAuthException` code `190` bermasdan real eligible Professional account ulanganidan keyingina account selection, media list, automation create va real comment outcome test qilinadi.
+
+- Hozirgi frontend test/build o‘tdi; bu real account, post yoki Meta delivery dalili emas.
+- Unified Login account discovery `account_type` qaytarmasa, subtype `UNKNOWN` deb ko‘rsatiladi; Business/Creator qiymatini taxmin qilmang.
+- Follow status Unified Login’da `UNKNOWN`; explicit fallback’ni tekshiring.
+- Automation POST response ID, active state, selected media IDs va server-side execution history bilan verifikatsiya qiling.
 
 ## P0 — Live Meta acceptance test
 

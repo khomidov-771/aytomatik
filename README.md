@@ -21,10 +21,14 @@ Automation yaratishda foydalanuvchi Media ID yozmaydi: real OAuth orqali ulangan
 - Backend, frontend va PostgreSQL integratsion testlar lokal muhitda o‘tgan.
 - Meta OAuth, webhook, private/public reply va follow requestlari controlled HTTP testlarda tekshirilgan.
 - Professional light/dark UI va uch tilli asosiy product oqimlari frontend lint, unit test va production builddan o‘tgan.
+- 4 qadamli `/setup` wizard mavjud API’lardan foydalanadi: Meta akkaunt ulash, real post tanlash, keyword/javob sozlash, keyin saqlash va faollashtirish. Demo akkaunt, post yoki analytics ko‘rsatmaydi.
+- Google sign-in tugmasi public login/register sahifalaridan olib tashlangan. Server-side Google OAuth backend kodi saqlanadi, lekin joriy public onboarding oqimiga ulanmagan.
 - Google OAuth server-side authorization-code/OIDC, PKCE, signed ID-token va Postgres account linking oqimi kodga qo‘shilgan; disposable PostgreSQL va controlled OIDC server bilan tekshirilgan.
 - Google OAuth kodi GitHub `main` va production serverga `8c15cde` commitida deploy qilindi. Production `GET /api/v1/auth/google/status` HTTP 200 bilan `enabled=false`, credentialsiz start esa HTTP 503 qaytardi. Google Cloud Client ID/Secret production serverga qo‘yilib, real Google browser flow qabul qilinmaguncha real Google sign-in **ishlamaydi**.
 - Production auditda joriy Meta App Secret Meta tomonidan rad etildi (`OAuthException`, code `190`); real connected Instagram akkaunt, active rule va webhook event yo‘q. Shu sabab live OAuth, live webhook, `is_user_follow_business`, real private reply va public reply **live tekshirilmagan**.
 - Meta bergan Unified Login Configuration ID `.env.example`da public konfiguratsiya sifatida ko‘rsatilgan. Secretlar repositoryga yozilmaydi.
+
+Joriy Meta App Secret avvalgi production tekshiruvda Graph API tomonidan `OAuthException` code `190` bilan rad etilgan. Shu sabab live Instagram OAuth va Comment-to-DM oqimi bu controlled test natijalaridan kelib chiqib tayyor deb hisoblanmaydi.
 
 Batafsil: [PROJECT_STATUS.md](docs/PROJECT_STATUS.md), [NEXT_STEPS.md](docs/NEXT_STEPS.md), [AI_HANDOFF.md](docs/AI_HANDOFF.md).
 
@@ -35,7 +39,7 @@ Batafsil: [PROJECT_STATUS.md](docs/PROJECT_STATUS.md), [NEXT_STEPS.md](docs/NEXT
 - Database: PostgreSQL 17
 - Queue: PostgreSQL durable queue; Redis faqat wake-up signal
 - Auth: HttpOnly session cookie, CSRF, email verification, RBAC
-- Google sign-in: server-side OAuth 2.0 / OpenID Connect; verified ID token and email, one-time state + PKCE S256 + nonce, browser-bound HttpOnly cookie
+- Optional Google OAuth backend: server-side OAuth 2.0 / OpenID Connect; not exposed by the current public login/register UI
 - Meta: Instagram Login yoki Unified/Facebook Login konfiguratsiyasi
 
 ## Talablar
@@ -60,7 +64,7 @@ cd ..
 
 `.env` ichida kamida database, security va Meta qiymatlarini to‘ldiring. Secretlarni commit qilmang.
 
-Google orqali kirish ixtiyoriy. Uni yoqish uchun Google Cloud Console’da OAuth Client ID (Web application) yarating, local va production callback manzillarini Authorized redirect URIs ro‘yxatiga qo‘shing hamda server `.env`iga `GOOGLE_CLIENT_ID` va `GOOGLE_CLIENT_SECRET`ni kiriting. Callback qiymati Google Cloud’dagi qiymat bilan aynan bir xil bo‘lishi shart:
+Google OAuth backend kodi qolgan, lekin current public login/register sahifalarida Google tugmasi yo‘q. Faqat Google OAuth’ni alohida qayta faollashtirish talabi bo‘lsa, Google Cloud Console’da OAuth Client ID (Web application) yarating, local va production callback manzillarini Authorized redirect URIs ro‘yxatiga qo‘shing hamda server `.env`iga `GOOGLE_CLIENT_ID` va `GOOGLE_CLIENT_SECRET`ni kiriting. Callback qiymati Google Cloud’dagi qiymat bilan aynan bir xil bo‘lishi shart:
 
 ```text
 Local:      http://localhost:8080/api/v1/auth/google/callback
@@ -124,6 +128,19 @@ npm run dev:web
 
 Commentning o‘zi profile/follow tekshiruviga yetarli permission yoki messaging context borligini anglatmaydi.
 
+## Onboarding oqimi
+
+Public sahifadagi **Boshlash** tugmasi email/parol orqali IDS Automate workspace’iga olib kiradi. Email tasdiqlanib hisobga kirilgach `/setup` sahifasida:
+
+1. Serverdagi Meta konfiguratsiya holati tekshiriladi va foydalanuvchi rasmiy Meta OAuth orqali akkaunt ulaydi.
+2. Ulangan akkauntning postlari `GET /instagram/accounts/{id}/media` orqali olinadi; foydalanuvchi barcha eligible postlarni yoki aniq postlarni tanlaydi.
+3. Kalit so‘z, moslik usuli, private DM, public javob, ixtiyoriy follow check va UNKNOWN fallback kiritiladi.
+4. Foydalanuvchi qoidani ko‘rib, faol yoki o‘chiq holda saqlaydi. Muvaffaqiyat faqat `POST /automations` automation ID qaytarganidan keyin ko‘rsatiladi.
+
+Meta callback URI o‘zgarmaydi. OAuth’dan qaytgach `/app/accounts?connected=1` sahifasidagi **Sozlashni davom ettirish** havolasi tanlangan akkaunt bilan wizard’ning 2-bosqichini ochadi. Workspace session bo‘lmasa foydalanuvchi login/register’ga yo‘naltiriladi.
+
+Unified Login `assigned_instagram_accounts` javobida `account_type` maydoni bo‘lmagani uchun yangi akkauntning subtype qiymati `UNKNOWN` bo‘lib saqlanadi va UI noaniqlikni ochiq ko‘rsatadi.
+
 ## Environment variables
 
 | Nomi | Maqsad |
@@ -148,9 +165,9 @@ Commentning o‘zi profile/follow tekshiruviga yetarli permission yoki messaging
 | `META_REDIRECT_URI` | OAuth callback URI |
 | `META_WEBHOOK_VERIFY_TOKEN` | Webhook verify token |
 | `META_WEBHOOK_APP_SECRET` | `X-Hub-Signature-256` tekshiruvi |
-| `GOOGLE_CLIENT_ID` | Google OAuth Web Client ID; ixtiyoriy, serverda ishlatiladi |
-| `GOOGLE_CLIENT_SECRET` | Google OAuth Client Secret; faqat serverda saqlanadi |
-| `GOOGLE_REDIRECT_URL` | Google callback; bo‘sh bo‘lsa `API_URL`dan hosil qilinadi |
+| `GOOGLE_CLIENT_ID` | Ixtiyoriy backend Google OAuth Web Client ID; public onboarding UI’da tugma yo‘q |
+| `GOOGLE_CLIENT_SECRET` | Ixtiyoriy backend Google OAuth Client Secret; faqat serverda saqlanadi |
+| `GOOGLE_REDIRECT_URL` | Ixtiyoriy backend Google callback; bo‘sh bo‘lsa `API_URL`dan hosil qilinadi |
 | `NEXT_PUBLIC_API_URL` | Frontend ishlatadigan API base URL |
 | `MAIL_PROVIDER` | `log` developmentda, `smtp` productionda |
 | `MAIL_*` | SMTP sozlamalari |

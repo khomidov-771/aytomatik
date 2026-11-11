@@ -20,7 +20,7 @@ export function PublicHeader() {
     <div className="header-actions">
       <PreferencesControls compact />
       <Link className="btn ghost desktop-only" href="/login">{tr("Kirish", "Войти", "Sign in")}</Link>
-      <Link className="btn primary desktop-only" href="/register">{tr("Boshlash", "Начать", "Get started")}</Link>
+      <Link className="btn primary desktop-only" href="/register?next=%2Fsetup">{tr("Boshlash", "Начать", "Get started")}</Link>
       <button className="icon-btn mobile-menu" aria-label={tr("Menyuni ochish", "Открыть меню", "Open menu")} onClick={() => setOpen(!open)}>{open ? <X /> : <Menu />}</button>
     </div>
   </div></header>;

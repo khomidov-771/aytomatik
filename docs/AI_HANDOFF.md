@@ -53,6 +53,12 @@ Subscription/payment scope olib tashlangan. Productda demo mode, demo credential
 - OAuth state hashed/10-minute/one-time; PKCE S256, HttpOnly SameSite=Lax browser cookie va `Origin` allowlist tekshiruvi bilan login-CSRF/code interception himoyasi qo‘shildi.
 - Google credentials bo‘lmasa status `enabled=false` va UI aniq sozlanmagan holatni ko‘rsatadi. Migration `006_google_oauth.sql` additive.
 - OAuth callback’ning fake RSA issuer va disposable PostgreSQL bilan controlled E2E integration testi bor; bu live Google acceptance emas.
+- Public landing hero dark-violet ko‘rinishga yangilandi; telefon UI — faqat oqim illustratsiyasi, analytics/account data emas.
+- Public Boshlash flow email/parol login/register’dan so‘ng `/setup`ga qaytadi; email verification ham xavfsiz local `next=/setup`ni saqlaydi.
+- `web/components/setup-wizard.tsx` real API’lar bilan 4 qadamli account → post → settings → create onboarding beradi; yangi endpoint/schema yo‘q.
+- `web/app/app/accounts/page.tsx` successful OAuth return’dan keyin account ID bilan wizard step 2’ni davom ettiradi. Meta callback URL/handler o‘zgarmagan.
+- Google OAuth tugmalari public login/register’dan olib tashlangan. Backend OIDC/migration kodlari saqlanadi; `google-auth-button.tsx` hozir bu sahifalarda ulanmagan.
+- Unified Login `assigned_instagram_accounts` subtype bermagani uchun yangi row’da account type `UNKNOWN`, UI esa Meta’dan subtype qaytmaganini ko‘rsatadi.
 
 ## Arxitektura qarorlari
 
@@ -87,10 +93,11 @@ Subscription/payment scope olib tashlangan. Productda demo mode, demo credential
 - `api/internal/migrations/005_core_comment_to_dm.sql` — additive data-preserving schema
 - `api/internal/httpapi/google_oauth.go` — server-side Google OAuth/OIDC start va callback
 - `api/internal/migrations/006_google_oauth.sql` — login state va OAuth identity schema
-- `web/components/google-auth-button.tsx` — status-aware, UZ/RU/EN login/register action
+- `web/components/google-auth-button.tsx` — saqlangan, lekin public login/register’da hozir ishlatilmaydi
 - `api/internal/httpapi/instagram.go` — OAuth/webhook
 - `web/components/automation-form.tsx` — builder va execution history
 - `web/components/preferences-provider.tsx` — locale/theme state va umumiy controls
+- `web/components/setup-wizard.tsx`, `web/app/setup/page.tsx` — 4-step real onboarding
 - `web/app/globals.css` — light/dark professional design token va override’lar
 - `web/app/app/page.tsx` — real statusga asoslangan dashboard onboarding va empty analytics holati
 - `web/app/app/accounts/page.tsx` — login mode/capability warning
@@ -145,9 +152,21 @@ Production server va public HTTPS ishlaydi, ammo active Meta credential Meta Gra
 - Google Cloud OAuth Client ID/Secretni serverga xavfsiz kiritib, `.env.production` bilan API’ni qayta yaratish va real consent/signup/login acceptance qilish kerak. Client Secretni Git/chat/logga kiritma.
 - Avvalgi Meta Graph credential tekshiruvi OAuth code `190` qaytargan; bu deployda secret bilan qayta tekshirilmagan. Health/config flag live Graph API dalili emas.
 
+## 2026-11-11 Onboarding redesign quality gate
+
+- `npm run lint:web` — PASS, lint warning/error yo‘q.
+- `npm run test:web` — PASS, 1 file / 2 tests.
+- `npm run build:web` — PASS, Next.js 22 routes. Restricted Windows worker first returned `EPERM`; normal process permission bilan ayni production build muvaffaqiyatli bo‘ldi.
+- Standalone server smoke: `/`, `/setup`, `/login?next=/setup`, `/register?next=/setup`, `/verify-email?next=/setup`, `/app/automations` — HTTP 200; `/setup` loading HTML bor; login/register’da Google sign-in marker va setup’da demo marker yo‘q.
+- `go test ./...`, `go vet ./...`, `go build ./cmd/server ./cmd/migrate` — PASS.
+- `go test -tags=integration -v ./internal/store` — PASS; embedded disposable PostgreSQL’da Google identity va tenant/store integration testlari o‘tdi.
+- Docker CLI yo‘q, shuning uchun Docker containerli integration test yo‘q. Cheklangan worker embedded Postgres executable’ni ishga tushira olmadi; normal process permission bilan test muvaffaqiyatli bo‘ldi.
+- Real Meta acceptance qilinmadi: avvalgi production App Secret tekshiruvi Graph API code `190` qaytargan. Playwright E2E ham local full API/database stack bo‘lmagani uchun bu pass’da ishga tushirilmadi.
+- Meta subtype, webhook, follower result va delivery faqat live eligible account bilan isbotlanadi. Hozir ularning hech biri bu UI pass’da live tekshirilmagan.
+
 ## Qayerdan davom etish
 
-Birinchi topshiriq: `docs/NEXT_STEPS.md`dagi P0 Google OAuth production sozlamasini bajaring. Kod allaqachon push/deploy qilingan. Google Cloud Web OAuth Client ID/Secretni server `.env.production`ga xavfsiz kiriting; Authorized redirect URI `https://instagram.schat.uz/api/v1/auth/google/callback` bo‘lsin. Deployda `docker compose --env-file .env.production -f docker-compose.ids.yml ...` ishlatib, PostgreSQL’ni `--no-deps` bilan saqlang. Keyin status `enabled:true` bo‘lishini va real consent/signup/login hamda DB identity/workspace/session natijalarini tekshiring. Secretni chat/Git/logga chiqarmang. Google live acceptance tugagach alohida P0 Meta acceptance’ga o‘ting.
+Birinchi topshiriq: yangi web commitni GitHub’ga push qilib, production’da faqat web service’ni deploy qiling. Server `/opt/ids-automate` repo’sida `.env.production`, database, API, nginx va operator files’ni aslo tozalamang yoki almashtirmang; `docker compose --env-file .env.production -f docker-compose.prod.yml up -d --no-deps --build web` ishlating. Public `/`, `/setup` sahifasi va health endpointi verifikatsiyadan keyin `docs/PROJECT_STATUS.md`ga faqat kuzatilgan dalilni yozing. Keyin valid Meta credential/test account bilan `docs/NEXT_STEPS.md`dagi live acceptance’ga o‘ting. Hozirgi Meta App Secret code `190` bilan oldin rad etilgan. Google OAuth credential taskini faqat foydalanuvchi public Google login’ni qaytarmoqchi bo‘lsa ko‘rib chiqing.
 
 ## Guardrail
 

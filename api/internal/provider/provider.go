@@ -296,9 +296,11 @@ func (m *Meta) exchangeUnifiedCode(ctx context.Context, code string) (Account, e
 		expiry = &value
 	}
 	return Account{
-		ID:          selected.ID,
-		Username:    selected.Username,
-		AccountType: "PROFESSIONAL",
+		ID:       selected.ID,
+		Username: selected.Username,
+		// Unified Login's assigned Instagram asset response does not include
+		// account_type. Keep the subtype unknown instead of claiming Meta returned it.
+		AccountType: "UNKNOWN",
 		AvatarURL:   selected.ProfilePictureURL,
 		AccessToken: token.AccessToken,
 		ExpiresAt:   expiry,

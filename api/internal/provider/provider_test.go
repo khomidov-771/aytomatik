@@ -130,6 +130,9 @@ func TestUnifiedOAuthExchangeSubscriptionAndMessageDelivery(t *testing.T) {
 	if account.ID != "ig-1" || account.Username != "ids.business" || account.AccessToken != "access-secret" || account.ExpiresAt == nil {
 		t.Fatalf("unexpected account: %#v", account)
 	}
+	if account.AccountType != "UNKNOWN" {
+		t.Fatalf("unified account type should remain unknown when Meta omits it, got %q", account.AccountType)
+	}
 	if len(account.Scopes) != 1 || account.Scopes[0] != "instagram_basic" {
 		t.Fatalf("only granted permissions should be stored: %#v", account.Scopes)
 	}

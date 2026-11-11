@@ -1,8 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, Check, MessageCircle, MousePointerClick, ShieldCheck, Sparkles, UserCheck, Zap } from "lucide-react";
-import { InstagramOrb } from "@/components/marketing-icons";
+import { ArrowRight, Check, Film, Instagram, MessageCircle, MousePointerClick, Send, ShieldCheck, Sparkles, UserCheck, Zap } from "lucide-react";
 import { Logo } from "@/components/logo";
 import { PublicHeader } from "@/components/public-header";
 import { usePreferences } from "@/components/preferences-provider";
@@ -27,10 +26,22 @@ export default function LandingPage() {
           <span className="hero-kicker"><Sparkles size={15} /> {tr("Instagram Professional uchun rasmiy automation", "Официальная автоматизация для Instagram Professional", "Official automation for Instagram Professional")}</span>
           <h1>{tr("Commentni", "Превращайте", "Turn comments into")} <span>{tr("aniq va xavfsiz", "точно и безопасно", "precise and safe")}</span> {tr("Direct oqimiga aylantiring", "комментарии в Direct", "Direct conversations")}</h1>
           <p>{tr("Real comment → keyword match → ixtiyoriy follow tekshiruvi → private reply → tasdiqlangandan keyin public javob.", "Реальный комментарий → ключевое слово → проверка подписки → личный ответ → публичный ответ после подтверждения.", "Real comment → keyword match → optional follow check → private reply → public reply after confirmation.")}</p>
-          <div className="hero-actions"><Link className="btn primary large" href="/register">{tr("Workspace yaratish", "Создать workspace", "Create workspace")} <ArrowRight size={18} /></Link><Link className="btn secondary large" href="/login">{tr("Kirish", "Войти", "Sign in")}</Link></div>
+          <div className="hero-actions"><Link className="btn primary large" href="/register?next=%2Fsetup">{tr("Boshlash", "Начать", "Get started")} <ArrowRight size={18} /></Link><Link className="btn secondary large" href="/login?next=%2Fsetup">{tr("Kirish", "Войти", "Sign in")}</Link></div>
           <div className="hero-note"><ShieldCheck size={16} /> {tr("Instagram paroli so‘ralmaydi. Faqat rasmiy Meta API.", "Пароль Instagram не запрашивается. Только официальный Meta API.", "We never ask for your Instagram password. Official Meta API only.")}</div>
         </div>
-        <div className="hero-visual" data-reveal="scale"><InstagramOrb /></div>
+        <div className="hero-visual" data-reveal="scale" aria-label={tr("Comment-to-DM oqimining ko‘rgazmali namunasi", "Иллюстрация потока Comment-to-DM", "Illustration of the Comment-to-DM flow")}>
+          <div className="hero-phone-orbit" />
+          <div className="hero-phone">
+            <div className="hero-phone-top"><span>9:41</span><i/><span>•••</span></div>
+            <div className="hero-phone-title"><Instagram size={16}/><strong>Reels</strong><span>•••</span></div>
+            <div className="hero-phone-art"><div className="hero-phone-art-glow"/><span className="hero-phone-video"><Film/></span><small>COMMENT → DIRECT</small></div>
+            <div className="hero-phone-caption"><strong>{tr("Video commenti", "Комментарий к видео", "Video comment")}</strong><p>{tr("Mahsulot haqida batafsil", "Подробности о товаре", "Product details")}</p></div>
+            <div className="hero-phone-comment"><MessageCircle/><span>{tr("Narxi qancha?", "Сколько стоит?", "How much does it cost?")}</span></div>
+            <div className="hero-phone-reply"><Send/><span>{tr("Ma’lumot Direct’ga yuborildi", "Информация отправлена в Direct", "Details sent to Direct")}</span><Check/></div>
+          </div>
+          <div className="hero-float-chip"><span><MessageCircle/></span><div><strong>{tr("Real comment", "Реальный комментарий", "Real comment")}</strong><small>{tr("Kalit so‘z aniqlandi", "Ключевое слово найдено", "Keyword matched")}</small></div></div>
+          <div className="hero-float-send"><span><Send/></span>{tr("Private reply → Public reply", "Личный ответ → Публичный ответ", "Private reply → Public reply")}</div>
+        </div>
       </section>
 
       <section className="trust-strip" aria-label={tr("Platforma tamoyillari", "Принципы платформы", "Platform principles")} id="safety">
@@ -50,7 +61,7 @@ export default function LandingPage() {
         <div className="workflow-canvas"><div className="flow-node trigger"><MousePointerClick /><span><small>{tr("Trigger", "Триггер", "Trigger")}</small>{tr("Real comment", "Реальный комментарий", "Real comment")}</span></div><ArrowRight /><div className="flow-node condition"><Sparkles /><span><small>{tr("Shart", "Условие", "Condition")}</small>Keyword + follow</span></div><ArrowRight /><div className="flow-node action"><MessageCircle /><span><small>{tr("Harakat", "Действие", "Action")}</small>DM → public reply</span></div></div>
       </section>
 
-      <section className="cta-panel" data-reveal="scale"><div><span className="section-label">{tr("Boshlash", "Начать", "Get started")}</span><h2>{tr("Instagram Professional akkauntingizni ulang.", "Подключите Instagram Professional аккаунт.", "Connect your Instagram Professional account.")}</h2><p>{tr("Meta OAuth, webhook va ruxsatlar tayyor bo‘lgach, real commentlar qayta ishlanadi.", "После настройки Meta OAuth, webhook и разрешений будут обрабатываться реальные комментарии.", "Real comments are processed after Meta OAuth, webhooks, and permissions are ready.")}</p></div><Link className="btn primary large" href="/register">{tr("Workspace yaratish", "Создать workspace", "Create workspace")} <ArrowRight /></Link></section>
+      <section className="cta-panel" data-reveal="scale"><div><span className="section-label">{tr("Boshlash", "Начать", "Get started")}</span><h2>{tr("Instagram akkauntingizni bir necha qadamda ulang.", "Подключите Instagram за несколько шагов.", "Connect Instagram in a few simple steps.")}</h2><p>{tr("Rasmiy Meta oynasida kiring, post va javob matnini tanlang, so‘ng automation’ni yoqing.", "Войдите через официальное окно Meta, выберите публикацию и ответы, затем включите автоматизацию.", "Sign in through Meta, choose posts and replies, then turn automation on.")}</p></div><Link className="btn primary large" href="/register?next=%2Fsetup">{tr("Boshlash", "Начать", "Get started")} <ArrowRight /></Link></section>
     </main>
     <footer className="public-footer"><Logo /><p>Instagram Comment-to-DM · Official Meta API</p><div><Link href="/login">{tr("Kirish", "Войти", "Sign in")}</Link><Link href="/terms">{tr("Shartlar", "Условия", "Terms")}</Link><span>© 2026 IDS Automate</span></div></footer>
   </div>;

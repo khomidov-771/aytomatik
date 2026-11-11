@@ -1,6 +1,6 @@
 # IDS Automate arxitekturasi
 
-Tekshiruv sanasi: 2026-11-10.
+Tekshiruv sanasi: 2026-11-11.
 
 ## Tizim oqimi
 
@@ -23,8 +23,8 @@ Meta Webhook
 
 | Yo‘l | Vazifa |
 |---|---|
-| `web/app` | Next.js App Router: marketing, auth, dashboard, accounts, automation builder/history, Inbox, analytics, team, audit, settings |
-| `web/components` | App shell, form, charts va reusable UI |
+| `web/app` | Next.js App Router: marketing, auth, `/setup` onboarding, dashboard, accounts, automation builder/history, Inbox, analytics, team, audit, settings |
+| `web/components` | App shell, 4-step `setup-wizard`, automation form, charts va reusable UI |
 | `web/lib` | API client, types, format helpers |
 | `api/cmd/server` | API va worker process entrypoint |
 | `api/cmd/migrate` | Schema migration runner |
@@ -43,6 +43,10 @@ Meta Webhook
 - Automation builder quyidagilarni saqlaydi: account, post scope, keyword/match mode, private reply, uchta public reply, follow toggle, UNKNOWN fallback, active flag va priority. Tanlangan postlar uchun browser Media ID so‘ramaydi; backend tenantga tegishli encrypted tokenni ochib, Meta `/{ig-user-id}/media` edge’dan maksimal 50 ta post/Reels metadata olib beradi.
 - Execution history har bir `follow_check`, `private_reply`, `public_reply` natijasini alohida ko‘rsatadi.
 - Product UI’da demo, billing va fake account yo‘llari yo‘q.
+- `/setup` wizard mavjud `/me`, `/instagram/accounts`, `/instagram/connect`, `/instagram/accounts/{id}/media` va `POST /automations` endpointlarini qayta ishlatadi; yangi persistence yoki auth mexanizmi yo‘q.
+- OAuth callback URI/backend callback o‘zgarmaydi. Successful callback’dan keyin accounts sahifasi tanlangan ulangan account ID bilan wizard’ga qaytaradi.
+- Wizard API’dan qaytgan akkaunt/postlarni ko‘rsatadi; loading/error/empty holatlari mavjud. Qoidani yaratish muvaffaqiyati faqat server automation ID qaytarganidan keyin ko‘rsatiladi.
+- Google OIDC backend saqlangan, lekin Google tugmasi public login/register UI’dan olib tashlangan va joriy onboarding oqimida ishlatilmaydi.
 
 ## Backend
 
@@ -152,7 +156,8 @@ Billing va mock-event endpointlari mavjud emas.
 - Google login authorization code oqimida bajariladi. Google ID token signature, issuer, audience, expiry, `nonce` va `email_verified` tekshiriladi. Access token saqlanmaydi; Google `sub` va verified email identity link sifatida saqlanadi.
 - Login intent mavjud Google identity yoki shu verified email bilan mavjud hisobni bog‘laydi; ro‘yxatdan o‘tish intenti esa yangisiga alohida owner workspace yaratadi. Google signup mavjud hisob bilan email orqali mos kelsa, `oauth_identities` orqali shu hisobga bog‘lanadi.
 - OAuth state 10 daqiqaga database’da hash ko‘rinishida saqlanadi, callback’da bir marta ishlatiladi va shu browserga bog‘langan HttpOnly/SameSite=Lax cookie bilan tekshiriladi. PKCE S256 authorization-code almashinuvida ishlaydi; nonce OIDC token ichidan constant-time solishtiriladi.
-- Google Client ID/Secret backend environment’da bo‘lmasa status `enabled=false`, OAuth start esa aniq 503 qaytaradi; UI sozlanmaganini ko‘rsatadi.
+- Google Client ID/Secret backend environment’da bo‘lmasa status `enabled=false`, OAuth start esa aniq 503 qaytaradi. Google OAuth backend route’lari bor, lekin public login/register UI’da hozir tugma yo‘q.
+- Unified Login account discovery javobida `account_type` qaytmagani uchun subtype `UNKNOWN` saqlanadi; UI Business/Creator turini taxmin qilib ko‘rsatmaydi.
 - Mutation endpointlar `X-CSRF-Token` talab qiladi.
 - Email tasdiqlanmaguncha authenticated app access berilmaydi.
 - RBAC: `customer < operator < manager < owner`.

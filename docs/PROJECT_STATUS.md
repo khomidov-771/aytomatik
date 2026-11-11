@@ -17,14 +17,14 @@ Bu product completion foizi emas. Meta yoki Google’dagi real foydalanuvchi oqi
 | 3 | Backend static analysis | PASS | `go vet ./...` |
 | 4 | Frontend lint | PASS | `npm run lint:web` |
 | 5 | Frontend unit tests | PASS | 1 file, 2 tests |
-| 6 | Frontend production build | PASS | Next.js 21 route build |
-| 7 | PostgreSQL migrations/integration | PASS | embedded PostgreSQL 18.6.1, `TestTenantTokensInboxAndQueue` |
+| 6 | Frontend production build | PASS | Next.js production build, 22 routes; restricted Windows worker first returned `EPERM`, rerun with normal process permissions passed |
+| 7 | PostgreSQL migrations/integration | PASS | `go test -tags=integration -v ./internal/store`; embedded PostgreSQL, Google identity and tenant/store tests |
 | 8 | Auth/session/CSRF | PASS controlled | Unit/integration coverage |
 | 9 | Multi-tenant isolation | PASS controlled | Cross-tenant account/execution/action negative checks |
 | 10 | OAuth/token/webhook request logic | PASS controlled | Provider/security tests; no live Meta |
 | 11 | Comment-to-DM decision matrix | PASS controlled | Worker tests cover disabled/follower/not-follower/UNKNOWN policies |
 | 12 | Action idempotency/history | PASS controlled | PostgreSQL action ledger retry/dedup/history test |
-| 13 | Live Meta OAuth | BLOCKED | App ID/App Secret/test asset yo‘q |
+| 13 | Live Meta OAuth | BLOCKED | Avvalgi production Graph tekshiruvi App Secret’ni code `190` bilan rad etdi; real test account ulanmagan |
 | 14 | Live signed webhook receive | BLOCKED | Public HTTPS Meta subscription yo‘q |
 | 15 | Live follow verification | BLOCKED | Eligible Instagram Login messaging context yo‘q |
 | 16 | Live private reply | BLOCKED | Real comment/access token yo‘q |
@@ -50,7 +50,7 @@ Bu product completion foizi emas. Meta yoki Google’dagi real foydalanuvchi oqi
 | Execution history | API + UI implemented; actionlar alohida ko‘rinadi |
 | Inbox | Inbound store/manual reply window implemented; live DM tekshirilmagan |
 | Analytics | Database’dagi real event/actionlardan hisoblanadi; fake seed yo‘q |
-| UI/lokalizatsiya | UZ/RU/EN tanlovi va light/dark tema public, auth va workspace sahifalariga ulangan; browserda saqlanadi. Workspace typography/spacing professional o‘lchamga oshirildi, birinchi kirish uchun real holatga asoslangan 3 bosqichli onboarding qo‘shildi. Native browser dropdownlari yagona accessible custom menu bilan almashtirildi. Landing scroll-reveal va workspace micro-interaction motion tizimi `prefers-reduced-motion` bilan qo‘shildi |
+| UI/lokalizatsiya | UZ/RU/EN va light/dark saqlanadi. Landing hero to‘q binafsha uslubga yangilandi. `/setup` 4 bosqichli wizard real account/media/automation API’lariga ulangan; loading/error/empty, kichik ekran va reduced-motion holatlari bor. Accessible custom dropdown va avvalgi motion tizimi saqlangan |
 | Billing/subscription | Product scope’dan olib tashlangan; route/UI/config yo‘q |
 | Demo/mock product mode | Olib tashlangan; mock adapter faqat automated test uchun |
 
@@ -75,7 +75,7 @@ Bu holatda real comment-to-DM oqimi ishlamaydi. Valid Meta App Secret serverga x
 - Google ID token uchun Google issuer, client audience, imzo, expiry va `email_verified` tekshiriladi. Token saqlanmaydi; `sub` identity link sifatida saqlanadi.
 - Yangi signup alohida owner workspace yaratadi; login yangi hisob yaratmaydi. Google verified email mavjud local user bilan link qilinishi mumkin.
 - Migration `006_google_oauth.sql` additive. Client credentials yo‘q bo‘lsa API `enabled=false` va start 503 qaytaradi; UI bu holatni yashirmaydi.
-- Login va registration sahifalariga UZ/RU/EN Google holati va tugmasi qo‘shildi; registration Terms roziligini talab qiladi.
+- Google OAuth backend server-side qoladi, ammo Google tugmasi public login/register sahifalaridan olib tashlangan. Joriy onboarding email/parol auth va keyin Meta account connect’dan iborat.
 
 ### Joriy kod tekshiruvi
 
@@ -153,3 +153,36 @@ Frontend build dastlab cheklangan Windows process huquqida `.next/standalone` ya
 ## Muhim aniqlik
 
 Controlled provider testlari request URL/body, response parsing va state transitionni isbotlaydi. Ular Meta App approval, permission availability, real delivery yoki follow checkni isbotlamaydi.
+
+## 2026-11-11 — Onboarding redesign va joriy quality gate
+
+### Amalga oshirilgan
+
+- Public landing hero to‘q binafsha uslub va CSS telefon oqimi ko‘rinishiga yangilandi; mavjud uch tilli navigatsiya saqlandi.
+- Public CTA login/register’dan keyin `/setup`ga olib boradi; email tasdiqlash davomida ham faqat ruxsat etilgan local setup manzili saqlanadi.
+- Yangi `/setup` 4 qadamli wizard real Instagram account, Meta media, keyword/match mode, DM/public reply, ixtiyoriy follow verification, UNKNOWN policy va active flag’ni sozlaydi.
+- Wizard mavjud API’lardan foydalanadi; yangi endpoint/schema qo‘shilmadi. Saqlash muvaffaqiyati faqat server automation ID qaytargach ko‘rsatiladi.
+- Meta OAuth callback va redirect URI o‘zgarmadi. Callback’dan keyin accounts sahifasi ulangan account ID bilan wizard’ning post tanlash qadamini davom ettiradi.
+- Google sign-in tugmasi public login/register UI’dan olib tashlandi; server-side Google OIDC code va migration saqlandi.
+- Unified Login `/me/assigned_instagram_accounts` response’da `account_type` bermagani uchun yangi account subtype `UNKNOWN` saqlanadi; UI turini taxmin qilmaydi.
+
+### 2026-11-11 test natijalari
+
+```text
+npm run lint:web                                      PASS, warnings/errors yo‘q
+npm run test:web                                      PASS, 1 file / 2 tests
+npm run build:web                                     PASS, 22 routes (normal process permission bilan)
+Standalone smoke                                    PASS, 6 routes HTTP 200; /setup loading HTML; login/register’da Google marker yoki demo marker yo‘q
+go test ./...                                         PASS
+go vet ./...                                          PASS
+go build ./cmd/server ./cmd/migrate                   PASS
+go test -tags=integration -v ./internal/store         PASS, embedded PostgreSQL
+```
+
+Docker CLI bu Windows muhitida mavjud emas; PostgreSQL integratsiya Docker containerda emas, disposable embedded PostgreSQL’da bajarildi. Cheklangan processda Postgres executable `Access is denied` qaytargan; shu izolyatsiyalangan test normal process permission bilan o‘tdi. To‘liq Playwright E2E lokal API/servislar mavjud bo‘lmagani sabab ishga tushirilmadi.
+
+### Tashqi integratsiya holati
+
+- Joriy Meta App Secret avvalgi production tekshiruvda Graph API `OAuthException` code `190` bilan rad etilgan. Shu sabab real Instagram OAuth, webhook, follow field, private reply yoki public reply live test qilinmadi.
+- Google OAuth backend production’da `enabled=false`; Google tugmasi public UI’da yo‘q. Backend credentials/live flow bu UI patch’ida o‘zgartirilmadi.
+- Unified Login subtype unknown saqlanishi Meta account discovery va live follow/API acceptance o‘rnini bosmaydi.
