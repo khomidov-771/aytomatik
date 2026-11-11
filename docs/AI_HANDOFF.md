@@ -188,4 +188,4 @@ Birinchi navbatdagi topshiriq — serverga valid Meta App credentialsni xavfsiz 
 - Public home, /setup, login, register, and /healthz returned HTTP 200 after deploy. Compose reported API running, PostgreSQL running/healthy, web running.
 - Meta live acceptance remains blocked by the previously rejected App Secret and unavailable real eligible test account. Do not mark OAuth/webhook/follow/DM live-ready based on this deployment.
 
-- Cleanup follow-up: temporary /tmp/ids-automate-web-e90505a detached worktree remains because SSH timed out after deploy verification. Its .env.production is only a symlink to /opt/ids-automate/.env.production. Once reachable, verify the target, unlink only the symlink, then use git worktree remove on the temporary worktree. Preserve the original production env and main checkout.
+- Cleanup completed: verified the temporary .env.production symlink target, unlinked only that link, removed /tmp/ids-automate-web-e90505a, then confirmed the original production env exists and git worktree list contains only /opt/ids-automate.
