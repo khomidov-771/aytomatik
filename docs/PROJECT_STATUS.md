@@ -184,7 +184,7 @@ Docker CLI bu Windows muhitida mavjud emas; PostgreSQL integratsiya Docker conta
 
 ### Tashqi integratsiya holati
 
-- Joriy Meta App Secret avvalgi production tekshiruvda Graph API `OAuthException` code `190` bilan rad etilgan. Shu sabab real Instagram OAuth, webhook, follow field, private reply yoki public reply live test qilinmadi.
+- O‘sha production tekshiruvidagi Meta App Secret Graph API `OAuthException` code `190` bilan rad etilgan; 2026-11-12 dagi joriy server App ID/Secret juftligi credential probe’dan o‘tdi. Real Instagram OAuth, webhook, follow field, private reply yoki public reply hali live test qilinmadi.
 - Google OAuth backend production’da `enabled=false`; Google tugmasi public UI’da yo‘q. Backend credentials/live flow bu UI patch’ida o‘zgartirilmadi.
 - Unified Login subtype unknown saqlanishi Meta account discovery va live follow/API acceptance o‘rnini bosmaydi.
 
@@ -213,6 +213,11 @@ Docker CLI bu Windows muhitida mavjud emas; PostgreSQL integratsiya Docker conta
 - `007_instagram_login.sql` Instagram OAuth state va identity mapping’ni additive qo‘shadi. Mavjud active Instagram account bo‘lsa mapping dastlab uni ulagan user/workspace’ga qo‘yiladi; boshqa workspace claim’ini ko‘chirmaydi. Yangi Instagram identity uchun yangi owner workspace yaratiladi.
 - Instagram login user’da synthetic `.invalid` email va random password hash ichki `users` NOT NULL sxemasi uchun ishlatiladi. Email UI’ga ko‘rsatilmaydi, `email_verified_at` soxta belgilanmaydi; session faqat identity mapping borligida email-verification auth gate’dan o‘tadi. Manager/RBAC va tenant membership tekshiruvlari qoladi.
 - Settings API/UI login method’ni ko‘rsatadi. Login/register UI’dan Google tugmasi ilgari olib tashlangan, shu patch’da Google backend o‘zgarmadi.
-- **Hozirgi patch bo‘yicha test, build, migration va live Meta OAuth bajarilmadi**, chunki foydalanuvchi test qilmaslikni so‘radi. Shu bois route, SQL, callback, workspace binding va production behavior tasdiqlanmagan; feature tugallangan deb belgilanmaydi.
-- Oldingi production Meta App Secret tekshiruvi `OAuthException` code `190` qaytargan. OAuth config readiness faqat credentials ko‘rinishi/borligini bildiradi; haqiqiy Meta acceptance emas. Live integration hali BLOCKED.
-- Next review: Go formatting/static compile, frontend type/build, migration PostgreSQL dry-run/integration va state replay/cookie mismatch/tenant mapping controlled tests. Keyin faqat valid Meta credential bilan real OAuth acceptance.
+- Avvalgi Instagram-only onboarding patch to‘liq live OAuth bilan qabul qilinmagan. Ushbu auditda production health `ok`, lekin `GET /api/v1/auth/instagram/status` `api_ready=true`, `enabled=false` qaytardi.
+- `/opt/ids-automate/.env.production`dagi Meta qiymatlari API konteyneriga mos; Unified Login, Meta bergan Configuration ID va `https://instagram.schat.uz/api/v1/instagram/callback` mosligi tasdiqlandi. Joriy App ID/Secret juftligi Meta credential probe’dan o‘tdi; token javobi ko‘rsatilmagan va saqlanmagan. Avvalgi code 190 boshqa/oldingi secret tekshiruviga tegishli.
+- Sabab `MetaOAuthReady` Meta redirect’ni `isAbsoluteURL` bilan tekshirgan; bu umumiy bo‘lmagan helper faqat `/api/v1/auth/google/callback` yo‘lini qabul qilgan. Meta uchun alohida exact Instagram callback + production HTTPS validator qo‘shildi.
+- `go test ./...` PASS; `go vet ./...` PASS; `go build ./cmd/server ./cmd/migrate` PASS. Bu testlar real user consent, Instagram asset discovery, webhook yoki DM yuborishni tasdiqlamaydi.
+- Commit `f0b7ce2` API image sifatida production’ga deploy qilindi. Oldingi image `ids-automate-api:backup-meta-readiness-20261111T203045Z` tagida rollback uchun saqlandi. Faqat API konteyneri qayta yaratildi; web, PostgreSQL, volume, `.env.production`, Nginx va operator checkout’iga tegilmadi. Yangi schema/migration yo‘q.
+- Deploydan keyin `/healthz` `status=ok` qaytardi; ichki va public `GET /api/v1/auth/instagram/status` `api_ready=true`, `enabled=true`, `login_mode=unified` qaytardi. PostgreSQL healthy va avvalgi uptime’ini saqladi.
+- Real OAuth consent va `assigned_instagram_accounts` natijasi hali olinmadi. Keyingi qadam: foydalanuvchi `/setup`da Meta oynasini o‘zi tasdiqlashi; agar account list bo‘sh bo‘lsa, configuration asset-sharing va Business Portfolio ruxsatlarini tekshirish. Live Instagram account, webhook va DM **NOT TESTED LIVE**.
+
