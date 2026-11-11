@@ -232,5 +232,5 @@ docker-compose.prod.yml production stack
 
 ### 2026-11-12 OAuth xato tekshiruvi
 
-Production’dagi avvalgi `oauth_exchange_failed` sababini callback bosqichini log qilmagan eski serverdan aniqlab bo‘lmadi. Diagnostika patch’i va testlar `4dbe6d4` commitida GitHub `main`ga push qilindi, ammo serverga auto-deploy yo‘q va patch hali production’da ishlamayapti. Go tests/vet/build, frontend lint/unit/build va embedded PostgreSQL integration PASS (22 frontend route). Real Meta consent, Instagram account discovery, webhook va DM **live tasdiqlanmagan**. Foydalanuvchi rasmiy Meta oynasida o‘zi rozilik berishi kerak; Instagram parolini agentga yubormang. Batafsil: [PROJECT_STATUS.md](docs/PROJECT_STATUS.md), [NEXT_STEPS.md](docs/NEXT_STEPS.md).
+OAuth callback diagnostikasi `d5c1678` release’dan production API va web servislariga chiqarildi. Health, OAuth status va muhim sahifalar HTTP 200 qaytardi; PostgreSQL konteyneri qayta yaratilmagan va ma’lumotlar saqlangan. Production’da callback’ning yangi bosqichli xabarlarini yuklangan. Real Meta consent, Instagram account discovery, webhook va DM **live tasdiqlanmagan**: keyingi urinishda foydalanuvchi rasmiy Meta oynasidagi ulanishni o‘zi yakunlab callback’ga qaytishi kerak. Instagram parolini agentga yubormang. Batafsil: [PROJECT_STATUS.md](docs/PROJECT_STATUS.md), [NEXT_STEPS.md](docs/NEXT_STEPS.md).
 

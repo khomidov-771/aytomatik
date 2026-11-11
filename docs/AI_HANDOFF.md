@@ -238,7 +238,9 @@ Avvalo diff’ni audit qiling va `gofmt`ni tugating; keyin foydalanuvchi ruxsat 
 - Production screenshot signed-in `/app/accounts`da `oauth_exchange_failed` ko‘rsatgan. Bu legacy account-connect callback yo‘li. Eski backend stage/status loglamagani sabab token exchange, asset discovery, webhook subscription yoki response parsing xatosi ekanini screenshotdan ajratib bo‘lmaydi.
 - Production read-only holati: `/healthz` HTTP 200 (`meta_configured=true`); `/api/v1/auth/instagram/status` `api_ready=true`, `enabled=true`, `login_mode=unified`, `provider=meta`; `/app/accounts` HTTP 200. `enabled=true` consent va API acceptance emas.
 - Lokal patch `provider.go`da stage/status/code’ni xavfsiz ajratadi. Bo‘sh token, invalid JSON, asset identity yo‘qligi, no/multiple asset va webhook `success=false` holatlari ajratildi; callback bo‘sh ID/token saqlamaydi. UI UZ/RU/EN bosqich yo‘riqlarini ko‘rsatadi.
-- Commit `4dbe6d4` GitHub `main` branch’ga push qilindi, lekin serverga auto-deploy yo‘q. SSH key urinishida `Permission denied (publickey,password)` bo‘ldi. Patch production’ga deploy qilinmagan; ruxsatli operator/deploy yo‘li bo‘lmaguncha production `.env`, checkout va DB’ga tegmang.
+- `d5c1678` release production API va web image’lariga chiqarildi. API va web alohida qayta yaratildi; rollback uchun `ids-automate-api:backup-oauth-diagnostics-20261112` va `ids-automate-web:backup-oauth-diagnostics-20261112` taglari saqlandi. Health, OAuth status, `/`, `/setup`, va account xato sahifasi HTTP 200; static JS stage-specific xato kodlarini o‘z ichiga oladi.
+- PostgreSQL container uptime o‘zgarmadi, migration ishlatilmadi. Production `.env.production`, Nginx, `/opt/ids-automate` checkout va undagi operator dirty/untracked fayllar saqlandi. Build alohida detached release worktree’da qilinib so‘ng olib tashlandi. Serverning root checkout’i production’da deploy qilingan commit bilan aynan teng deb taxmin qilmang.
+- Screenshot’dagi callback xatosining eski aniq bosqichi noma’lum. Yangi patch bilan kelajakdagi callback stage/status’ni secretsiz log qiladi, lekin bu callback’ni hozircha real Meta consent orqali qayta bosib ko‘rishmagan.
 
 ### Joriy local o‘zgarishlar va dalillar
 
@@ -250,8 +252,8 @@ Avvalo diff’ni audit qiling va `gofmt`ni tugating; keyin foydalanuvchi ruxsat 
 
 ### Birinchi davom topshirig‘i
 
-1. Commit `4dbe6d4` allaqachon GitHub `main`ga push qilingan. Serverga avval tasdiqlangan SSH/operator deploy yo‘li bilan kiring va faqat kerakli API/web service’larni yangilang; production main checkout’ini reset/pull/clean qilmang.
-2. Patch production’da ishlagach, foydalanuvchi o‘z brauzerida rasmiy Meta consent bersin. Parolni AI’dan so‘ramang yoki qabul qilmang.
-3. Callback’dan keyin secretsiz bosqich/status/code logini o‘qing, faqat isbotlangan sababni tuzating. So‘ng state replay, real Professional asset, encrypted token, media, signed webhook, private-reply ID va undan keyingi public-reply ID’ni live tekshiring.
-4. Barcha real acceptance dalillari bo‘lmaguncha integratsiyani tayyor deb belgilamang.
+1. Foydalanuvchi production site’ni yangilab, Instagram Accounts/Setup sahifasidagi Meta tugmasini bosadi; rasmiy Meta oynasida asset va ruxsatlarni o‘zi ko‘rib tasdiqlaydi. Instagram login/parolni so‘ramang, qabul qilmang yoki saqlamang.
+2. Meta callback’dan keyin secretsiz stage/status/numeric code loglarini o‘qing. Callback muvaffaqiyatli bo‘lsa, DB’da hisoblangan Professional account ID/username va token encryption-at-rest holatini faqat metadata bilan tasdiqlang; tokenni chiqarib ko‘rmang.
+3. So‘ng real media ro‘yxati, webhook subscription/test delivery, real test comment, keyword matching, bitta private reply natijasi va faqat private success’dan keyingi public reply’ni provider response IDs/execution history bilan live tekshiring.
+4. Faqat callback va real acceptance dalillari o‘tgach, `PROJECT_STATUS.md` va `NEXT_STEPS.md`ni yangilang. Hozirgi smoke/build/test natijalari tashqi Meta acceptance emas; integratsiyani tayyor deb belgilamang.
 

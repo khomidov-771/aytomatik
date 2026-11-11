@@ -154,9 +154,9 @@ Fayllar: `httpapi/instagram.go`, `httpapi/app.go`, `store.go`, Inbox UI.
 
 ## 2026-11-12 — OAuth callback diagnostikasi
 
-1. **P0 — Diagnostika patch’ini production’ga yetkazish.** Commit `4dbe6d4` GitHub `main` branch’ga push qilindi; serverga auto-deploy yo‘q. SSH key orqali serverga kirish muvaffaqiyatsiz bo‘ldi. Mavjud operator deploy kanali yoki serverga ruxsatli SSH key bilan deploy qiling; production checkout, `.env.production`, DB volume yoki Nginx’ni reset/overwrite qilmang.
-2. **P0 — Foydalanuvchining rasmiy Meta consent oqimi.** Patch production’da ishlagach, foydalanuvchi o‘z brauzerida rasmiy Meta oynasini ochib Professional Instagram asset’ni tanlasin va ulashga rozilik bersin. Instagram parolini agentga bermang.
-3. **P0 — Aniqlangan bosqich sababini tuzatish.** Faqat `token_exchange_http_<status>_code_<code>`, `asset_discovery_...` yoki `webhook_subscription_...` kabi secretsiz log daliliga qarab Meta config/permission yoki kodni o‘zgartiring.
+1. **P0 — Foydalanuvchining rasmiy Meta consent oqimi.** Diagnostika release’i `d5c1678` production API va web servislarida ishlayapti; health, OAuth status va sahifa smoke tekshiruvlari PASS. Foydalanuvchi o‘z brauzerida rasmiy Meta oynasini ochib Professional Instagram asset’ni tanlasin, shartlar/ruxsatlarni ko‘rib o‘zi tasdiqlasin. Instagram parolini agentga bermang.
+2. **P0 — Callback bosqichini tekshirish.** Foydalanuvchi Meta’dan qaytgach, faqat stage/status/numeric error code kabi secretsiz log dalillarini o‘qing. Eski screenshotdagi sabab noma’lum; yangi diagnostika token exchange, asset discovery va webhook subscription bosqichlarini ajratadi.
+3. **P0 — Aniqlangan sababni tuzatish.** Faqat yangi callback’dan olingan aniq `token_exchange`, `asset_discovery` yoki `webhook_subscription` xatosiga qarab Meta config/permission yoki kodni o‘zgartiring; token, auth code, parol yoki secret log/chatga chiqmasin.
 4. **P0 — Live acceptance.** OAuth → account/session → media → webhook → signed real comment → keyword → private reply → private success’dan keyin public reply oqimini Meta response ID va execution/action history bilan tekshiring. Unified Login follow check `UNKNOWN`; tasdiqlangan capability deb ko‘rsatmang.
-5. **P1 — Hujjatni yangilash.** Har yangi live dalilni `PROJECT_STATUS.md`ga yozing. Hozir Go tests/vet/build, frontend lint/unit/build va embedded PostgreSQL integration PASS; bu Meta acceptance emas.
+5. **P1 — Hujjatni yangilash.** Har yangi live dalilni `PROJECT_STATUS.md`ga yozing. Go tests/vet/build, frontend lint/unit/build va embedded PostgreSQL integration PASS; production smoke PASS. Bular Meta acceptance emas.
 
