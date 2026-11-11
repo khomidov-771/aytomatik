@@ -259,3 +259,27 @@ Avvalo diff’ni audit qiling va `gofmt`ni tugating; keyin foydalanuvchi ruxsat 
 3. So‘ng real media ro‘yxati, webhook subscription/test delivery, real test comment, keyword matching, bitta private reply natijasi va faqat private success’dan keyingi public reply’ni provider response IDs/execution history bilan live tekshiring.
 4. Faqat callback va real acceptance dalillari o‘tgach, `PROJECT_STATUS.md` va `NEXT_STEPS.md`ni yangilang. Hozirgi smoke/build/test natijalari tashqi Meta acceptance emas; integratsiyani tayyor deb belgilamang.
 
+## 2026-11-12 — Meta roziligidan keyingi live OAuth urinishlari
+
+- Foydalanuvchi official Meta consent ekranidagi ruxsatlarni o‘zi tasdiqladi va xato bilan qaytdi.
+- Production logda ikki callback `failure_reason=instagram_asset_not_shared`; eski `provider.ErrorCode` mapping sabab `error_code=provider_error` ko‘ringan.
+- Kod yo‘li bo‘yicha OAuth code/token exchange bosqichidan o‘tib, `GET /me/assigned_instagram_accounts` HTTP success bilan bo‘sh `data` qaytargan. Bu inference’ni faqat kod oqimi qo‘llab-quvvatlaydi; token yoki Meta xom javobi saqlanmagan.
+- Account discovery bo‘sh bo‘lgani sabab access token encryption/storage, Instagram account row va `subscribed_apps` bajarilmagan. Ulanish mavjud emas. Webhook/DM/public reply live holati tekshirilmagan.
+- Local patch `provider.go`da empty/multiple asset uchun alohida safe diagnostic code qo‘shadi; request `fields=id,username`ga qisqartirilgan. Provider regression test bo‘sh asset’da account/token qaytmasligini va subscription’ga o‘tmasligini tekshiradi. Accounts/setup UI UZ/RU/EN’da 0-result checklist ko‘rsatadi.
+- Code checks (2026-11-12) PASS: `go test ./...`, `go vet ./...`, `go build ./cmd/server ./cmd/migrate`, `npm run lint:web`, `npm run test:web` (2/2), `npm run build:web` (22 routes), `git diff --check`. Birinchi web build Windows EPERM sabab standalone output yozolmadi; normal file permission bilan qayta build PASS.
+- At handoff moment, these newest local changes are not pushed or deployed. Push/deploy authorization was given earlier in conversation; deploy must preserve production `.env.production`, PostgreSQL data/volume, Nginx, and operator working tree, and retain prior image tags for rollback.
+
+### Davom etish tartibi
+
+1. `git status` va diff’ni qayta ko‘rib, faqat hozirgi patch/docs’ni commit qiling; `main`ga push qiling.
+2. Production’ga `.env.production` bilan `docker-compose.ids.yml`dan API/web image’larini deploy qiling; database/migration kerak emas. Health, OAuth status va UI’dagi xato tarjimasini tekshiring.
+3. User’dan Business/Creator status, Meta consent’da tanlangan Business Portfolio va aynan Instagram account asset tanlanganini tekshirtiring. Meta Developer Unified Login config’dagi asset/required permissionlarni tekshiring. Parol/kod/token so‘ramang.
+4. Foydalanuvchi o‘zi official Meta consent’ni qayta tugatgach server logidagi `asset_discovery_empty` yoki muvaffaqiyatli account discovery’ni kuzating. Bo‘sh ro‘yxat yana qaytsa Meta Business/config tashqi holati qolayotgan blok; uydirma id/fallback qo‘shmang.
+5. Account ulanganidan keyingina account session/media picker/automation flow, webhook, real comment, DM va public reply acceptance’ga o‘ting. Har bosqichni real API dalili bilan belgilang.
+
+### Qayta yozmaslik kerak
+
+- Unified Login’ning `assigned_instagram_accounts` account discovery yo‘lini fake/assumed account ID yoki Instagram password login bilan chetlab o‘tmang.
+- Bo‘sh `data`ni “connected” deb saqlamang; Meta login tokenini callback/browserga chiqarmang.
+- “Webhooks/messages/comments ruxsati bor” degan test config inferensiyasini real subscriber testiga teng ko‘rmang.
+

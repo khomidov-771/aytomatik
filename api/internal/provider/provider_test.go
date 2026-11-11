@@ -102,6 +102,9 @@ func TestUnifiedOAuthExchangeSubscriptionAndMessageDelivery(t *testing.T) {
 			if request.Header.Get("Authorization") != "Bearer access-secret" {
 				t.Fatalf("account discovery did not use bearer token")
 			}
+			if request.URL.Query().Get("fields") != "id,username" {
+				t.Fatalf("account discovery requested unsupported or unnecessary fields: %q", request.URL.Query().Get("fields"))
+			}
 			return jsonResponse(200, `{"data":[{"id":"ig-1","username":"ids.business","profile_picture_url":"https://example.com/avatar.jpg"}],"paging":{"cursors":{}}}`), nil
 		case request.Method == http.MethodPost && request.URL.Path == "/v25.0/ig-1/subscribed_apps":
 			return jsonResponse(200, `{"success":true}`), nil
@@ -154,6 +157,37 @@ func TestUnifiedOAuthExchangeSubscriptionAndMessageDelivery(t *testing.T) {
 	}
 }
 
+func TestUnifiedOAuthDoesNotPersistOrSubscribeWhenMetaReturnsNoAccounts(t *testing.T) {
+	requests := []string{}
+	client := &http.Client{Transport: roundTripFunc(func(request *http.Request) (*http.Response, error) {
+		requests = append(requests, request.Method+" "+request.URL.Path)
+		switch {
+		case request.Method == http.MethodGet && request.URL.Path == "/v25.0/oauth/access_token":
+			return jsonResponse(http.StatusOK, `{"access_token":"access-secret","expires_in":3600}`), nil
+		case request.Method == http.MethodGet && request.URL.Path == "/v25.0/me/assigned_instagram_accounts":
+			if request.URL.Query().Get("fields") != "id,username" {
+				t.Fatalf("unexpected account fields: %q", request.URL.Query().Get("fields"))
+			}
+			return jsonResponse(http.StatusOK, `{"data":[]}`), nil
+		default:
+			t.Fatalf("unexpected request after empty account list: %s %s", request.Method, request.URL)
+			return nil, nil
+		}
+	})}
+	p := &Meta{cfg: config.Config{MetaAPIVersion: "v25.0", MetaLoginMode: "unified"}, client: client}
+
+	account, err := p.ExchangeCode(context.Background(), "authorization-code")
+	if !errors.Is(err, ErrInstagramAssetNotShared) {
+		t.Fatalf("expected explicit empty asset result, got account=%#v err=%v", account, err)
+	}
+	if account.AccessToken != "" || account.ID != "" {
+		t.Fatalf("empty asset response returned a persistable account: %#v", account)
+	}
+	if got := strings.Join(requests, ","); got != "GET /v25.0/oauth/access_token,GET /v25.0/me/assigned_instagram_accounts" {
+		t.Fatalf("unexpected calls after empty asset response: %s", got)
+	}
+}
+
 func TestInstagramOAuthFailureCodeIdentifiesSafeFailureStage(t *testing.T) {
 	tests := []struct {
 		name, stage, expected string
@@ -200,8 +234,14 @@ func TestInstagramAssetFailureCodes(t *testing.T) {
 	if got := InstagramOAuthFailureCode(ErrInstagramAssetNotShared); got != "instagram_asset_not_shared" {
 		t.Fatalf("unexpected no-asset code %q", got)
 	}
+	if got := ErrorCode(ErrInstagramAssetNotShared); got != "asset_discovery_empty" {
+		t.Fatalf("unexpected no-asset diagnostic code %q", got)
+	}
 	if got := InstagramOAuthFailureCode(ErrMultipleInstagramAssets); got != "multiple_instagram_assets" {
 		t.Fatalf("unexpected multiple-assets code %q", got)
+	}
+	if got := ErrorCode(ErrMultipleInstagramAssets); got != "asset_discovery_multiple" {
+		t.Fatalf("unexpected multiple-assets diagnostic code %q", got)
 	}
 }
 

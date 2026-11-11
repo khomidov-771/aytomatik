@@ -68,6 +68,12 @@ func (e *APIError) Error() string {
 }
 
 func ErrorCode(err error) string {
+	if errors.Is(err, ErrInstagramAssetNotShared) {
+		return "asset_discovery_empty"
+	}
+	if errors.Is(err, ErrMultipleInstagramAssets) {
+		return "asset_discovery_multiple"
+	}
 	var apiErr *APIError
 	if errors.As(err, &apiErr) {
 		stage := apiErr.Stage
@@ -450,7 +456,9 @@ func (m *Meta) assignedInstagramAccounts(ctx context.Context, graphBase, token s
 	seenCursors := map[string]bool{}
 	after := ""
 	for pageNumber := 0; pageNumber < 100; pageNumber++ {
-		query := url.Values{"fields": {"id,username,profile_picture_url"}, "limit": {"100"}}
+		// Request only the fields needed to identify the account and avoid
+		// optional profile fields during asset discovery.
+		query := url.Values{"fields": {"id,username"}, "limit": {"100"}}
 		if after != "" {
 			query.Set("after", after)
 		}

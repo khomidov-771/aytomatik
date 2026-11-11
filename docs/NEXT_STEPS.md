@@ -1,6 +1,6 @@
 # Keyingi qadamlar
 
-2026-11-12 Meta OAuth auditida server muhiti, Unified Login Configuration ID va redirect URI mosligi tekshirildi; joriy App ID/Secret juftligini Meta credential probe qabul qildi. `MetaOAuthReady` Google callback yo‘liga bog‘lanib, Instagram callback’ni xato rad etgani aniqlandi va tuzatildi. Backend testlari, go vet va production build muvaffaqiyatli yakunlandi. API deploydan so‘ng public status `api_ready=true`, `enabled=true`, `login_mode=unified` bo‘ldi. Qolgan qadam — foydalanuvchi Meta oynasida rozilik berib Instagram akkauntini ulashini tasdiqlash.
+2026-11-12 foydalanuvchi Meta roziligini tasdiqlagach, production’da ikki OAuth callback token almashinuvidan keyin `assigned_instagram_accounts`dan bo‘sh ro‘yxat oldi. Hech qanday Instagram account/token saqlanmadi. Local patch minimal `id,username` account query, aniq `asset_discovery_empty` log kodi va UZ/RU/EN yo‘riqlarini qo‘shdi; code-level checks o‘tdi. Bu patch hali production’ga chiqarilmagan. Hozirgi eng birinchi vazifa — patchni GitHub’ga push qilib, rollback saqlagan holda API va web image’larini deploy qilish; so‘ng foydalanuvchi Meta’dagi Business/Creator turi, portfolio access va config asset tanlovini tekshirib qayta consent qilishi kerak.
 
 Joriy frontendda UZ/RU/EN va light/dark tema tayyor. Yangi ekran qo‘shilganda matnni `usePreferences().tr(uz, ru, en)` orqali uchala tilda berish va ikkala temada ko‘rish talab qilinadi.
 
@@ -27,9 +27,9 @@ Kod/konfiguratsiya fayllari:
 
 Local Google backend testi uchun Google Cloud’da `http://localhost:8080/api/v1/auth/google/callback` callback URI va `GOOGLE_REDIRECT_URL` kerak. Haqiqiy Google credential bo‘lmasa OAuth’ni live ishlaydi deb ko‘rsatmang.
 
-## P0 — Yangi onboarding’ni Meta eligible account bilan live tekshirish
+## P0 — Asset discovery xatosini tuzatib, onboarding’ni live davom ettirish
 
-Avval OAuth-only patch’ning code-level quality gate’larini bajaring. Foydalanuvchi ushbu pass’da test va build qilmaslikni so‘ragani sabab natija hozircha tasdiqlanmagan. Yangi handler/migration production yoki GitHub’ga yuborilishidan oldin review qiling.
+OAuth-only onboarding va hozirgi asset-discovery diagnostika patch’ining code-level quality gate’lari 2026-11-12 lokalda PASS. Endi patchni review qilib GitHub `main`ga push qiling va production release’ni detached build context’dan deploy qiling; server `/opt/ids-automate` checkout’i, `.env.production`, PostgreSQL, volumes, Nginx va operator fayllarini overwrite/reset qilmang.
 
 Fayllar: `api/internal/config/config.go`, `api/internal/httpapi/instagram.go`, `api/internal/httpapi/server.go`, `api/internal/store/store.go`, `api/internal/migrations/007_instagram_login.sql`, `web/components/setup-wizard.tsx`, `web/app/page.tsx`, public auth pages.
 
@@ -44,7 +44,7 @@ Shundan keyin `/setup` oqimini real OAuth eligible account bilan live tekshiring
 
 ## P0 — Live Meta acceptance test
 
-Joriy production App ID/Secret juftligi Meta credential probe’dan o‘tdi; secretni almashtirish hozircha talab qilinmaydi. Public status hozir `enabled=true`. Foydalanuvchi `/setup` orqali Meta consent berib Professional Instagram account asset’ini ulashi kerak. Agar `assigned_instagram_accounts` bo‘sh qaytsa, Meta configuration asset selection, portfolio ownership va berilgan permissions’ni tekshiring; token/loglarni chiqarmang.
+Joriy production App ID/Secret juftligi Meta token exchange bosqichigacha yetgan, ammo ikki marta `assigned_instagram_accounts` bo‘sh qaytgan. Public status `enabled=true` faqat sozlamalarni anglatadi. Foydalanuvchi Meta Business’da Professional Business/Creator hisobini, tanlangan Business Portfolio access’ini va Unified Login config’dagi Instagram asset selection/permissions’ni tekshirib, keyin yangi consent qilishi kerak. Token/loglarni chiqarmang.
 
 Kerak:
 
