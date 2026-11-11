@@ -207,7 +207,7 @@ Foydalanuvchi public saytda IDS email/parol login ko‘rmasdan `/setup`ga kirish
 - `/`, header CTA’lar `/setup`ga ketadi. `/login`, `/register`, `/forgot-password`, `/reset-password`, `/verify-email` frontend sahifalari `/setup`ga redirect qiladi. Legacy auth backend/data o‘chirilmadi.
 - Settings UI’da Instagram-auth user uchun synthetic email yashirilib, login usuli ko‘rsatiladi.
 
-### Verification status / blocking
+### Verification status at initial onboarding checkpoint (historical)
 
 - Foydalanuvchining aniq ko‘rsatmasi bilan yangi patch’dan keyin test, lint, build, migration apply yoki browser/live Meta flow bajarilmadi. Hamma yangi kod va SQL **UNVERIFIED**; feature done emas.
 - Production Meta App Secret oldin Graph API’da `OAuthException` code `190` bilan rad etilgan. OAuth status value `enabled` faqat credentials format/boshlashga yaroqli ko‘rinishini bildiradi, haqiqiy Meta acceptance emas. Valid secrets va eligible account bo‘lmasa live sign-in ham, Comment-to-DM ham bloklangan.
@@ -216,3 +216,18 @@ Foydalanuvchi public saytda IDS email/parol login ko‘rmasdan `/setup`ga kirish
 ### Next task for incoming agent
 
 Avvalo diff’ni audit qiling va `gofmt`ni tugating; keyin foydalanuvchi ruxsat bergach Go compile/unit, frontend lint/build, disposable PostgreSQL migration/integration hamda OAuth state/cookie/replay/tenant mapping negative coverage qo‘shib ishlating. Hamma code-level gate o‘tgandan keyin valid Meta App credentials va eligible test account bilan live OAuth acceptance qiling. Existing production operator checkout yoki `.env.production`ni overwrite/reset qilmang.
+
+## 2026-11-12 — Meta OAuth readiness validator repair
+
+- Production API’da `/healthz` `meta_configured=true`, ammo `GET /api/v1/auth/instagram/status` `api_ready=true`, `enabled=false` qaytardi.
+- `.env.production` va running API container’dagi Meta sozlamalari mos; Unified Login mode, Meta bergan Configuration ID va production callback URI to‘g‘ri. Joriy App ID/Secret juftligi Meta credential probe’dan o‘tdi; access token javobi chiqarilmadi yoki saqlanmadi.
+- Root cause: `MetaOAuthReady()` Google OAuth callback uchun yozilgan `isAbsoluteURL()` helperini chaqirgan; u faqat `/api/v1/auth/google/callback` path’ini qabul qilgan. `isMetaOAuthRedirectURL()` alohida helper qo‘shilib, production HTTPS va `/api/v1/instagram/callback` path’ini tekshiradi.
+- `go test ./...`, `go vet ./...` va `go build ./cmd/server ./cmd/migrate` lokalda PASS. Hali bu yozuv qo‘shilayotgan vaqtda production API deploy qilinmagan; keyin deploy qilinganda API image’ni oldindan taglab rollback yo‘lini saqlang va faqat `api` servisini yangilang.
+- Meta OAuth user consent va account discovery end-to-end hali talab qilinadi. `assigned_instagram_accounts` uchun Graph API edge kodda bor; bo‘sh ro‘yxat chiqsa foydalanuvchi Meta oynasida akkauntni share qilganini va professional asset/config ownership’ni tekshiring. Yangi live login bo‘lmaguncha real DM/webhook ishlaydi deb da’vo qilmang.
+
+## 2026-11-12 — production deploy follow-up
+
+- Commit `f0b7ce2` faqat API image’da deploy qilindi; oldingi API image rollback uchun `ids-automate-api:backup-meta-readiness-20261111T203045Z` nomi bilan saqlandi.
+- `/healthz` `status=ok`; ichki va public `/api/v1/auth/instagram/status` `api_ready=true`, `enabled=true`, `login_mode=unified`. PostgreSQL healthy; web, database volume, `.env.production`, Nginx va operator checkout o‘zgarmadi. Migration qo‘llanmadi.
+- Hozir foydalanuvchi `/setup` orqali Meta consent berishi kerak. Bu bo‘lmaguncha OAuth code exchange, Instagram asset discovery, webhook, private reply va public reply **NOT TESTED LIVE**.
+
