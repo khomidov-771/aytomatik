@@ -1,6 +1,6 @@
 # Keyingi qadamlar
 
-Ustuvorliklar 2026-11-12 holatiga ko‘ra. Public onboarding Instagram OAuth login yo‘nalishida kodga o‘zgartirildi; `/login`/`register` UI’lari `/setup`ga qaytadi, yangi additive `007_instagram_login.sql` va state/session flow hali tekshirilmagan. Foydalanuvchining joriy talabi bilan test/build/migration yugurtirilmadi. Eski production Meta credential Graph tekshiruvida code 190 bilan rad etilgan.
+2026-11-12 Meta OAuth auditida server muhiti, Unified Login Configuration ID va redirect URI mosligi tekshirildi; joriy App ID/Secret juftligini Meta credential probe qabul qildi. `MetaOAuthReady` Google callback yo‘liga bog‘lanib, Instagram callback’ni xato rad etgani aniqlandi va tuzatildi. Backend testlari, go vet va production build muvaffaqiyatli yakunlandi. API deploydan so‘ng public status `api_ready=true`, `enabled=true`, `login_mode=unified` bo‘ldi. Qolgan qadam — foydalanuvchi Meta oynasida rozilik berib Instagram akkauntini ulashini tasdiqlash.
 
 Joriy frontendda UZ/RU/EN va light/dark tema tayyor. Yangi ekran qo‘shilganda matnni `usePreferences().tr(uz, ru, en)` orqali uchala tilda berish va ikkala temada ko‘rish talab qilinadi.
 
@@ -44,7 +44,7 @@ Shundan keyin `/setup` oqimini real OAuth eligible account bilan live tekshiring
 
 ## P0 — Live Meta acceptance test
 
-Oldin production `.env.production`dagi `META_APP_SECRET` va `META_WEBHOOK_APP_SECRET`ni Meta Dashboarddagi haqiqiy App Secret bilan serverning o‘zida yangilang. Secretni chat, Git yoki logga yubormang. Yangilagandan keyin API container restart qilinadi va Meta Graph credential check code `190` bermasligi shart.
+Joriy production App ID/Secret juftligi Meta credential probe’dan o‘tdi; secretni almashtirish hozircha talab qilinmaydi. Public status hozir `enabled=true`. Foydalanuvchi `/setup` orqali Meta consent berib Professional Instagram account asset’ini ulashi kerak. Agar `assigned_instagram_accounts` bo‘sh qaytsa, Meta configuration asset selection, portfolio ownership va berilgan permissions’ni tekshiring; token/loglarni chiqarmang.
 
 Kerak:
 
@@ -151,3 +151,4 @@ Fayllar: `httpapi/instagram.go`, `httpapi/app.go`, `store.go`, Inbox UI.
 - fake analytics;
 - scraping/private Instagram APIs;
 - live dalilsiz “follow verification ishlaydi” da’vosi.
+
