@@ -267,12 +267,12 @@ Avvalo diff’ni audit qiling va `gofmt`ni tugating; keyin foydalanuvchi ruxsat 
 - Account discovery bo‘sh bo‘lgani sabab access token encryption/storage, Instagram account row va `subscribed_apps` bajarilmagan. Ulanish mavjud emas. Webhook/DM/public reply live holati tekshirilmagan.
 - Local patch `provider.go`da empty/multiple asset uchun alohida safe diagnostic code qo‘shadi; request `fields=id,username`ga qisqartirilgan. Provider regression test bo‘sh asset’da account/token qaytmasligini va subscription’ga o‘tmasligini tekshiradi. Accounts/setup UI UZ/RU/EN’da 0-result checklist ko‘rsatadi.
 - Code checks (2026-11-12) PASS: `go test ./...`, `go vet ./...`, `go build ./cmd/server ./cmd/migrate`, `npm run lint:web`, `npm run test:web` (2/2), `npm run build:web` (22 routes), `git diff --check`. Birinchi web build Windows EPERM sabab standalone output yozolmadi; normal file permission bilan qayta build PASS.
-- At handoff moment, these newest local changes are not pushed or deployed. Push/deploy authorization was given earlier in conversation; deploy must preserve production `.env.production`, PostgreSQL data/volume, Nginx, and operator working tree, and retain prior image tags for rollback.
+- `0f22098` with this code/UI/docs patch was pushed to GitHub `main`. Production deploy is still pending: configured SSH key attempt returned `Permission denied (publickey,password)`; no server files or containers were changed. User previously authorized push/deploy, but never place a raw password in command logs; arrange safe SSH key access before deployment.
 
 ### Davom etish tartibi
 
-1. `git status` va diff’ni qayta ko‘rib, faqat hozirgi patch/docs’ni commit qiling; `main`ga push qiling.
-2. Production’ga `.env.production` bilan `docker-compose.ids.yml`dan API/web image’larini deploy qiling; database/migration kerak emas. Health, OAuth status va UI’dagi xato tarjimasini tekshiring.
+1. `0f22098` GitHub `main`da bor; qayta commit yoki push qilmang. Server access uchun SSH public key sozlang yoki hostdagi operatordan safe access oling; raw passwordni chat/commandga kiritmang.
+2. Access tiklangach production’ga `.env.production` bilan `docker-compose.ids.yml`dan API/web image’larini deploy qiling; database/migration kerak emas. Health, OAuth status va UI’dagi xato tarjimasini tekshiring.
 3. User’dan Business/Creator status, Meta consent’da tanlangan Business Portfolio va aynan Instagram account asset tanlanganini tekshirtiring. Meta Developer Unified Login config’dagi asset/required permissionlarni tekshiring. Parol/kod/token so‘ramang.
 4. Foydalanuvchi o‘zi official Meta consent’ni qayta tugatgach server logidagi `asset_discovery_empty` yoki muvaffaqiyatli account discovery’ni kuzating. Bo‘sh ro‘yxat yana qaytsa Meta Business/config tashqi holati qolayotgan blok; uydirma id/fallback qo‘shmang.
 5. Account ulanganidan keyingina account session/media picker/automation flow, webhook, real comment, DM va public reply acceptance’ga o‘ting. Har bosqichni real API dalili bilan belgilang.

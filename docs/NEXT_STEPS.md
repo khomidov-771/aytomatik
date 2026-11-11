@@ -1,6 +1,6 @@
 # Keyingi qadamlar
 
-2026-11-12 foydalanuvchi Meta roziligini tasdiqlagach, production’da ikki OAuth callback token almashinuvidan keyin `assigned_instagram_accounts`dan bo‘sh ro‘yxat oldi. Hech qanday Instagram account/token saqlanmadi. Local patch minimal `id,username` account query, aniq `asset_discovery_empty` log kodi va UZ/RU/EN yo‘riqlarini qo‘shdi; code-level checks o‘tdi. Bu patch hali production’ga chiqarilmagan. Hozirgi eng birinchi vazifa — patchni GitHub’ga push qilib, rollback saqlagan holda API va web image’larini deploy qilish; so‘ng foydalanuvchi Meta’dagi Business/Creator turi, portfolio access va config asset tanlovini tekshirib qayta consent qilishi kerak.
+2026-11-12 foydalanuvchi Meta roziligini tasdiqlagach, production’da ikki OAuth callback token almashinuvidan keyin `assigned_instagram_accounts`dan bo‘sh ro‘yxat oldi. Hech qanday Instagram account/token saqlanmadi. Local patch minimal `id,username` account query, aniq `asset_discovery_empty` log kodi va UZ/RU/EN yo‘riqlarini qo‘shdi; code-level checks o‘tdi va `0f22098` GitHub `main`ga push qilindi. Production deploy SSH public-key urinishida `Permission denied (publickey,password)` bilan to‘xtadi; serverga yozuv qilinmadi. Keyingi qadam — SSH ruxsati tiklangach rollback saqlab API/web image’larini deploy qilish; so‘ng foydalanuvchi Meta’dagi Business/Creator turi, portfolio access va config asset tanlovini tekshirib qayta consent qilishi kerak.
 
 Joriy frontendda UZ/RU/EN va light/dark tema tayyor. Yangi ekran qo‘shilganda matnni `usePreferences().tr(uz, ru, en)` orqali uchala tilda berish va ikkala temada ko‘rish talab qilinadi.
 
@@ -29,7 +29,7 @@ Local Google backend testi uchun Google Cloud’da `http://localhost:8080/api/v1
 
 ## P0 — Asset discovery xatosini tuzatib, onboarding’ni live davom ettirish
 
-OAuth-only onboarding va hozirgi asset-discovery diagnostika patch’ining code-level quality gate’lari 2026-11-12 lokalda PASS. Endi patchni review qilib GitHub `main`ga push qiling va production release’ni detached build context’dan deploy qiling; server `/opt/ids-automate` checkout’i, `.env.production`, PostgreSQL, volumes, Nginx va operator fayllarini overwrite/reset qilmang.
+OAuth-only onboarding va asset-discovery diagnostika patch’ining code-level quality gate’lari 2026-11-12 lokalda PASS; `0f22098` GitHub `main`ga push qilindi. SSH key ruxsati bo‘lmagani uchun production deployni hali bajarmang; avval xavfsiz SSH access tiklansin, keyin release’ni detached build context’dan chiqarib deploy qiling. Server `/opt/ids-automate` checkout’i, `.env.production`, PostgreSQL, volumes, Nginx va operator fayllarini overwrite/reset qilmang.
 
 Fayllar: `api/internal/config/config.go`, `api/internal/httpapi/instagram.go`, `api/internal/httpapi/server.go`, `api/internal/store/store.go`, `api/internal/migrations/007_instagram_login.sql`, `web/components/setup-wizard.tsx`, `web/app/page.tsx`, public auth pages.
 
