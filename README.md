@@ -25,10 +25,10 @@ Automation yaratishda foydalanuvchi Media ID yozmaydi: real OAuth orqali ulangan
 - Google sign-in tugmasi public login/register sahifalaridan olib tashlangan. Server-side Google OAuth backend kodi saqlanadi, lekin joriy public onboarding oqimiga ulanmagan.
 - Google OAuth server-side authorization-code/OIDC, PKCE, signed ID-token va Postgres account linking oqimi kodga qo‘shilgan; disposable PostgreSQL va controlled OIDC server bilan tekshirilgan.
 - Google OAuth kodi GitHub `main` va production serverga `8c15cde` commitida deploy qilindi. Production `GET /api/v1/auth/google/status` HTTP 200 bilan `enabled=false`, credentialsiz start esa HTTP 503 qaytardi. Google Cloud Client ID/Secret production serverga qo‘yilib, real Google browser flow qabul qilinmaguncha real Google sign-in **ishlamaydi**.
-- Production auditda joriy Meta App Secret Meta tomonidan rad etildi (`OAuthException`, code `190`); real connected Instagram akkaunt, active rule va webhook event yo‘q. Shu sabab live OAuth, live webhook, `is_user_follow_business`, real private reply va public reply **live tekshirilmagan**.
+- 2026-11-12 production tekshiruvda `META_*` qiymatlari konteynerga to‘g‘ri uzatilgani va App ID/Secret juftligi Meta tomonidan qabul qilingani tasdiqlandi. OAuth statusini o‘chirib qo‘ygan validator xatosi tuzatildi; haqiqiy foydalanuvchi OAuth’i, account discovery, webhook, follow check va DM/public reply hali live tasdiqlanmagan.
 - Meta bergan Unified Login Configuration ID `.env.example`da public konfiguratsiya sifatida ko‘rsatilgan. Secretlar repositoryga yozilmaydi.
 
-Joriy Meta App Secret avvalgi production tekshiruvda Graph API tomonidan `OAuthException` code `190` bilan rad etilgan. Shu sabab live Instagram OAuth va Comment-to-DM oqimi bu controlled test natijalaridan kelib chiqib tayyor deb hisoblanmaydi.
+Avvalgi tekshiruvda boshqa Meta App Secret `OAuthException` code `190` bilan rad etilgan edi. Joriy serverdagi juftlik credential probe’dan o‘tdi. Bu foydalanuvchi roziligi bilan OAuth, asset sharing yoki live Comment-to-DM muvaffaqiyatini isbotlamaydi.
 
 Batafsil: [PROJECT_STATUS.md](docs/PROJECT_STATUS.md), [NEXT_STEPS.md](docs/NEXT_STEPS.md), [AI_HANDOFF.md](docs/AI_HANDOFF.md).
 
@@ -139,7 +139,7 @@ Public **Boshlash** tugmasi `/setup`ni ochadi. Alohida IDS email/paroli talab qi
 
 Meta callback URI o‘zgarmaydi. Birinchi marta OAuth qilgan foydalanuvchiga alohida workspace yaratiladi. Avval IDS orqali ulangan Instagram account bo‘lsa, identity uni dastlab ulangan workspace va user’iga bog‘laydi. Boshqa workspace tomonidan faol claim qilingan account yangi workspace’ga berilmaydi. `/login`, `/register`, parol tiklash va email tasdiqlash sahifalari `/setup`ga qaytaradi; legacy API va database foydalanuvchilari data-preservation uchun qoldirilgan.
 
-OAuth server sozlamalari faqat format va mavjudlik bo‘yicha tekshiriladi. Meta oldingi App Secretni `OAuthException` code `190` bilan rad etgan. Shu sabab OAuth urinishining muvaffaqiyati, account/media list, webhook va DM delivery live acceptance’dan oldin kafolatlanmaydi.
+OAuth statusi sozlamalarning boshlashga yaroqliligini bildiradi, haqiqiy Meta foydalanuvchi roziligi yoki asset ulanishini emas. Joriy server App ID/Secret juftligi Meta credential probe’dan o‘tdi; OAuth consent, account/media list, webhook va DM delivery alohida live acceptance talab qiladi.
 
 Unified Login `assigned_instagram_accounts` javobida `account_type` maydoni bo‘lmagani uchun yangi akkauntning subtype qiymati `UNKNOWN` bo‘lib saqlanadi va UI noaniqlikni ochiq ko‘rsatadi.
 
@@ -229,3 +229,4 @@ docker-compose.prod.yml production stack
 - [NEXT_STEPS.md](docs/NEXT_STEPS.md)
 - [AI_HANDOFF.md](docs/AI_HANDOFF.md)
 - [META_SETUP_CHECKLIST.md](docs/META_SETUP_CHECKLIST.md)
+
