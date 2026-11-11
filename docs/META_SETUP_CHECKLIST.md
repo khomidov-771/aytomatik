@@ -68,4 +68,5 @@ Commentning o‘zi follow/profile permissionni kafolatlamaydi. Scraping/private 
 
 ## Joriy holat
 
-Controlled provider tests PASS. Public HTTPS callback ishlaydi, ammo productiondagi joriy App Secret Meta tomonidan `OAuthException` code `190` bilan rad etildi. Real connected account, active automation va webhook event yo‘q. Real Meta acceptance **NOT TESTED LIVE**.
+2026-11-12 tekshiruvida production `META_*` env qiymatlari konteyner bilan mos, Unified Login va Configuration ID kutilgan qiymatlarda, redirect URI production callback bilan aynan mos. Serverdagi joriy App ID/Secret juftligi Meta credential probe’dan o‘tdi; token javobi chiqarilmadi yoki saqlanmadi. OAuth statusini `enabled=false` qilgan backend validator xatosi Google callback yo‘lini Instagram callback uchun talab qilgani sababli bo‘lgan va tuzatildi. API deploydan so‘ng public status `api_ready=true`, `enabled=true`, `login_mode=unified` qaytardi. Haqiqiy Instagram OAuth consent, asset discovery, webhook va message delivery hali **NOT TESTED LIVE**.
+
