@@ -151,6 +151,31 @@ func TestMetaConfigurationReadyRejectsPlaceholders(t *testing.T) {
 	}
 }
 
+func TestMetaOAuthReadyAcceptsInstagramCallbackAndRejectsOtherPaths(t *testing.T) {
+	cfg := Config{
+		Env:               "production",
+		InstagramProvider: "meta",
+		MetaAppID:         "1234567890123456",
+		MetaAppSecret:     strings.Repeat("a", 32),
+		MetaLoginMode:     "unified",
+		MetaLoginConfigID: "2331645327602552",
+		MetaRedirectURI:   "https://instagram.schat.uz/api/v1/instagram/callback",
+	}
+	if !cfg.MetaOAuthReady() {
+		t.Fatal("valid production Instagram callback must enable Meta OAuth")
+	}
+
+	cfg.MetaRedirectURI = "https://instagram.schat.uz/api/v1/auth/google/callback"
+	if cfg.MetaOAuthReady() {
+		t.Fatal("Google callback path must not be accepted for Meta OAuth")
+	}
+
+	cfg.MetaRedirectURI = "http://instagram.schat.uz/api/v1/instagram/callback"
+	if cfg.MetaOAuthReady() {
+		t.Fatal("production Meta OAuth callback must use HTTPS")
+	}
+}
+
 func TestGoogleOAuthConfiguration(t *testing.T) {
 	baseEnv(t)
 	t.Setenv("GOOGLE_CLIENT_ID", "example.apps.googleusercontent.com")
@@ -173,3 +198,4 @@ func TestGoogleOAuthConfiguration(t *testing.T) {
 		t.Fatalf("production Google callback must use HTTPS: %v", err)
 	}
 }
+
