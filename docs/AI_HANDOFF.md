@@ -187,3 +187,5 @@ Birinchi navbatdagi topshiriq — serverga valid Meta App credentialsni xavfsiz 
 - A detached worktree from origin/main supplied the web build context. Compose used the existing ids-automate project and --no-deps; database/API/nginx were not targeted.
 - Public home, /setup, login, register, and /healthz returned HTTP 200 after deploy. Compose reported API running, PostgreSQL running/healthy, web running.
 - Meta live acceptance remains blocked by the previously rejected App Secret and unavailable real eligible test account. Do not mark OAuth/webhook/follow/DM live-ready based on this deployment.
+
+- Cleanup follow-up: temporary /tmp/ids-automate-web-e90505a detached worktree remains because SSH timed out after deploy verification. Its .env.production is only a symlink to /opt/ids-automate/.env.production. Once reachable, verify the target, unlink only the symlink, then use git worktree remove on the temporary worktree. Preserve the original production env and main checkout.

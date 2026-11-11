@@ -197,3 +197,6 @@ Docker CLI bu Windows muhitida mavjud emas; PostgreSQL integratsiya Docker conta
 - Public HTTP smoke: /, /setup, /login?next=%2Fsetup, /register?next=%2Fsetup, /healthz — barchasi HTTP 200.
 - Production .env.production, database, API, nginx va operator fayllari almashtirilmadi. Server main checkout’dagi avvalgi tracked va untracked o‘zgarishlar saqlandi.
 - Bu frontend deploy Meta live integratsiya ishlashini isbotlamaydi. Avval qayd etilgan App Secret rejection (OAuthException code 190), real account/webhook/action yo‘qligi sabab Meta OAuth, follow check va Comment-to-DM live acceptance hali bajarilmagan.
+### Deployment cleanup note
+
+The temporary detached build worktree at /tmp/ids-automate-web-e90505a remains because the SSH connection timed out after public verification. It contains a symlink named .env.production that points to /opt/ids-automate/.env.production; the original file was not edited. Once SSH is available, verify the symlink target, unlink only that symlink, then remove the temporary worktree with git worktree remove. Do not delete or overwrite the original production env file or main checkout.
