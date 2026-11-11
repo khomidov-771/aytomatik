@@ -231,3 +231,27 @@ Avvalo diff’ni audit qiling va `gofmt`ni tugating; keyin foydalanuvchi ruxsat 
 - `/healthz` `status=ok`; ichki va public `/api/v1/auth/instagram/status` `api_ready=true`, `enabled=true`, `login_mode=unified`. PostgreSQL healthy; web, database volume, `.env.production`, Nginx va operator checkout o‘zgarmadi. Migration qo‘llanmadi.
 - Hozir foydalanuvchi `/setup` orqali Meta consent berishi kerak. Bu bo‘lmaguncha OAuth code exchange, Instagram asset discovery, webhook, private reply va public reply **NOT TESTED LIVE**.
 
+## 2026-11-12 — Joriy OAuth xato handoff
+
+### Audit holati
+
+- Production screenshot signed-in `/app/accounts`da `oauth_exchange_failed` ko‘rsatgan. Bu legacy account-connect callback yo‘li. Eski backend stage/status loglamagani sabab token exchange, asset discovery, webhook subscription yoki response parsing xatosi ekanini screenshotdan ajratib bo‘lmaydi.
+- Production read-only holati: `/healthz` HTTP 200 (`meta_configured=true`); `/api/v1/auth/instagram/status` `api_ready=true`, `enabled=true`, `login_mode=unified`, `provider=meta`; `/app/accounts` HTTP 200. `enabled=true` consent va API acceptance emas.
+- Lokal patch `provider.go`da stage/status/code’ni xavfsiz ajratadi. Bo‘sh token, invalid JSON, asset identity yo‘qligi, no/multiple asset va webhook `success=false` holatlari ajratildi; callback bo‘sh ID/token saqlamaydi. UI UZ/RU/EN bosqich yo‘riqlarini ko‘rsatadi.
+- Patch production’ga deploy qilinmagan; SSH key urinishida `Permission denied (publickey,password)` bo‘ldi. Ruxsatli deploy yo‘li bo‘lmaguncha production `.env`, checkout va DB’ga tegmang.
+
+### Joriy local o‘zgarishlar va dalillar
+
+- API: `api/internal/provider/provider.go`, `api/internal/provider/provider_test.go`, `api/internal/httpapi/instagram.go`, yangi `api/internal/httpapi/instagram_oauth_test.go`.
+- UI: `web/app/app/accounts/page.tsx`, `web/components/setup-wizard.tsx`. Oldingi dizayn patch’lari `web/app/globals.css` va `web/components/automation-form.tsx`ni ham o‘zgartirgan; saqlang.
+- Docs: `README.md`, `docs/PROJECT_STATUS.md`, `docs/NEXT_STEPS.md`, shu `AI_HANDOFF.md`.
+- PASS: `go test ./...`; `go vet ./...`; `go build ./cmd/server ./cmd/migrate`; frontend lint; 2/2 Vitest; 22-route Next production build; embedded PostgreSQL integration; `git diff --check`. Windows sandbox child-process/file-write cheklovlari sabab build va integration command’lari qo‘shimcha ruxsat bilan bajarildi.
+- Instagram paroli, Meta token yoki Meta secret ishlatilmadi; source/docs’ga secret yozilmadi.
+
+### Birinchi davom topshirig‘i
+
+1. Local diff’ni review qiling, GitHub push/deployni oldingi user ruxsati bo‘yicha bajaring; serverga esa avval tasdiqlangan SSH/operator yo‘li bilan kiring. Production main checkout’ini reset/pull/clean qilmang.
+2. Patch production’da ishlagach, foydalanuvchi o‘z brauzerida rasmiy Meta consent bersin. Parolni AI’dan so‘ramang yoki qabul qilmang.
+3. Callback’dan keyin secretsiz bosqich/status/code logini o‘qing, faqat isbotlangan sababni tuzating. So‘ng state replay, real Professional asset, encrypted token, media, signed webhook, private-reply ID va undan keyingi public-reply ID’ni live tekshiring.
+4. Barcha real acceptance dalillari bo‘lmaguncha integratsiyani tayyor deb belgilamang.
+

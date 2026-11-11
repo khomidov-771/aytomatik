@@ -216,6 +216,16 @@ export function SetupWizard() {
       ? tr("Instagram ulash bekor qilindi. Istasangiz, qaytadan boshlang.", "Подключение Instagram отменено. Вы можете попробовать ещё раз.", "Instagram sign-in was cancelled. You can try again.")
       : oauthCode === "account_conflict"
         ? tr("Bu Instagram akkaunti boshqa workspace’ga ulangan. Avvalgi IDS ma’lumotlari egasi bilan bog‘laning.", "Этот Instagram аккаунт уже подключён к другому workspace. Свяжитесь с владельцем прежних данных IDS.", "This Instagram account is already connected to another workspace. Contact the owner of the existing IDS data.")
+        : oauthCode === "oauth_token_exchange_failed"
+          ? tr("Meta ruxsat kodini token bilan almashtirmadi. Ulanishni qayta boshlang; takrorlansa Meta App ID/Secret va callback manzili aynan mosligini tekshiring.", "Meta не обменяла код разрешения на токен. Начните подключение заново; если ошибка повторится, проверьте Meta App ID/Secret и точное совпадение callback URL.", "Meta did not exchange the authorization code for a token. Restart the connection; if it repeats, verify the Meta App ID/Secret and exact callback URL.")
+          : oauthCode === "instagram_asset_access_failed"
+            ? tr("Meta akkauntlar ro‘yxatini bera olmadi. Unified Login konfiguratsiyasida Professional akkaunt va kerakli ruxsatlarni tekshiring.", "Meta не вернула список аккаунтов. Проверьте Professional аккаунт и разрешения в конфигурации Unified Login.", "Meta could not list Instagram accounts. Check the Professional account asset and required Unified Login permissions.")
+            : oauthCode === "instagram_asset_not_shared"
+              ? tr("Meta oynasida Instagram Professional akkauntni tanlab ulashishni tasdiqlang.", "Выберите и подтвердите передачу Instagram Professional аккаунта в окне Meta.", "Select and approve sharing an Instagram Professional account in Meta.")
+              : oauthCode === "multiple_instagram_assets"
+                ? tr("Meta bir nechta akkauntni qaytardi. Konfiguratsiyada bitta kerakli Instagram akkauntini tanlang.", "Meta вернула несколько аккаунтов. Выберите один нужный Instagram аккаунт в конфигурации.", "Meta returned multiple accounts. Select one intended Instagram account in the configuration.")
+                : oauthCode === "webhook_subscription_failed"
+                  ? tr("Akkaunt aniqlandi, ammo webhook ruxsati tasdiqlanmadi. Meta App’dagi comments/messages sozlamalarini tekshiring.", "Аккаунт найден, но разрешение webhook не подтверждено. Проверьте настройки comments/messages в Meta App.", "The account was found, but webhook access was not confirmed. Check comments/messages settings in the Meta App.")
         : oauthCode
           ? tr("Instagram orqali kirish yakunlanmadi. Meta sozlamalarini tekshirib, qayta urinib ko‘ring.", "Не удалось завершить вход через Instagram. Проверьте настройки Meta и попробуйте снова.", "Instagram sign-in did not complete. Check the Meta configuration and try again.")
           : "";

@@ -152,3 +152,11 @@ Fayllar: `httpapi/instagram.go`, `httpapi/app.go`, `store.go`, Inbox UI.
 - scraping/private Instagram APIs;
 - live dalilsiz “follow verification ishlaydi” da’vosi.
 
+## 2026-11-12 — OAuth callback diagnostikasi
+
+1. **P0 — Diagnostika patch’ini production’ga yetkazish.** Lokal kod OAuth bosqichini va secretsiz Meta status/code’ni log qiladi, UI xatolarini ajratadi. SSH key orqali serverga kirish muvaffaqiyatsiz bo‘ldi; mavjud operator deploy kanali yoki serverga ruxsatli SSH key bilan davom eting. Production checkout, `.env.production`, DB volume yoki Nginx’ni reset/overwrite qilmang.
+2. **P0 — Foydalanuvchining rasmiy Meta consent oqimi.** Patch production’da ishlagach, foydalanuvchi o‘z brauzerida rasmiy Meta oynasini ochib Professional Instagram asset’ni tanlasin va ulashga rozilik bersin. Instagram parolini agentga bermang.
+3. **P0 — Aniqlangan bosqich sababini tuzatish.** Faqat `token_exchange_http_<status>_code_<code>`, `asset_discovery_...` yoki `webhook_subscription_...` kabi secretsiz log daliliga qarab Meta config/permission yoki kodni o‘zgartiring.
+4. **P0 — Live acceptance.** OAuth → account/session → media → webhook → signed real comment → keyword → private reply → private success’dan keyin public reply oqimini Meta response ID va execution/action history bilan tekshiring. Unified Login follow check `UNKNOWN`; tasdiqlangan capability deb ko‘rsatmang.
+5. **P1 — Hujjatni yangilash.** Har yangi live dalilni `PROJECT_STATUS.md`ga yozing. Hozir Go tests/vet/build, frontend lint/unit/build va embedded PostgreSQL integration PASS; bu Meta acceptance emas.
+

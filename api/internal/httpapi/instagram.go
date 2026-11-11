@@ -113,10 +113,9 @@ func (s *Server) instagramLoginCallback(w http.ResponseWriter, r *http.Request) 
 	defer cancel()
 	account, err := s.provider.ExchangeCode(ctx, code)
 	if err != nil || account.ID == "" || account.AccessToken == "" {
-		if err != nil {
-			slog.Warn("Instagram login OAuth exchange failed", "provider", s.provider.Name(), "error_code", provider.ErrorCode(err))
-		}
-		s.redirectInstagramLoginError(w, "oauth_exchange_failed")
+		failureCode := instagramOAuthFailureCode(err, account)
+		slog.Warn("Instagram login OAuth exchange failed", "provider", s.provider.Name(), "error_code", provider.ErrorCode(err), "failure_reason", failureCode)
+		s.redirectInstagramLoginError(w, failureCode)
 		return
 	}
 	encrypted, err := s.cipher.Encrypt(account.AccessToken)
@@ -175,7 +174,7 @@ func (s *Server) clearInstagramStateCookie(w http.ResponseWriter, name string) {
 }
 
 func (s *Server) redirectInstagramLoginError(w http.ResponseWriter, code string) {
-	allowed := map[string]bool{"invalid_state": true, "cancelled": true, "provider_error": true, "oauth_unavailable": true, "oauth_exchange_failed": true, "account_save_failed": true, "account_conflict": true}
+	allowed := map[string]bool{"invalid_state": true, "cancelled": true, "provider_error": true, "oauth_unavailable": true, "oauth_exchange_failed": true, "oauth_token_exchange_failed": true, "instagram_asset_access_failed": true, "instagram_asset_not_shared": true, "multiple_instagram_assets": true, "webhook_subscription_failed": true, "account_save_failed": true, "account_conflict": true}
 	if !allowed[code] {
 		code = "provider_error"
 	}
@@ -187,6 +186,19 @@ func (s *Server) redirectInstagramLoginError(w http.ResponseWriter, code string)
 	base.RawQuery = "instagram_error=" + url.QueryEscape(code)
 	w.Header().Set("Location", base.String())
 	w.WriteHeader(http.StatusSeeOther)
+}
+
+func instagramOAuthFailureCode(err error, account provider.Account) string {
+	if err != nil {
+		return provider.InstagramOAuthFailureCode(err)
+	}
+	if account.AccessToken == "" {
+		return "oauth_token_exchange_failed"
+	}
+	if account.ID == "" {
+		return "instagram_asset_access_failed"
+	}
+	return "oauth_exchange_failed"
 }
 
 func (s *Server) instagramConnect(w http.ResponseWriter, r *http.Request, p domain.Principal) {
@@ -229,8 +241,10 @@ func (s *Server) instagramCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	account, err := s.provider.ExchangeCode(r.Context(), code)
-	if err != nil {
-		http.Redirect(w, r, redirect+"?error=oauth_exchange_failed", http.StatusFound)
+	if err != nil || account.ID == "" || account.AccessToken == "" {
+		failureCode := instagramOAuthFailureCode(err, account)
+		slog.Warn("Instagram OAuth exchange failed", "provider", s.provider.Name(), "error_code", provider.ErrorCode(err), "failure_reason", failureCode)
+		http.Redirect(w, r, redirect+"?error="+url.QueryEscape(failureCode), http.StatusFound)
 		return
 	}
 	encrypted, err := s.cipher.Encrypt(account.AccessToken)

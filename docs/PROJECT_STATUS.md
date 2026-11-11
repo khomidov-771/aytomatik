@@ -221,3 +221,13 @@ Docker CLI bu Windows muhitida mavjud emas; PostgreSQL integratsiya Docker conta
 - Deploydan keyin `/healthz` `status=ok` qaytardi; ichki va public `GET /api/v1/auth/instagram/status` `api_ready=true`, `enabled=true`, `login_mode=unified` qaytardi. PostgreSQL healthy va avvalgi uptime’ini saqladi.
 - Real OAuth consent va `assigned_instagram_accounts` natijasi hali olinmadi. Keyingi qadam: foydalanuvchi `/setup`da Meta oynasini o‘zi tasdiqlashi; agar account list bo‘sh bo‘lsa, configuration asset-sharing va Business Portfolio ruxsatlarini tekshirish. Live Instagram account, webhook va DM **NOT TESTED LIVE**.
 
+## 2026-11-12 — OAuth xatosi bo‘yicha diagnostika patch’i
+
+- Production screenshotida signed-in `/app/accounts` sahifasida `oauth_exchange_failed` ko‘rindi. Bu Meta OAuth callback xato bilan yakunlanganini ko‘rsatadi, ammo eski server kodi token exchange, Instagram asset discovery va webhook subscription xatolarini bitta kodga birlashtirgani uchun sabab bosqichi noma’lum.
+- Lokal kod Meta API xatosining bosqichini va faqat HTTP status/Meta numeric code’ni log qiladi. Auth code, token, provider xabar, parol va secretlar logga kiritilmaydi.
+- Bo‘sh token, yaroqsiz token JSON, akkaunt ID’siz javob va `subscribed_apps` tasdiqlanmagan javob alohida xatoga ajratildi. Legacy callback bo‘sh account/token bilan account saqlamaydi; UI bosqichga mos UZ/RU/EN yo‘riq beradi.
+- Local verification: `go test ./...` PASS; `go vet ./...` PASS; `go build ./cmd/server ./cmd/migrate` PASS; provider/httpapi regression tests PASS; `go test -tags=integration -v ./internal/store` PASS (disposable embedded PostgreSQL); `npm run lint:web` PASS; `npm run test:web` PASS (2/2); `npm run build:web` PASS (22 route); `git diff --check` PASS. Build va PostgreSQL child process Windows sandbox ruxsati sabab eskalatsiya bilan bajarildi.
+- Production read-only tekshiruvi: `/healthz` HTTP 200 (`status=ok`, `meta_configured=true`); OAuth status `enabled=true`, `login_mode=unified`, `provider=meta`; `/app/accounts` HTTP 200. Bular sozlama va health holati, haqiqiy OAuth consent yoki Instagram API muvaffaqiyati emas.
+- Diagnostika patch’i hali production’ga deploy qilinmagan. SSH key bilan serverga kirish `Permission denied (publickey,password)` bo‘ldi; screenshotdagi eski callback xatosining aniq Meta code/stage’i noma’lum.
+- **Live Meta acceptance: NOT TESTED.** Rasmiy consent, Professional account discovery, webhook, real comment, private DM va public reply bo‘yicha dalil olinmagan. Instagram login/paroli ishlatilmagan yoki saqlanmagan.
+

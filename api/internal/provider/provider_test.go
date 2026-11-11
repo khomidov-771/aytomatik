@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"net/url"
@@ -150,6 +151,92 @@ func TestUnifiedOAuthExchangeSubscriptionAndMessageDelivery(t *testing.T) {
 	}
 	if len(requests) != 6 {
 		t.Fatalf("unexpected request sequence: %#v", requests)
+	}
+}
+
+func TestInstagramOAuthFailureCodeIdentifiesSafeFailureStage(t *testing.T) {
+	tests := []struct {
+		name, stage, expected string
+	}{
+		{name: "token exchange", stage: "token_exchange", expected: "oauth_token_exchange_failed"},
+		{name: "asset discovery", stage: "asset_discovery", expected: "instagram_asset_access_failed"},
+		{name: "webhook subscription", stage: "webhook_subscription", expected: "webhook_subscription_failed"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			err := &APIError{StatusCode: http.StatusForbidden, Code: 10, Type: "OAuthException", Stage: test.stage}
+			if got := InstagramOAuthFailureCode(err); got != test.expected {
+				t.Fatalf("unexpected OAuth failure code: got %q, want %q", got, test.expected)
+			}
+		})
+	}
+}
+
+func TestOAuthFailureLoggingCodeIsSanitizedAndStageSpecific(t *testing.T) {
+	client := &http.Client{Transport: roundTripFunc(func(request *http.Request) (*http.Response, error) {
+		if request.URL.Path != "/v25.0/oauth/access_token" {
+			t.Fatalf("unexpected token exchange path: %s", request.URL.Path)
+		}
+		return jsonResponse(http.StatusBadRequest, `{"error":{"message":"private provider diagnostic","type":"OAuthException","code":190}}`), nil
+	})}
+	p := &Meta{cfg: config.Config{MetaAPIVersion: "v25.0", MetaLoginMode: "unified"}, client: client}
+	_, err := p.ExchangeCode(context.Background(), "authorization-code")
+	if err == nil {
+		t.Fatal("expected token exchange error")
+	}
+	var apiErr *APIError
+	if !errors.As(err, &apiErr) || apiErr.Stage != "token_exchange" {
+		t.Fatalf("expected a token-exchange API error, got %#v", err)
+	}
+	if got := ErrorCode(err); got != "token_exchange_http_400_code_190" {
+		t.Fatalf("unexpected sanitized log code %q", got)
+	}
+	if strings.Contains(ErrorCode(err), "private provider diagnostic") {
+		t.Fatal("provider message leaked into the sanitized error code")
+	}
+}
+
+func TestInstagramAssetFailureCodes(t *testing.T) {
+	if got := InstagramOAuthFailureCode(ErrInstagramAssetNotShared); got != "instagram_asset_not_shared" {
+		t.Fatalf("unexpected no-asset code %q", got)
+	}
+	if got := InstagramOAuthFailureCode(ErrMultipleInstagramAssets); got != "multiple_instagram_assets" {
+		t.Fatalf("unexpected multiple-assets code %q", got)
+	}
+}
+
+func TestOAuthFailureCodesCoverUnusableSuccessfulResponses(t *testing.T) {
+	tests := []struct {
+		name, tokenResponse, webhookResponse, want string
+	}{
+		{name: "empty token", tokenResponse: `{"expires_in":3600}`, want: "oauth_token_exchange_failed"},
+		{name: "invalid token JSON", tokenResponse: `{"access_token":`, want: "oauth_token_exchange_failed"},
+		{name: "webhook not confirmed", tokenResponse: `{"access_token":"test-token"}`, webhookResponse: `{"success":false}`, want: "webhook_subscription_failed"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			client := &http.Client{Transport: roundTripFunc(func(request *http.Request) (*http.Response, error) {
+				switch request.URL.Path {
+				case "/v25.0/oauth/access_token":
+					return jsonResponse(http.StatusOK, test.tokenResponse), nil
+				case "/v25.0/me/assigned_instagram_accounts":
+					return jsonResponse(http.StatusOK, `{"data":[{"id":"ig-1","username":"business"}]}`), nil
+				case "/v25.0/ig-1/subscribed_apps":
+					return jsonResponse(http.StatusOK, test.webhookResponse), nil
+				default:
+					t.Fatalf("unexpected Meta request: %s %s", request.Method, request.URL.String())
+					return nil, nil
+				}
+			})}
+			p := &Meta{cfg: config.Config{MetaAPIVersion: "v25.0", MetaLoginMode: "unified"}, client: client}
+			_, err := p.ExchangeCode(context.Background(), "authorization-code")
+			if err == nil {
+				t.Fatal("expected OAuth stage failure")
+			}
+			if got := InstagramOAuthFailureCode(err); got != test.want {
+				t.Fatalf("wrong failure code: got %q, want %q", got, test.want)
+			}
+		})
 	}
 }
 

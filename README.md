@@ -230,3 +230,7 @@ docker-compose.prod.yml production stack
 - [AI_HANDOFF.md](docs/AI_HANDOFF.md)
 - [META_SETUP_CHECKLIST.md](docs/META_SETUP_CHECKLIST.md)
 
+### 2026-11-12 OAuth xato tekshiruvi
+
+Production’dagi avvalgi `oauth_exchange_failed` sababini callback bosqichini log qilmagan eski serverdan aniqlab bo‘lmadi. Lokal patch Meta token exchange, account asset discovery va webhook subscription xatolarini alohida ko‘rsatadi; bo‘sh yoki yaroqsiz token saqlanmaydi. Go tests/vet/build, frontend lint/unit/build va embedded PostgreSQL integration PASS (22 frontend route). Patch serverga hali deploy qilinmagan. Real Meta consent, Instagram account discovery, webhook va DM **live tasdiqlanmagan**. Foydalanuvchi rasmiy Meta oynasida o‘zi rozilik berishi kerak; Instagram parolini agentga yubormang. Batafsil: [PROJECT_STATUS.md](docs/PROJECT_STATUS.md), [NEXT_STEPS.md](docs/NEXT_STEPS.md).
+

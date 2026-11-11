@@ -44,9 +44,21 @@ type APIError struct {
 	StatusCode int
 	Code       int
 	Type       string
+	Stage      string
 	Retryable  bool
 	Ambiguous  bool
 }
+
+// OAuthStageError represents a successful HTTP response that could not be
+// used to complete the OAuth flow. It carries only an internal stage name.
+type OAuthStageError struct{ Stage string }
+
+func (e *OAuthStageError) Error() string { return "Meta OAuth response was invalid" }
+
+var (
+	ErrInstagramAssetNotShared = errors.New("Meta did not share an Instagram professional account")
+	ErrMultipleInstagramAssets = errors.New("Meta shared multiple Instagram accounts")
+)
 
 func (e *APIError) Error() string {
 	if e.StatusCode == 0 {
@@ -58,18 +70,60 @@ func (e *APIError) Error() string {
 func ErrorCode(err error) string {
 	var apiErr *APIError
 	if errors.As(err, &apiErr) {
+		stage := apiErr.Stage
+		if stage == "" {
+			stage = "provider"
+		}
 		if apiErr.Ambiguous {
-			return "provider_outcome_unknown"
+			return stage + "_outcome_unknown"
 		}
 		if apiErr.StatusCode == http.StatusTooManyRequests {
-			return "provider_rate_limited"
+			return stage + "_rate_limited"
 		}
-		return "provider_rejected"
+		return fmt.Sprintf("%s_http_%d_code_%d", stage, apiErr.StatusCode, apiErr.Code)
+	}
+	var stageErr *OAuthStageError
+	if errors.As(err, &stageErr) {
+		return stageErr.Stage + "_response_invalid"
 	}
 	if errors.Is(err, context.DeadlineExceeded) {
 		return "provider_timeout"
 	}
 	return "provider_error"
+}
+
+// InstagramOAuthFailureCode returns a small, non-sensitive code suitable for
+// the browser redirect. Provider messages and credentials never leave server logs.
+func InstagramOAuthFailureCode(err error) string {
+	switch {
+	case errors.Is(err, ErrInstagramAssetNotShared):
+		return "instagram_asset_not_shared"
+	case errors.Is(err, ErrMultipleInstagramAssets):
+		return "multiple_instagram_assets"
+	}
+	var stageErr *OAuthStageError
+	if errors.As(err, &stageErr) {
+		switch stageErr.Stage {
+		case "token_exchange":
+			return "oauth_token_exchange_failed"
+		case "asset_discovery":
+			return "instagram_asset_access_failed"
+		case "webhook_subscription":
+			return "webhook_subscription_failed"
+		}
+	}
+	var apiErr *APIError
+	if errors.As(err, &apiErr) {
+		switch apiErr.Stage {
+		case "token_exchange":
+			return "oauth_token_exchange_failed"
+		case "asset_discovery":
+			return "instagram_asset_access_failed"
+		case "webhook_subscription":
+			return "webhook_subscription_failed"
+		}
+	}
+	return "oauth_exchange_failed"
 }
 
 func IsRetryable(err error) bool {
@@ -218,7 +272,7 @@ func (m *Meta) exchangeInstagramCode(ctx context.Context, code string) (Account,
 		return Account{}, err
 	}
 	if token.AccessToken == "" {
-		return Account{}, errors.New("Meta token exchange returned no token")
+		return Account{}, &OAuthStageError{Stage: "token_exchange"}
 	}
 	longURL := "https://graph.instagram.com/access_token?" + url.Values{"grant_type": {"ig_exchange_token"}, "client_secret": {m.cfg.MetaAppSecret}, "access_token": {token.AccessToken}}.Encode()
 	longReq, _ := http.NewRequestWithContext(ctx, http.MethodGet, longURL, nil)
@@ -243,6 +297,9 @@ func (m *Meta) exchangeInstagramCode(ctx context.Context, code string) (Account,
 	}
 	if identity.UserID == "" {
 		identity.UserID = identity.ID
+	}
+	if identity.UserID == "" {
+		return Account{}, &OAuthStageError{Stage: "asset_discovery"}
 	}
 	var expiry *time.Time
 	if long.ExpiresIn > 0 {
@@ -272,7 +329,7 @@ func (m *Meta) exchangeUnifiedCode(ctx context.Context, code string) (Account, e
 		return Account{}, err
 	}
 	if token.AccessToken == "" {
-		return Account{}, errors.New("Meta Unified Login returned no token")
+		return Account{}, &OAuthStageError{Stage: "token_exchange"}
 	}
 
 	accounts, err := m.assignedInstagramAccounts(ctx, graphBase, token.AccessToken)
@@ -280,10 +337,10 @@ func (m *Meta) exchangeUnifiedCode(ctx context.Context, code string) (Account, e
 		return Account{}, err
 	}
 	if len(accounts) == 0 {
-		return Account{}, errors.New("Meta Unified Login did not share an Instagram professional account")
+		return Account{}, ErrInstagramAssetNotShared
 	}
 	if len(accounts) > 1 {
-		return Account{}, errors.New("Meta Unified Login shared multiple Instagram accounts; reconnect and select exactly one account")
+		return Account{}, ErrMultipleInstagramAssets
 	}
 	selected := accounts[0]
 	if err = m.subscribeUnifiedWebhooks(ctx, graphBase, token.AccessToken, selected.ID); err != nil {
@@ -422,12 +479,12 @@ func (m *Meta) assignedInstagramAccounts(ctx context.Context, graphBase, token s
 			return items, nil
 		}
 		if seenCursors[next] {
-			return nil, errors.New("Meta account discovery returned a repeated cursor")
+			return nil, &OAuthStageError{Stage: "asset_discovery"}
 		}
 		seenCursors[next] = true
 		after = next
 	}
-	return nil, errors.New("Meta account discovery exceeded the pagination safety limit")
+	return nil, &OAuthStageError{Stage: "asset_discovery"}
 }
 
 func (m *Meta) unifiedGrantedPermissions(ctx context.Context, graphBase, token string) []string {
@@ -463,7 +520,7 @@ func (m *Meta) subscribeUnifiedWebhooks(ctx context.Context, graphBase, token, a
 		return fmt.Errorf("Meta webhook subscription failed: %w", err)
 	}
 	if !response.Success {
-		return errors.New("Meta webhook subscription was not confirmed")
+		return &OAuthStageError{Stage: "webhook_subscription"}
 	}
 	return nil
 }
@@ -562,7 +619,7 @@ func (m *Meta) ParseWebhook(body []byte) ([]domain.ProviderEvent, error) { retur
 func (m *Meta) do(req *http.Request, dest any) error {
 	res, err := m.client.Do(req)
 	if err != nil {
-		return &APIError{Ambiguous: req.Method != http.MethodGet}
+		return &APIError{Ambiguous: req.Method != http.MethodGet, Stage: metaAPIStage(req.URL.Path)}
 	}
 	defer res.Body.Close()
 	data, _ := io.ReadAll(io.LimitReader(res.Body, 1<<20))
@@ -574,12 +631,27 @@ func (m *Meta) do(req *http.Request, dest any) error {
 			}
 		}
 		_ = json.Unmarshal(data, &apiErr)
-		return &APIError{StatusCode: res.StatusCode, Code: apiErr.Error.Code, Type: apiErr.Error.Type, Retryable: res.StatusCode == http.StatusTooManyRequests}
+		return &APIError{StatusCode: res.StatusCode, Code: apiErr.Error.Code, Type: apiErr.Error.Type, Stage: metaAPIStage(req.URL.Path), Retryable: res.StatusCode == http.StatusTooManyRequests}
 	}
 	if err = json.Unmarshal(data, dest); err != nil {
-		return errors.New("invalid response from Meta")
+		return &APIError{StatusCode: res.StatusCode, Stage: metaAPIStage(req.URL.Path)}
 	}
 	return nil
+}
+
+func metaAPIStage(path string) string {
+	switch {
+	case strings.HasSuffix(path, "/oauth/access_token"):
+		return "token_exchange"
+	case strings.Contains(path, "/me/assigned_instagram_accounts"):
+		return "asset_discovery"
+	case strings.HasSuffix(path, "/me"):
+		return "asset_discovery"
+	case strings.HasSuffix(path, "/subscribed_apps"):
+		return "webhook_subscription"
+	default:
+		return "meta_api"
+	}
 }
 
 func containsScope(scopes []string, target string) bool {
