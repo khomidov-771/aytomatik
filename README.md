@@ -196,6 +196,9 @@ go test -tags=integration -v ./internal/store
 npm test
 ```
 
+## 2026-11-12 production deploy
+
+Frontend redesign commit e90505a GitHub main’ga push qilindi va production’da faqat web service yangilandi. /, /setup, login, register va /healthz HTTP 200 qaytardi; API ishlayapti, PostgreSQL healthy. Real Meta OAuth, webhook, follow-check va DM oqimlari valid App credentials hamda eligible account bilan live acceptance o‘tmaguncha tayyor deb hisoblanmaydi. Batafsil: docs/PROJECT_STATUS.md.
 ## Mahalliy ishlab chiqish qoidalari
 
 - Schema o‘zgarishi faqat yangi additive migration orqali qilinadi.

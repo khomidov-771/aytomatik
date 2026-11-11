@@ -1,6 +1,6 @@
 # Keyingi qadamlar
 
-Ustuvorliklar 2026-11-11 holatiga ko‘ra. Public onboarding 4 qadamli wizardga yangilandi; login/register faqat email/parol oqimini ko‘rsatadi, Google OAuth backend kodi esa saqlangan. Birinchi bajariladigan ish — valid Meta credential bilan real Meta acceptance; oldingi credential production Graph tekshiruvida code `190` bilan rad etilgan.
+Ustuvorliklar 2026-11-12 holatiga ko‘ra. Public onboarding 4 qadamli wizardga yangilandi va commit e90505a’da production web’ga deploy qilindi; login/register faqat email/parol oqimini ko‘rsatadi, Google OAuth backend kodi saqlangan. Birinchi bajariladigan ish — valid Meta credential va eligible account bilan live Meta acceptance; oldingi credential Graph tekshiruvida code 190 bilan rad etilgan.
 
 Joriy frontendda UZ/RU/EN va light/dark tema tayyor. Yangi ekran qo‘shilganda matnni `usePreferences().tr(uz, ru, en)` orqali uchala tilda berish va ikkala temada ko‘rish talab qilinadi.
 
@@ -29,7 +29,7 @@ Local Google backend testi uchun Google Cloud’da `http://localhost:8080/api/v1
 
 ## P0 — Yangi onboarding’ni Meta eligible account bilan live tekshirish
 
-Yangi `/setup` flow production web’ga deploy qilingach, email/password user session bilan login/register, Meta callbackdan qaytish va “Sozlashni davom ettirish” orqali akkauntga qaytishni tekshiring. App Secret `OAuthException` code `190` bermasdan real eligible Professional account ulanganidan keyingina account selection, media list, automation create va real comment outcome test qilinadi.
+Yangi /setup oqimi 2026-11-12 da production webga deploy qilindi. Email/password session bilan login/register, Meta callbackdan qaytish, akkauntni davom ettirish va wizardning authenticated API oqimini live tekshiring.
 
 - Hozirgi frontend test/build o‘tdi; bu real account, post yoki Meta delivery dalili emas.
 - Unified Login account discovery `account_type` qaytarmasa, subtype `UNKNOWN` deb ko‘rsatiladi; Business/Creator qiymatini taxmin qilmang.

@@ -1,6 +1,6 @@
 # Project status
 
-Tekshiruv: 2026-11-11. Branch: `main`; audit hujjatlari commit `4218851`, production’ga deploy qilingan Google OAuth kod commit `8c15cde`. Holat repository kodi, shu muhitda bajarilgan testlar va production serverdagi endpoint/container tekshiruvlariga asoslangan.
+Tekshiruv: 2026-11-12. Branch main; audit hujjatlari commit 4218851, Google OAuth kod commit 8c15cde, frontend onboarding redesign commit e90505a. Holat repository kodi, bajarilgan testlar va production endpoint/container tekshiruvlariga asoslangan.
 
 ## Umumiy natija
 
@@ -186,3 +186,14 @@ Docker CLI bu Windows muhitida mavjud emas; PostgreSQL integratsiya Docker conta
 - Joriy Meta App Secret avvalgi production tekshiruvda Graph API `OAuthException` code `190` bilan rad etilgan. Shu sabab real Instagram OAuth, webhook, follow field, private reply yoki public reply live test qilinmadi.
 - Google OAuth backend production’da `enabled=false`; Google tugmasi public UI’da yo‘q. Backend credentials/live flow bu UI patch’ida o‘zgartirilmadi.
 - Unified Login subtype unknown saqlanishi Meta account discovery va live follow/API acceptance o‘rnini bosmaydi.
+
+## 2026-11-12 — Frontend redesign production deploy
+
+- Commit e90505a GitHub main’ga push qilindi va production web service’ga deploy qilindi.
+- Server /opt/ids-automate checkout’ida API fayllarining tracked local edits va .env.production*, docker-compose.ids.yml kabi operator untracked fayllari bor edi. Main checkout’da pull/checkout/reset/clean ishlatilmadi.
+- Build uchun origin/main’dan /tmp/ids-automate-web-e90505a detached worktree ishlatildi. Compose shu worktree’dan build qildi va mavjud ids-automate project’ga faqat web service deploy qilindi (--no-deps).
+- Docker image build muvaffaqiyatli tugadi; Next.js production build 22 route yaratdi. ids-automate-web-1 qayta yaratilib ishga tushdi.
+- Deploydan so‘ng Compose holati: api running, postgres running/healthy, web running.
+- Public HTTP smoke: /, /setup, /login?next=%2Fsetup, /register?next=%2Fsetup, /healthz — barchasi HTTP 200.
+- Production .env.production, database, API, nginx va operator fayllari almashtirilmadi. Server main checkout’dagi avvalgi tracked va untracked o‘zgarishlar saqlandi.
+- Bu frontend deploy Meta live integratsiya ishlashini isbotlamaydi. Avval qayd etilgan App Secret rejection (OAuthException code 190), real account/webhook/action yo‘qligi sabab Meta OAuth, follow check va Comment-to-DM live acceptance hali bajarilmagan.

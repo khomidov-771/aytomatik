@@ -1,6 +1,6 @@
 # AI handoff
 
-Yangilangan: 2026-11-11.
+Yangilangan: 2026-11-12.
 
 ## Birinchi o‘qiladigan fayllar
 
@@ -166,8 +166,9 @@ Production server va public HTTPS ishlaydi, ammo active Meta credential Meta Gra
 
 ## Qayerdan davom etish
 
-Birinchi topshiriq: yangi web commitni GitHub’ga push qilib, production’da faqat web service’ni deploy qiling. Server `/opt/ids-automate` repo’sida `.env.production`, database, API, nginx va operator files’ni aslo tozalamang yoki almashtirmang; `docker compose --env-file .env.production -f docker-compose.prod.yml up -d --no-deps --build web` ishlating. Public `/`, `/setup` sahifasi va health endpointi verifikatsiyadan keyin `docs/PROJECT_STATUS.md`ga faqat kuzatilgan dalilni yozing. Keyin valid Meta credential/test account bilan `docs/NEXT_STEPS.md`dagi live acceptance’ga o‘ting. Hozirgi Meta App Secret code `190` bilan oldin rad etilgan. Google OAuth credential taskini faqat foydalanuvchi public Google login’ni qaytarmoqchi bo‘lsa ko‘rib chiqing.
+e90505a commit GitHub main’ga push qilinib, production’da faqat web service sifatida deploy qilindi. Home, /setup, login, register va /healthz HTTP 200; API running, PostgreSQL healthy. Production .env.production, API, database, nginx, main checkout va undagi operator files saqlandi. Deploy paytida server main checkout’ida tracked API edits borligi sabab yangi commit alohida detached worktree’dan build qilindi.
 
+Birinchi navbatdagi topshiriq — serverga valid Meta App credentialsni xavfsiz kiritib, test roli berilgan eligible Instagram Professional account bilan Meta live acceptance. OAuth, account/media tanlash, automation saqlash, comment webhook, follower state, private reply va public reply’ni haqiqiy event bilan tekshiring; docs/NEXT_STEPS.md’dagi outcome matrix’ga amal qiling. Oldingi App Secret Graph API code 190 bilan rad etilgan, shuning uchun bugungi web deploy Meta integration ishlashining dalili emas. Secretni chat, Git yoki logga yozmang. Google OAuth credential taskini faqat foydalanuvchi public Google login’ni alohida qaytarmoqchi bo‘lsa ko‘rib chiqing.
 ## Guardrail
 
 - Scraping/private API yo‘q.
@@ -178,3 +179,11 @@ Birinchi topshiriq: yangi web commitni GitHub’ga push qilib, production’da f
 - Real test bo‘lmasa “Meta integration ishlaydi” deb yozmang.
 - Private failureda public success reply yubormang.
 - Unknown follow statusni non-follower deb ko‘rsatmang.
+
+## 2026-11-12 production web deploy
+
+- GitHub main commit: e90505a; only web was rebuilt/recreated.
+- Server main checkout had local API edits and untracked operator configuration. It was not pulled, reset, cleaned, or overwritten.
+- A detached worktree from origin/main supplied the web build context. Compose used the existing ids-automate project and --no-deps; database/API/nginx were not targeted.
+- Public home, /setup, login, register, and /healthz returned HTTP 200 after deploy. Compose reported API running, PostgreSQL running/healthy, web running.
+- Meta live acceptance remains blocked by the previously rejected App Secret and unavailable real eligible test account. Do not mark OAuth/webhook/follow/DM live-ready based on this deployment.
