@@ -238,7 +238,7 @@ Avvalo diff’ni audit qiling va `gofmt`ni tugating; keyin foydalanuvchi ruxsat 
 - Production screenshot signed-in `/app/accounts`da `oauth_exchange_failed` ko‘rsatgan. Bu legacy account-connect callback yo‘li. Eski backend stage/status loglamagani sabab token exchange, asset discovery, webhook subscription yoki response parsing xatosi ekanini screenshotdan ajratib bo‘lmaydi.
 - Production read-only holati: `/healthz` HTTP 200 (`meta_configured=true`); `/api/v1/auth/instagram/status` `api_ready=true`, `enabled=true`, `login_mode=unified`, `provider=meta`; `/app/accounts` HTTP 200. `enabled=true` consent va API acceptance emas.
 - Lokal patch `provider.go`da stage/status/code’ni xavfsiz ajratadi. Bo‘sh token, invalid JSON, asset identity yo‘qligi, no/multiple asset va webhook `success=false` holatlari ajratildi; callback bo‘sh ID/token saqlamaydi. UI UZ/RU/EN bosqich yo‘riqlarini ko‘rsatadi.
-- Patch production’ga deploy qilinmagan; SSH key urinishida `Permission denied (publickey,password)` bo‘ldi. Ruxsatli deploy yo‘li bo‘lmaguncha production `.env`, checkout va DB’ga tegmang.
+- Commit `4dbe6d4` GitHub `main` branch’ga push qilindi, lekin serverga auto-deploy yo‘q. SSH key urinishida `Permission denied (publickey,password)` bo‘ldi. Patch production’ga deploy qilinmagan; ruxsatli operator/deploy yo‘li bo‘lmaguncha production `.env`, checkout va DB’ga tegmang.
 
 ### Joriy local o‘zgarishlar va dalillar
 
@@ -250,7 +250,7 @@ Avvalo diff’ni audit qiling va `gofmt`ni tugating; keyin foydalanuvchi ruxsat 
 
 ### Birinchi davom topshirig‘i
 
-1. Local diff’ni review qiling, GitHub push/deployni oldingi user ruxsati bo‘yicha bajaring; serverga esa avval tasdiqlangan SSH/operator yo‘li bilan kiring. Production main checkout’ini reset/pull/clean qilmang.
+1. Commit `4dbe6d4` allaqachon GitHub `main`ga push qilingan. Serverga avval tasdiqlangan SSH/operator deploy yo‘li bilan kiring va faqat kerakli API/web service’larni yangilang; production main checkout’ini reset/pull/clean qilmang.
 2. Patch production’da ishlagach, foydalanuvchi o‘z brauzerida rasmiy Meta consent bersin. Parolni AI’dan so‘ramang yoki qabul qilmang.
 3. Callback’dan keyin secretsiz bosqich/status/code logini o‘qing, faqat isbotlangan sababni tuzating. So‘ng state replay, real Professional asset, encrypted token, media, signed webhook, private-reply ID va undan keyingi public-reply ID’ni live tekshiring.
 4. Barcha real acceptance dalillari bo‘lmaguncha integratsiyani tayyor deb belgilamang.
