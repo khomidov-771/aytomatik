@@ -127,6 +127,10 @@ Har bir rule:
 - `GOOGLE_CLIENT_SECRET` faqat backend environment’da. Google access token session/login tugagach persist qilinmaydi; OAuth identity `provider + sub` bilan saqlanadi.
 - Google signup terms roziligi bilan alohida owner workspace yaratadi; login intent yangi user yaratmaydi. Verified email mavjud user bilan identity link qilishi mumkin.
 - Google credentials sozlanmaguncha login UI o‘chiq va API status false bo‘lishi kerak; controlled OIDC test live Google deb talqin qilinmaydi.
+- Public onboarding IDS email/parol formasi ishlatmaydi: `/setup` official Meta OAuth orqali Instagram Professional account’ni principal identity sifatida tasdiqlaydi. OAuth callback session va tenant workspace’ni yaratadi yoki oldin ayni Instagram account bilan bog‘langan workspace’ni tiklaydi.
+- Public Instagram OAuth state hash, 10-minute expiry, one-time consume, browser-binding HttpOnly cookie, `Origin` allowlist va terms consent bilan himoyalanadi. Instagram token serverda AES-256-GCM ciphertext bo‘lib qoladi; callback URI o‘zgarmaydi.
+- Login/register/password-reset/email-verification public UI route’lari `/setup`ga qaytadi. Legacy auth data/API compatibility mavjud bo‘lishi mumkin, ammo protected route’lar anonymous access olmaydi.
+- OAuth config status `MetaOAuthReady` faqat app id/secret/redirect/login configuration qiymatlari formatini tekshiradi. Meta `OAuthException` code `190` rad etishi bo‘lgan; `enabled=true` live Meta acceptance emas.
 
 ## 8. Inbox
 

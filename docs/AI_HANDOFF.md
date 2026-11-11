@@ -54,7 +54,7 @@ Subscription/payment scope olib tashlangan. Productda demo mode, demo credential
 - Google credentials bo‘lmasa status `enabled=false` va UI aniq sozlanmagan holatni ko‘rsatadi. Migration `006_google_oauth.sql` additive.
 - OAuth callback’ning fake RSA issuer va disposable PostgreSQL bilan controlled E2E integration testi bor; bu live Google acceptance emas.
 - Public landing hero dark-violet ko‘rinishga yangilandi; telefon UI — faqat oqim illustratsiyasi, analytics/account data emas.
-- Public Boshlash flow email/parol login/register’dan so‘ng `/setup`ga qaytadi; email verification ham xavfsiz local `next=/setup`ni saqlaydi.
+- Public Boshlash flow endi `/setup`dagi Instagram OAuth bilan boshlanadi; undan oldingi email/parol onboarding tarixi pastda, 2026-11-12 patch bo‘limi joriy holat sifatida qaralsin.
 - `web/components/setup-wizard.tsx` real API’lar bilan 4 qadamli account → post → settings → create onboarding beradi; yangi endpoint/schema yo‘q.
 - `web/app/app/accounts/page.tsx` successful OAuth return’dan keyin account ID bilan wizard step 2’ni davom ettiradi. Meta callback URL/handler o‘zgarmagan.
 - Google OAuth tugmalari public login/register’dan olib tashlangan. Backend OIDC/migration kodlari saqlanadi; `google-auth-button.tsx` hozir bu sahifalarda ulanmagan.
@@ -189,3 +189,30 @@ Birinchi navbatdagi topshiriq — serverga valid Meta App credentialsni xavfsiz 
 - Meta live acceptance remains blocked by the previously rejected App Secret and unavailable real eligible test account. Do not mark OAuth/webhook/follow/DM live-ready based on this deployment.
 
 - Cleanup completed: verified the temporary .env.production symlink target, unlinked only that link, removed /tmp/ids-automate-web-e90505a, then confirmed the original production env exists and git worktree list contains only /opt/ids-automate.
+
+## 2026-11-12 current work — Instagram OAuth-only onboarding (unverified)
+
+### User intent
+
+Foydalanuvchi public saytda IDS email/parol login ko‘rmasdan `/setup`ga kirishi, o‘z Instagramini rasmiy Meta oynasida ulashi, post/video tanlashi, keywords/templates/follow policy sozlashi va avtomatlashtirishni saqlashi kerak. Bu anonymous protected app emas: Instagram OAuth identity’ni tasdiqlaydi, keyin HttpOnly session va workspace RBAC ishlaydi.
+
+### Current code changes
+
+- `GET /api/v1/auth/instagram/status` Meta OAuth urinishiga konfiguratsiya bor-yo‘qligini bildiradi; `POST /api/v1/auth/instagram/start` `Origin`, terms consent, state hash, browser-binding cookie, rate limit va official Meta authorization URL’ni ishlatadi.
+- Mavjud `GET /api/v1/instagram/callback` `idsi.` state prefix bilan public login callback’ni legacy signed-in connect flow’dan ajratadi; redirect URI o‘zgartirilmadi.
+- Public callback state’ni bir marta consume qiladi, code exchange bajaradi, Meta tokenni AES-256-GCM bilan shifrlaydi, Instagram ID’ni identity/workspace’ga map qiladi, session yaratadi, `/setup?step=2&account=<uuid>`ga yo‘naltiradi.
+- `007_instagram_login.sql` ikkita additive jadval yaratadi: login state va Instagram identity. Meta account oldindan active workspace’da bo‘lsa `connected_by` user va o‘sha workspace saqlanadi; boshqa workspace’ga claim ko‘chirilmaydi. Yangi account uchun alohida owner workspace yaratiladi.
+- Synthetic `.invalid` email va random hash DB `users.email/password_hash NOT NULL` cheklovini qoplaydi. Email foydalanuvchiga ko‘rsatilmaydi, `email_verified_at` fake to‘ldirilmaydi, session access Instagram identity mapping bilan aniqlanadi.
+- Signed-out setup’da login/password forma o‘rniga UZ/RU/EN Instagram OAuth UX, terms/privacy checkbox, config/error holatlari va Instagram callback’dan keyin media picker’ga davom etish bor.
+- `/`, header CTA’lar `/setup`ga ketadi. `/login`, `/register`, `/forgot-password`, `/reset-password`, `/verify-email` frontend sahifalari `/setup`ga redirect qiladi. Legacy auth backend/data o‘chirilmadi.
+- Settings UI’da Instagram-auth user uchun synthetic email yashirilib, login usuli ko‘rsatiladi.
+
+### Verification status / blocking
+
+- Foydalanuvchining aniq ko‘rsatmasi bilan yangi patch’dan keyin test, lint, build, migration apply yoki browser/live Meta flow bajarilmadi. Hamma yangi kod va SQL **UNVERIFIED**; feature done emas.
+- Production Meta App Secret oldin Graph API’da `OAuthException` code `190` bilan rad etilgan. OAuth status value `enabled` faqat credentials format/boshlashga yaroqli ko‘rinishini bildiradi, haqiqiy Meta acceptance emas. Valid secrets va eligible account bo‘lmasa live sign-in ham, Comment-to-DM ham bloklangan.
+- Migration 007 production DB’ga qo‘llanmagan. API deploy ham qilinmagan. Hozirgi patch faqat local working tree’da.
+
+### Next task for incoming agent
+
+Avvalo diff’ni audit qiling va `gofmt`ni tugating; keyin foydalanuvchi ruxsat bergach Go compile/unit, frontend lint/build, disposable PostgreSQL migration/integration hamda OAuth state/cookie/replay/tenant mapping negative coverage qo‘shib ishlating. Hamma code-level gate o‘tgandan keyin valid Meta App credentials va eligible test account bilan live OAuth acceptance qiling. Existing production operator checkout yoki `.env.production`ni overwrite/reset qilmang.

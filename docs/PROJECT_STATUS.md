@@ -34,7 +34,8 @@ Bu product completion foizi emas. Meta yoki Google’dagi real foydalanuvchi oqi
 
 | Modul | Haqiqiy holat |
 |---|---|
-| Registration/login/email verification/reset | Implemented va controlled testdan o‘tgan |
+| Legacy registration/login/email verification/reset backend | Kod saqlangan; public email/parol sahifalari Instagram onboarding’ga redirect qiladi. Ushbu auth/UI o‘zgarishi hozir test qilinmagan |
+| Instagram OAuth public authentication | `/auth/instagram/start` va callback, browser-bound hashed state, workspace identity mapping, HttpOnly session va OAuth-only UI kodi qo‘shildi; hozircha build, migration yoki flow tekshiruvi bajarilmagan |
 | Session/CSRF/RBAC/workspace switch | Implemented va controlled testdan o‘tgan |
 | Multi-tenant store | Implemented; cross-tenant negative integration test bor |
 | Instagram account UI | Real OAuth-only; demo account yaratmaydi |
@@ -75,7 +76,7 @@ Bu holatda real comment-to-DM oqimi ishlamaydi. Valid Meta App Secret serverga x
 - Google ID token uchun Google issuer, client audience, imzo, expiry va `email_verified` tekshiriladi. Token saqlanmaydi; `sub` identity link sifatida saqlanadi.
 - Yangi signup alohida owner workspace yaratadi; login yangi hisob yaratmaydi. Google verified email mavjud local user bilan link qilinishi mumkin.
 - Migration `006_google_oauth.sql` additive. Client credentials yo‘q bo‘lsa API `enabled=false` va start 503 qaytaradi; UI bu holatni yashirmaydi.
-- Google OAuth backend server-side qoladi, ammo Google tugmasi public login/register sahifalaridan olib tashlangan. Joriy onboarding email/parol auth va keyin Meta account connect’dan iborat.
+- 2026-11-11 holatida Google OAuth backend server-side qolgan, public UI tugmasi bo‘lmagan va onboarding email/parol auth’dan keyin Meta account connect bo‘lgan. 2026-11-12 OAuth-only onboarding bo‘limi bu UX holatini o‘zgartiradi.
 
 ### Joriy kod tekshiruvi
 
@@ -202,3 +203,16 @@ Docker CLI bu Windows muhitida mavjud emas; PostgreSQL integratsiya Docker conta
 - The temporary detached worktree /tmp/ids-automate-web-e90505a was removed after deployment verification.
 - The .env.production symlink target was verified as /opt/ids-automate/.env.production; only the symlink was unlinked before removing the worktree.
 - Verified the original production env file still exists and git worktree list contains only /opt/ids-automate.
+
+## 2026-11-12 — Instagram-only public onboarding implementation (unverified)
+
+- Public `/setup` signed-out UX alohida IDS email/parol so‘ramasdan official Meta OAuth boshlaydi; UZ/RU/EN matn, Terms/Privacy roziligi, credentialsiz/loading/error va OAuth failure holatlari bor.
+- `/`, public header va asosiy CTA’lar `/setup`ga olib boradi. `/login`, `/register`, `/forgot-password`, `/reset-password` va `/verify-email` sahifalari `/setup`ga redirect qiladi. Legacy backend auth va mavjud data/schema olib tashlanmadi.
+- API `GET /api/v1/auth/instagram/status` va `POST /api/v1/auth/instagram/start` qo‘shildi. Public callback mavjud Meta redirect URI’ni saqlab, `idsi.` state prefix’i orqali OAuth login’ni legacy account-connect callback’dan ajratadi.
+- New OAuth state hashed, 10-minute expiry, one-time consume, terms acceptance, per-state HttpOnly/SameSite=Lax browser-binding cookie va allowed-Origin tekshiruviga ega. Callback official provider token exchange bajaradi, tokenni AES-256-GCM bilan shifrlaydi, session cookie o‘rnatadi va `/setup?step=2&account=...`ga qaytaradi.
+- `007_instagram_login.sql` Instagram OAuth state va identity mapping’ni additive qo‘shadi. Mavjud active Instagram account bo‘lsa mapping dastlab uni ulagan user/workspace’ga qo‘yiladi; boshqa workspace claim’ini ko‘chirmaydi. Yangi Instagram identity uchun yangi owner workspace yaratiladi.
+- Instagram login user’da synthetic `.invalid` email va random password hash ichki `users` NOT NULL sxemasi uchun ishlatiladi. Email UI’ga ko‘rsatilmaydi, `email_verified_at` soxta belgilanmaydi; session faqat identity mapping borligida email-verification auth gate’dan o‘tadi. Manager/RBAC va tenant membership tekshiruvlari qoladi.
+- Settings API/UI login method’ni ko‘rsatadi. Login/register UI’dan Google tugmasi ilgari olib tashlangan, shu patch’da Google backend o‘zgarmadi.
+- **Hozirgi patch bo‘yicha test, build, migration va live Meta OAuth bajarilmadi**, chunki foydalanuvchi test qilmaslikni so‘radi. Shu bois route, SQL, callback, workspace binding va production behavior tasdiqlanmagan; feature tugallangan deb belgilanmaydi.
+- Oldingi production Meta App Secret tekshiruvi `OAuthException` code `190` qaytargan. OAuth config readiness faqat credentials ko‘rinishi/borligini bildiradi; haqiqiy Meta acceptance emas. Live integration hali BLOCKED.
+- Next review: Go formatting/static compile, frontend type/build, migration PostgreSQL dry-run/integration va state replay/cookie mismatch/tenant mapping controlled tests. Keyin faqat valid Meta credential bilan real OAuth acceptance.

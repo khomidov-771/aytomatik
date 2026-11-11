@@ -1,6 +1,6 @@
 # Keyingi qadamlar
 
-Ustuvorliklar 2026-11-12 holatiga ko‘ra. Public onboarding 4 qadamli wizardga yangilandi va commit e90505a’da production web’ga deploy qilindi; login/register faqat email/parol oqimini ko‘rsatadi, Google OAuth backend kodi saqlangan. Birinchi bajariladigan ish — valid Meta credential va eligible account bilan live Meta acceptance; oldingi credential Graph tekshiruvida code 190 bilan rad etilgan.
+Ustuvorliklar 2026-11-12 holatiga ko‘ra. Public onboarding Instagram OAuth login yo‘nalishida kodga o‘zgartirildi; `/login`/`register` UI’lari `/setup`ga qaytadi, yangi additive `007_instagram_login.sql` va state/session flow hali tekshirilmagan. Foydalanuvchining joriy talabi bilan test/build/migration yugurtirilmadi. Eski production Meta credential Graph tekshiruvida code 190 bilan rad etilgan.
 
 Joriy frontendda UZ/RU/EN va light/dark tema tayyor. Yangi ekran qo‘shilganda matnni `usePreferences().tr(uz, ru, en)` orqali uchala tilda berish va ikkala temada ko‘rish talab qilinadi.
 
@@ -29,7 +29,13 @@ Local Google backend testi uchun Google Cloud’da `http://localhost:8080/api/v1
 
 ## P0 — Yangi onboarding’ni Meta eligible account bilan live tekshirish
 
-Yangi /setup oqimi 2026-11-12 da production webga deploy qilindi. Email/password session bilan login/register, Meta callbackdan qaytish, akkauntni davom ettirish va wizardning authenticated API oqimini live tekshiring.
+Avval OAuth-only patch’ning code-level quality gate’larini bajaring. Foydalanuvchi ushbu pass’da test va build qilmaslikni so‘ragani sabab natija hozircha tasdiqlanmagan. Yangi handler/migration production yoki GitHub’ga yuborilishidan oldin review qiling.
+
+Fayllar: `api/internal/config/config.go`, `api/internal/httpapi/instagram.go`, `api/internal/httpapi/server.go`, `api/internal/store/store.go`, `api/internal/migrations/007_instagram_login.sql`, `web/components/setup-wizard.tsx`, `web/app/page.tsx`, public auth pages.
+
+Tekshiruv: `go test ./...`, `go vet ./...`, `go build ./cmd/server ./cmd/migrate`, frontend lint/test/build, PostgreSQL migration/identity/session test. Auth callback state replay, cross-browser cookie mismatch, terms missing, unique account claim, existing account mapping va cross-tenant negative testlar bilan qoplansin. Hozir bularning hech biri yangi patch’da bajarilmagan.
+
+Shundan keyin `/setup` oqimini real OAuth eligible account bilan live tekshiring: callback’dan so‘ng session cookie saqlanishi, account ID bilan video picker ochilishi va `POST /automations` ishlashini kuzating.
 
 - Hozirgi frontend test/build o‘tdi; bu real account, post yoki Meta delivery dalili emas.
 - Unified Login account discovery `account_type` qaytarmasa, subtype `UNKNOWN` deb ko‘rsatiladi; Business/Creator qiymatini taxmin qilmang.

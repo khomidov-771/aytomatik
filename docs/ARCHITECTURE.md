@@ -1,6 +1,6 @@
 # IDS Automate arxitekturasi
 
-Tekshiruv sanasi: 2026-11-11.
+Tekshiruv sanasi: 2026-11-12.
 
 ## Tizim oqimi
 
@@ -43,8 +43,10 @@ Meta Webhook
 - Automation builder quyidagilarni saqlaydi: account, post scope, keyword/match mode, private reply, uchta public reply, follow toggle, UNKNOWN fallback, active flag va priority. Tanlangan postlar uchun browser Media ID so‘ramaydi; backend tenantga tegishli encrypted tokenni ochib, Meta `/{ig-user-id}/media` edge’dan maksimal 50 ta post/Reels metadata olib beradi.
 - Execution history har bir `follow_check`, `private_reply`, `public_reply` natijasini alohida ko‘rsatadi.
 - Product UI’da demo, billing va fake account yo‘llari yo‘q.
-- `/setup` wizard mavjud `/me`, `/instagram/accounts`, `/instagram/connect`, `/instagram/accounts/{id}/media` va `POST /automations` endpointlarini qayta ishlatadi; yangi persistence yoki auth mexanizmi yo‘q.
-- OAuth callback URI/backend callback o‘zgarmaydi. Successful callback’dan keyin accounts sahifasi tanlangan ulangan account ID bilan wizard’ga qaytaradi.
+- Signed-out `/setup` alohida IDS parolini so‘ramaydi. `GET /auth/instagram/status` holatni oladi, `POST /auth/instagram/start` terms roziligi bilan rasmiy Meta OAuth’ni boshlaydi; callback authenticated HttpOnly session, account va yangi identity uchun workspace yaratadi yoki oldingi IDS-connected account’ga bog‘laydi.
+- Instagram login OAuth state DB’da hash holida, browser binding cookie bilan 10 daqiqa amal qiladi va bir marta consume qilinadi. Meta token browserga yuborilmaydi, AES-256-GCM ciphertext sifatida saqlanadi. State/cookie mos kelmasa account yoki session yaratilmaydi.
+- OAuth callback URI o‘zgarmaydi. Successful callback account ID bilan `/setup?step=2`ga qaytaradi va post tanlash bosqichini ochadi.
+- `/login`, `/register`, `/forgot-password`, `/reset-password`, `/verify-email` public sahifalari `/setup`ga redirect qiladi. Legacy backend auth routelari hamda data saqlovchi schema o‘zgartirilmagan.
 - Wizard API’dan qaytgan akkaunt/postlarni ko‘rsatadi; loading/error/empty holatlari mavjud. Qoidani yaratish muvaffaqiyati faqat server automation ID qaytarganidan keyin ko‘rsatiladi.
 - Google OIDC backend saqlangan, lekin Google tugmasi public login/register UI’dan olib tashlangan va joriy onboarding oqimida ishlatilmaydi.
 
@@ -76,6 +78,8 @@ Asosiy jadvallar:
 | `oauth_states` | Bir martalik, expiry’li OAuth state |
 | `google_oauth_login_states` | Google login intent, nonce/PKCE verifier va remember-me holati; state hash, expiry va one-time consume |
 | `oauth_identities` | Verified Google `sub` provider identifikatorini tenant useriga bog‘lash |
+| `instagram_oauth_login_states` | Public Instagram login uchun hashed state/browser binding, terms roziligi, session muddati va expiry |
+| `instagram_oauth_identities` | Meta Instagram account ID’ni IDS user/workspace’ga bog‘lash va terms qabul vaqtini saqlash |
 | `instagram_accounts` | Provider identity, scopes, encrypted token, status |
 | `automation_rules` | Match/follow/reply konfiguratsiyasi |
 | `webhook_events` | Idempotent durable queue va redacted payload |
@@ -95,7 +99,7 @@ Migration `005_core_comment_to_dm.sql`:
 - eski mock rule/accountlarni o‘chirmasdan deaktivatsiya qiladi;
 - ommaviy demo login sessiyalari va password hashini bekor qiladi.
 
-Migration `006_google_oauth.sql` additive ravishda Google login state va OAuth identity jadvallarini qo‘shadi. Mavjud foydalanuvchi ma’lumotini o‘zgartirmaydi yoki o‘chirmaydi.
+Migration `006_google_oauth.sql` additive ravishda Google login state va identity jadvallarini qo‘shadi. `007_instagram_login.sql` Instagram login state va identity jadvallarini qo‘shadi; legacy ma’lumotni o‘zgartirmaydi yoki o‘chirmaydi.
 
 ## API endpointlar
 
@@ -107,6 +111,8 @@ Migration `006_google_oauth.sql` additive ravishda Google login state va OAuth i
 - `GET /api/v1/auth/google/status`
 - `POST /api/v1/auth/google/start`
 - `GET /api/v1/auth/google/callback`
+- `GET /api/v1/auth/instagram/status`
+- `POST /api/v1/auth/instagram/start`
 - `POST /api/v1/auth/logout`
 - `POST /api/v1/auth/verify-email`
 - `POST /api/v1/auth/resend-verification`
@@ -153,10 +159,13 @@ Billing va mock-event endpointlari mavjud emas.
 ## Authentication va authorization
 
 - Session raw tokeni HttpOnly cookie’da, hash’i database’da.
+- Public onboarding’dagi auth identity — Meta OAuth orqali tasdiqlangan Instagram account ID. State bir martalik va browser-binding cookie’ga bog‘langan; terms roziligi identity mapping’da timestamp bilan saqlanadi. Yangi Instagram identity uchun password bilan login qilinmaydigan synthetic email va random password hash ichki `users` jadvalining NOT NULL sxemasini qondiradi; email UI’ga chiqarilmaydi va verified email deb belgilanmaydi.
+- Instagram identity’li user `email_verified_at` talabidan faqat mavjud `instagram_oauth_identities` mapping’i sabab ozod. Session va RBAC/tenant membership tekshiruvi o‘z kuchida qoladi. Account ID boshqa tenantda active bo‘lsa, claim rad etiladi.
 - Google login authorization code oqimida bajariladi. Google ID token signature, issuer, audience, expiry, `nonce` va `email_verified` tekshiriladi. Access token saqlanmaydi; Google `sub` va verified email identity link sifatida saqlanadi.
 - Login intent mavjud Google identity yoki shu verified email bilan mavjud hisobni bog‘laydi; ro‘yxatdan o‘tish intenti esa yangisiga alohida owner workspace yaratadi. Google signup mavjud hisob bilan email orqali mos kelsa, `oauth_identities` orqali shu hisobga bog‘lanadi.
 - OAuth state 10 daqiqaga database’da hash ko‘rinishida saqlanadi, callback’da bir marta ishlatiladi va shu browserga bog‘langan HttpOnly/SameSite=Lax cookie bilan tekshiriladi. PKCE S256 authorization-code almashinuvida ishlaydi; nonce OIDC token ichidan constant-time solishtiriladi.
 - Google Client ID/Secret backend environment’da bo‘lmasa status `enabled=false`, OAuth start esa aniq 503 qaytaradi. Google OAuth backend route’lari bor, lekin public login/register UI’da hozir tugma yo‘q.
+- Instagram public UI OAuth config qiymatlari borligini tekshiradi; bu Meta credentials qabul qilinganini isbotlamaydi. Haqiqiy token exchange muvaffaqiyatli bo‘lmaguncha login live deb hisoblanmaydi. Legacy email/parol sahifalari `/setup`ga redirect qiladi.
 - Unified Login account discovery javobida `account_type` qaytmagani uchun subtype `UNKNOWN` saqlanadi; UI Business/Creator turini taxmin qilib ko‘rsatmaydi.
 - Mutation endpointlar `X-CSRF-Token` talab qiladi.
 - Email tasdiqlanmaguncha authenticated app access berilmaydi.

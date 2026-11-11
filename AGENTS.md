@@ -14,6 +14,7 @@ Bu fayl Claude Code, Cursor, Codex va boshqa coding agentlar uchun majburiy repo
 
 - Faqat Instagram Professional (Business/Creator) va rasmiy Meta API.
 - Scraping, browser automation, Instagram parolini yig‘ish yoki unofficial endpoint taqiqlanadi.
+- Public onboarding alohida IDS email/parol login ko‘rsatmaydi: `/setup` rasmiy Meta/Instagram OAuth orqali identifikatsiya qiladi. Workspace baribir authenticated session va tenant RBAC bilan himoyalansin; anonim workspace/API access qo‘shmang.
 - Product UI/API’da demo yoki mock rejim yo‘q. `Mock` provider faqat `APP_ENV=test` bo‘lgan avtomatik testlarda ishlatilishi mumkin.
 - Real Meta integratsiya faqat haqiqiy authorized API call muvaffaqiyatli bo‘lgandan keyin “ishlaydi” deb yoziladi.
 - Asosiy oqim: comment → keyword → optional follow check → private reply → faqat tasdiqlangan DM’dan keyin public success reply.

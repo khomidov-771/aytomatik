@@ -47,6 +47,8 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /healthz", s.health)
 	mux.HandleFunc("POST /api/v1/auth/register", s.rateLimit(s.register))
 	mux.HandleFunc("POST /api/v1/auth/login", s.rateLimit(s.login))
+	mux.HandleFunc("GET /api/v1/auth/instagram/status", s.instagramLoginStatus)
+	mux.HandleFunc("POST /api/v1/auth/instagram/start", s.rateLimit(s.instagramLoginStart))
 	mux.HandleFunc("GET /api/v1/auth/google/status", s.googleStatus)
 	mux.HandleFunc("POST /api/v1/auth/google/start", s.rateLimit(s.googleStart))
 	mux.HandleFunc("GET /api/v1/auth/google/callback", s.googleCallback)

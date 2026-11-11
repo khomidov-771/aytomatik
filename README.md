@@ -38,7 +38,7 @@ Batafsil: [PROJECT_STATUS.md](docs/PROJECT_STATUS.md), [NEXT_STEPS.md](docs/NEXT
 - Backend: Go, `net/http`, pgx
 - Database: PostgreSQL 17
 - Queue: PostgreSQL durable queue; Redis faqat wake-up signal
-- Auth: HttpOnly session cookie, CSRF, email verification, RBAC
+- Auth: Meta/Instagram OAuth for public onboarding, HttpOnly session cookie, CSRF and workspace RBAC; legacy email/password backend retained for compatibility, but its public pages redirect to setup
 - Optional Google OAuth backend: server-side OAuth 2.0 / OpenID Connect; not exposed by the current public login/register UI
 - Meta: Instagram Login yoki Unified/Facebook Login konfiguratsiyasi
 
@@ -130,14 +130,16 @@ Commentning o‘zi profile/follow tekshiruviga yetarli permission yoki messaging
 
 ## Onboarding oqimi
 
-Public sahifadagi **Boshlash** tugmasi email/parol orqali IDS Automate workspace’iga olib kiradi. Email tasdiqlanib hisobga kirilgach `/setup` sahifasida:
+Public **Boshlash** tugmasi `/setup`ni ochadi. Alohida IDS email/paroli talab qilinmaydi. Foydalanuvchi shartlarni qabul qilib rasmiy Meta/Instagram OAuth oynasida o‘z Professional akkauntini tasdiqlaydi. Server OAuth state’i browser binding cookie bilan tekshiradi, tokenni AES-256-GCM bilan shifrlaydi, Instagram identity’ni workspace’ga bog‘laydi va HttpOnly session cookie yaratadi. Callback’dan keyin ulangan account ID bilan wizard’ning video tanlash bosqichi ochiladi.
 
-1. Serverdagi Meta konfiguratsiya holati tekshiriladi va foydalanuvchi rasmiy Meta OAuth orqali akkaunt ulaydi.
+1. `GET /api/v1/auth/instagram/status` serverdagi OAuth sozlamasi bilan boshlash mumkinligini ko‘rsatadi; bu Meta credentials haqiqiyligini yoki live integratsiyani tasdiqlamaydi. `POST /api/v1/auth/instagram/start` terms roziligi, `Origin`, bir martalik state va 10 daqiqalik browser binding bilan rasmiy OAuth’ni boshlaydi.
 2. Ulangan akkauntning postlari `GET /instagram/accounts/{id}/media` orqali olinadi; foydalanuvchi barcha eligible postlarni yoki aniq postlarni tanlaydi.
 3. Kalit so‘z, moslik usuli, private DM, public javob, ixtiyoriy follow check va UNKNOWN fallback kiritiladi.
 4. Foydalanuvchi qoidani ko‘rib, faol yoki o‘chiq holda saqlaydi. Muvaffaqiyat faqat `POST /automations` automation ID qaytarganidan keyin ko‘rsatiladi.
 
-Meta callback URI o‘zgarmaydi. OAuth’dan qaytgach `/app/accounts?connected=1` sahifasidagi **Sozlashni davom ettirish** havolasi tanlangan akkaunt bilan wizard’ning 2-bosqichini ochadi. Workspace session bo‘lmasa foydalanuvchi login/register’ga yo‘naltiriladi.
+Meta callback URI o‘zgarmaydi. Birinchi marta OAuth qilgan foydalanuvchiga alohida workspace yaratiladi. Avval IDS orqali ulangan Instagram account bo‘lsa, identity uni dastlab ulangan workspace va user’iga bog‘laydi. Boshqa workspace tomonidan faol claim qilingan account yangi workspace’ga berilmaydi. `/login`, `/register`, parol tiklash va email tasdiqlash sahifalari `/setup`ga qaytaradi; legacy API va database foydalanuvchilari data-preservation uchun qoldirilgan.
+
+OAuth server sozlamalari faqat format va mavjudlik bo‘yicha tekshiriladi. Meta oldingi App Secretni `OAuthException` code `190` bilan rad etgan. Shu sabab OAuth urinishining muvaffaqiyati, account/media list, webhook va DM delivery live acceptance’dan oldin kafolatlanmaydi.
 
 Unified Login `assigned_instagram_accounts` javobida `account_type` maydoni bo‘lmagani uchun yangi akkauntning subtype qiymati `UNKNOWN` bo‘lib saqlanadi va UI noaniqlikni ochiq ko‘rsatadi.
 

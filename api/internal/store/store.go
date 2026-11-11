@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -23,6 +24,7 @@ var ErrSelfRemoval = errors.New("the active owner cannot remove their own member
 var ErrInvalidRole = errors.New("invalid role")
 var ErrGoogleAccountNotFound = errors.New("google login account not found")
 var ErrGoogleIdentityConflict = errors.New("google identity is already linked to another account")
+var ErrInstagramIdentityConflict = errors.New("Instagram identity is linked to another workspace")
 
 type GoogleLoginState struct {
 	Nonce        string
@@ -91,11 +93,16 @@ func (s *Store) CreateSession(ctx context.Context, principal domain.Principal, t
 func (s *Store) PrincipalBySession(ctx context.Context, tokenHash []byte) (domain.Principal, error) {
 	var p domain.Principal
 	var verified bool
-	err := s.DB.QueryRow(ctx, `SELECT u.id,u.name,u.email,w.id,w.name,wm.role,s.id,s.expires_at,s.csrf_token,u.email_verified_at IS NOT NULL
+	err := s.DB.QueryRow(ctx, `SELECT u.id,u.name,
+		CASE WHEN u.email::text LIKE '%@instagram.ids.invalid' THEN '' ELSE u.email::text END,
+		w.id,w.name,wm.role,s.id,s.expires_at,s.csrf_token,
+		(u.email_verified_at IS NOT NULL OR EXISTS(SELECT 1 FROM instagram_oauth_identities ii WHERE ii.user_id=u.id)),
+		CASE WHEN EXISTS(SELECT 1 FROM instagram_oauth_identities ii WHERE ii.user_id=u.id) THEN 'instagram'
+			WHEN EXISTS(SELECT 1 FROM oauth_identities oi WHERE oi.user_id=u.id AND oi.provider='google') THEN 'google' ELSE 'email' END
 		FROM sessions s JOIN users u ON u.id=s.user_id JOIN workspaces w ON w.id=s.workspace_id
 		JOIN workspace_members wm ON wm.workspace_id=w.id AND wm.user_id=u.id
 		WHERE s.token_hash=$1 AND s.expires_at>now()`, tokenHash).
-		Scan(&p.UserID, &p.Name, &p.Email, &p.WorkspaceID, &p.Workspace, &p.Role, &p.SessionID, &p.SessionExpiresAt, &p.CSRFToken, &verified)
+		Scan(&p.UserID, &p.Name, &p.Email, &p.WorkspaceID, &p.Workspace, &p.Role, &p.SessionID, &p.SessionExpiresAt, &p.CSRFToken, &verified, &p.LoginProvider)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return p, ErrNotFound
 	}
@@ -296,6 +303,162 @@ func (s *Store) ConsumeGoogleLoginState(ctx context.Context, hash []byte) (state
 		err = ErrNotFound
 	}
 	return
+}
+
+type InstagramLoginState struct {
+	BrowserBindingHash []byte
+	RememberMe         bool
+	AcceptTerms        bool
+	TermsAcceptedAt    time.Time
+}
+
+func (s *Store) SaveInstagramLoginState(ctx context.Context, stateHash, browserBindingHash []byte, state InstagramLoginState, expires time.Time) error {
+	if _, err := s.DB.Exec(ctx, `DELETE FROM instagram_oauth_login_states WHERE expires_at<now() OR used_at IS NOT NULL`); err != nil {
+		return err
+	}
+	_, err := s.DB.Exec(ctx, `INSERT INTO instagram_oauth_login_states(state_hash,browser_binding_hash,remember_me,accept_terms,expires_at)
+		VALUES($1,$2,$3,$4,$5)`, stateHash, browserBindingHash, state.RememberMe, state.AcceptTerms, expires)
+	return err
+}
+
+func (s *Store) ConsumeInstagramLoginState(ctx context.Context, stateHash, browserBindingHash []byte) (state InstagramLoginState, err error) {
+	err = s.DB.QueryRow(ctx, `UPDATE instagram_oauth_login_states SET used_at=now()
+		WHERE state_hash=$1 AND browser_binding_hash=$2 AND used_at IS NULL AND expires_at>now()
+		RETURNING browser_binding_hash,remember_me,accept_terms,created_at`, stateHash, browserBindingHash).
+		Scan(&state.BrowserBindingHash, &state.RememberMe, &state.AcceptTerms, &state.TermsAcceptedAt)
+	if errors.Is(err, pgx.ErrNoRows) {
+		err = ErrNotFound
+	}
+	return
+}
+
+// CompleteInstagramLogin binds a verified Meta Instagram identity to an
+// isolated workspace. Existing connected accounts reuse the user that linked
+// the account; new identities receive a new owner workspace. The account,
+// encrypted token and identity mapping commit atomically.
+func (s *Store) CompleteInstagramLogin(ctx context.Context, in AccountInput, passwordHash string, termsAcceptedAt time.Time) (domain.Principal, string, error) {
+	if strings.TrimSpace(in.InstagramUserID) == "" || strings.TrimSpace(in.TokenCiphertext) == "" || strings.TrimSpace(in.Provider) == "" {
+		return domain.Principal{}, "", errors.New("verified Instagram account identity and encrypted token are required")
+	}
+	if termsAcceptedAt.IsZero() {
+		return domain.Principal{}, "", errors.New("terms acceptance timestamp is required")
+	}
+	if in.Scopes == nil {
+		in.Scopes = []string{}
+	}
+	username := strings.TrimPrefix(strings.TrimSpace(in.Username), "@")
+	if username == "" {
+		username = "Instagram"
+	}
+	if utf8.RuneCountInString(username) > 72 {
+		username = string([]rune(username)[:72])
+	}
+	name := "@" + username
+	emailDigest := sha256.Sum256([]byte(in.Provider + ":" + in.InstagramUserID))
+	syntheticEmail := fmt.Sprintf("ig-%x@instagram.ids.invalid", emailDigest[:])
+
+	tx, err := s.DB.Begin(ctx)
+	if err != nil {
+		return domain.Principal{}, "", err
+	}
+	defer tx.Rollback(ctx)
+	lockKey := in.Provider + ":" + in.InstagramUserID
+	if _, err = tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtextextended($1,0))`, lockKey); err != nil {
+		return domain.Principal{}, "", err
+	}
+
+	var userID, workspaceID string
+	err = tx.QueryRow(ctx, `SELECT user_id,workspace_id FROM instagram_oauth_identities
+		WHERE provider=$1 AND instagram_user_id=$2 FOR UPDATE`, in.Provider, in.InstagramUserID).Scan(&userID, &workspaceID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		var existingWorkspace, connectedBy string
+		accountErr := tx.QueryRow(ctx, `SELECT workspace_id,connected_by FROM instagram_accounts
+			WHERE provider=$1 AND instagram_user_id=$2 AND status='connected' ORDER BY connected_at LIMIT 1 FOR UPDATE`,
+			in.Provider, in.InstagramUserID).Scan(&existingWorkspace, &connectedBy)
+		if accountErr == nil {
+			userID, workspaceID = connectedBy, existingWorkspace
+		} else if errors.Is(accountErr, pgx.ErrNoRows) {
+			if passwordHash == "" {
+				return domain.Principal{}, "", errors.New("unusable local credential hash is required")
+			}
+			if err = tx.QueryRow(ctx, `INSERT INTO users(name,email,password_hash) VALUES($1,$2,$3) RETURNING id`, name, syntheticEmail, passwordHash).Scan(&userID); err != nil {
+				return domain.Principal{}, "", err
+			}
+			workspaceName := name + " workspace"
+			if utf8.RuneCountInString(workspaceName) > 100 {
+				workspaceName = string([]rune(workspaceName)[:100])
+			}
+			if err = tx.QueryRow(ctx, `INSERT INTO workspaces(name,owner_user_id) VALUES($1,$2) RETURNING id`, workspaceName, userID).Scan(&workspaceID); err != nil {
+				return domain.Principal{}, "", err
+			}
+			if _, err = tx.Exec(ctx, `INSERT INTO workspace_members(workspace_id,user_id,role) VALUES($1,$2,'owner')`, workspaceID, userID); err != nil {
+				return domain.Principal{}, "", err
+			}
+		} else {
+			return domain.Principal{}, "", accountErr
+		}
+		if _, err = tx.Exec(ctx, `INSERT INTO instagram_oauth_identities(provider,instagram_user_id,user_id,workspace_id,username,terms_accepted_at)
+			VALUES($1,$2,$3,$4,$5,$6)`, in.Provider, in.InstagramUserID, userID, workspaceID, username, termsAcceptedAt); err != nil {
+			if pgErr, ok := err.(*pgconn.PgError); ok && pgErr.Code == "23505" {
+				return domain.Principal{}, "", ErrInstagramIdentityConflict
+			}
+			return domain.Principal{}, "", err
+		}
+	} else if err != nil {
+		return domain.Principal{}, "", err
+	} else {
+		if _, err = tx.Exec(ctx, `UPDATE instagram_oauth_identities SET username=$1,terms_accepted_at=$2
+			WHERE provider=$3 AND instagram_user_id=$4`, username, termsAcceptedAt, in.Provider, in.InstagramUserID); err != nil {
+			return domain.Principal{}, "", err
+		}
+	}
+
+	var member bool
+	if err = tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM workspace_members WHERE workspace_id=$1 AND user_id=$2)`, workspaceID, userID).Scan(&member); err != nil {
+		return domain.Principal{}, "", err
+	}
+	if !member {
+		return domain.Principal{}, "", ErrInstagramIdentityConflict
+	}
+	var accountID string
+	err = tx.QueryRow(ctx, `INSERT INTO instagram_accounts(workspace_id,instagram_user_id,username,account_type,avatar_url,token_ciphertext,token_expires_at,scopes,status,provider,connected_by,last_sync_at)
+		VALUES($1,$2,$3,$4,$5,$6,$7,$8,'connected',$9,$10,now())
+		ON CONFLICT(workspace_id,instagram_user_id) DO UPDATE SET username=EXCLUDED.username,account_type=EXCLUDED.account_type,
+		avatar_url=EXCLUDED.avatar_url,token_ciphertext=EXCLUDED.token_ciphertext,token_expires_at=EXCLUDED.token_expires_at,
+		scopes=EXCLUDED.scopes,status='connected',provider=EXCLUDED.provider,connected_by=EXCLUDED.connected_by,last_sync_at=now()
+		RETURNING id`, workspaceID, in.InstagramUserID, username, in.AccountType, in.AvatarURL, in.TokenCiphertext, in.TokenExpiresAt, in.Scopes, in.Provider, userID).Scan(&accountID)
+	if pgErr, ok := err.(*pgconn.PgError); ok && pgErr.Code == "23505" {
+		return domain.Principal{}, "", ErrAccountClaimed
+	}
+	if err != nil {
+		return domain.Principal{}, "", err
+	}
+	principal, err := instagramPrincipalForUserWorkspace(ctx, tx, userID, workspaceID)
+	if err != nil {
+		return domain.Principal{}, "", err
+	}
+	principal.LoginProvider = "instagram"
+	metadata, _ := json.Marshal(map[string]any{"provider": in.Provider})
+	if _, err = tx.Exec(ctx, `INSERT INTO audit_logs(workspace_id,actor_user_id,action,entity_type,entity_id,metadata_redacted)
+		VALUES($1,$2,'auth.instagram_login','instagram_identity',$3,$4)`, workspaceID, userID, in.InstagramUserID, metadata); err != nil {
+		return domain.Principal{}, "", err
+	}
+	if err = tx.Commit(ctx); err != nil {
+		return domain.Principal{}, "", err
+	}
+	return principal, accountID, nil
+}
+
+func instagramPrincipalForUserWorkspace(ctx context.Context, tx pgx.Tx, userID, workspaceID string) (domain.Principal, error) {
+	var principal domain.Principal
+	err := tx.QueryRow(ctx, `SELECT u.id,u.name,CASE WHEN u.email::text LIKE '%@instagram.ids.invalid' THEN '' ELSE u.email::text END,
+		w.id,w.name,wm.role FROM users u JOIN workspace_members wm ON wm.user_id=u.id JOIN workspaces w ON w.id=wm.workspace_id
+		WHERE u.id=$1 AND w.id=$2`, userID, workspaceID).
+		Scan(&principal.UserID, &principal.Name, &principal.Email, &principal.WorkspaceID, &principal.Workspace, &principal.Role)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return domain.Principal{}, ErrNotFound
+	}
+	return principal, err
 }
 
 // CompleteGoogleLogin links only a verified Google subject. New users receive
@@ -1244,7 +1407,7 @@ func (s *Store) Settings(ctx context.Context, p domain.Principal) (map[string]an
 	var notifications bool
 	_ = s.DB.QueryRow(ctx, `SELECT preferred_language,notifications_enabled FROM users WHERE id=$1`, p.UserID).Scan(&language, &notifications)
 	_ = s.DB.QueryRow(ctx, `SELECT count(*) FILTER(WHERE w.processing_status='failed' AND w.received_at>now()-interval '24 hours'),count(*) FILTER(WHERE w.processing_status='queued') FROM webhook_events w JOIN instagram_accounts a ON a.id=w.instagram_account_id AND a.provider<>'mock' WHERE w.workspace_id=$1`, p.WorkspaceID).Scan(&webhookFailures, &queued)
-	return map[string]any{"profile": map[string]any{"name": p.Name, "email": p.Email}, "workspace": map[string]any{"id": p.WorkspaceID, "name": p.Workspace, "role": p.Role}, "webhook": map[string]any{"failed_last_24h": webhookFailures, "queued": queued}, "language": language, "notifications_enabled": notifications}, nil
+	return map[string]any{"profile": map[string]any{"name": p.Name, "email": p.Email, "login_provider": p.LoginProvider}, "workspace": map[string]any{"id": p.WorkspaceID, "name": p.Workspace, "role": p.Role}, "webhook": map[string]any{"failed_last_24h": webhookFailures, "queued": queued}, "language": language, "notifications_enabled": notifications}, nil
 }
 func (s *Store) UpdateSettings(ctx context.Context, p domain.Principal, name, workspaceName, language string, notifications bool) error {
 	if language != "uz" && language != "ru" && language != "en" {

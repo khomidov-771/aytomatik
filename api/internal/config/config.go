@@ -63,6 +63,19 @@ func (c Config) MetaConfigurationReady() bool {
 	return true
 }
 
+// MetaOAuthReady indicates that the server can attempt the configured official
+// Meta OAuth exchange. It does not mean Meta has accepted the credentials or
+// that webhooks and messaging permissions are ready.
+func (c Config) MetaOAuthReady() bool {
+	if c.InstagramProvider != "meta" || !numericMetaID(c.MetaAppID) || !plausibleMetaSecret(c.MetaAppSecret) || !isAbsoluteURL(c.MetaRedirectURI, c.Env == "production") {
+		return false
+	}
+	if c.MetaLoginMode == "unified" && !numericMetaID(c.MetaLoginConfigID) {
+		return false
+	}
+	return c.MetaLoginMode == "instagram" || c.MetaLoginMode == "unified"
+}
+
 // GoogleOAuthReady only reports whether the server has enough values to start
 // the OIDC flow. A successful Google identity verification is still required
 // before an account can be authenticated.

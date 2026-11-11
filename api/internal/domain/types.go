@@ -12,6 +12,7 @@ type Principal struct {
 	WorkspaceID      string    `json:"workspace_id"`
 	Workspace        string    `json:"workspace_name"`
 	Role             string    `json:"role"`
+	LoginProvider    string    `json:"login_provider,omitempty"`
 	SessionID        string    `json:"-"`
 	SessionExpiresAt time.Time `json:"-"`
 	CSRFToken        string    `json:"csrf_token"`

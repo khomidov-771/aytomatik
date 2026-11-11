@@ -1,4 +1,4 @@
-export type User = { user_id: string; name: string; email: string; workspace_id: string; workspace_name: string; role: "owner" | "manager" | "operator" | "customer"; csrf_token: string };
+export type User = { user_id: string; name: string; email: string; workspace_id: string; workspace_name: string; role: "owner" | "manager" | "operator" | "customer"; login_provider?: "email" | "google" | "instagram"; csrf_token: string };
 export type Session = { user: User; csrf_token: string };
 export type InstagramAccount = { id: string; instagram_user_id: string; username: string; account_type: string; avatar_url?: string; status: string; provider: string; scopes: string[]; token_expires_at?: string; connected_at: string; last_sync_at?: string };
 export type InstagramMedia = { id: string; caption?: string; media_type: string; media_product_type?: string; media_url?: string; thumbnail_url?: string; permalink?: string; timestamp: string };
