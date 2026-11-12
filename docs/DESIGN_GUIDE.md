@@ -1,40 +1,30 @@
-# Design guide — IDS Automate
+# IDS Automate — design system
 
 ## Visual direction
-Referencega yaqin hybrid SaaS: marketingda yorug‘ premium canvas, app ichida deep-navy sidebar va oq/light content maydoni. Violet/indigo asosiy action rangi, yashil success va restrained cyan status aksenti. Kartalarda nozik border, yumshoq shadow va yetarli white-space ishlatiladi; og‘ir glow ishlatilmaydi.
 
-## Main screens
-1. Public landing page
-2. Login
-3. Registration
-4. Forgot/reset password
-5. Dashboard
-6. Instagram accounts
-7. Automation list
-8. Automation create/edit
-9. Inbox
-10. Analytics
-11. Team
-12. Execution history and errors
-13. Settings/integrations
-14. Profile
+Use a warm paper canvas, deep forest-green structure, and restrained citrus accents. The product should feel calm, precise, and premium through strong type hierarchy, generous spacing, fine borders, and soft depth. Avoid the former violet/lavender palette, heavy glow, and dense dashboard decoration. Instagram marks retain Instagram’s official gradient colors.
 
-## Layout
-- Desktop app shell: 248px sidebar, flexible content, 72px topbar.
-- Tablet: collapsible sidebar.
-- Mobile: compact topbar and bottom navigation or drawer.
-- Content max width around 1440px.
-- Use consistent 8px spacing scale.
+The same visual language applies to the marketing site, Meta connection/setup, workspace shell, automation builder, Inbox, analytics, team, settings, and profile. Light mode is the default; dark mode uses charcoal-green surfaces and citrus highlights.
 
-## Components
-- Button variants: primary violet, secondary outline, ghost, destructive.
-- App cards: oq surface, 1px cool-gray border, 16px radius.
-- Inputs: oq surface, visible labels, violet focus ring.
-- Status: connected green, warning amber, disconnected muted red.
-- Charts: clear axes and tooltips; never fabricate production metrics.
-- Tables: responsive cards on narrow screens.
-- Follow status must visibly distinguish `FOLLOWER`, `NOT_FOLLOWER` and `UNKNOWN`.
-- Public success reply must never appear as completed before confirmed private-reply success.
+## Layout and type
+
+- Desktop workspace shell: compact forest sidebar, translucent top bar, flexible content column.
+- Main content max width: 1600px; use a consistent 4/8px spacing rhythm.
+- Use the system Aptos/Segoe UI stack with tight display headings and readable body copy.
+- Keep cards quiet: white or charcoal-green surface, fine border, 16–20px radius, restrained shadow.
+- Mobile: compact top bar, single-column content, persistent bottom navigation, touch-sized controls.
+- Keep 360px, 768px, and 1440px layouts usable.
+
+## Components and motion
+
+- Primary actions: forest gradient; selected states: citrus; secondary actions: calm surface with a fine border.
+- Inputs and custom menus use clear labels, visible keyboard focus, and theme-aware surfaces.
+- Status keeps semantic meaning: green success, amber warning, red failure, neutral unknown.
+- Charts use real values only; tables and lists reflow for narrow screens.
+- Use short entrance and hover transitions. Respect `prefers-reduced-motion`.
+- Follow status must visibly distinguish `FOLLOWER`, `NOT_FOLLOWER`, and `UNKNOWN`.
+- A public success reply must never appear complete before confirmed private-reply success.
 
 ## UX states
-Every async screen needs loading, empty, error, success, permission denied and disconnected states where relevant.
+
+Every asynchronous screen needs loading, empty, error, success, permission-denied, and disconnected states where relevant.

@@ -1,4 +1,4 @@
-:root{--bg:#070b18;--bg-soft:#0b1020;--surface:#10182b;--surface-2:#151f36;--surface-3:#0d1528;--primary:#7657ff;--primary-2:#9a55ff;--cyan:#28c7fa;--green:#24d6a1;--pink:#f052c7;--amber:#f6b84a;--red:#f06677;--text:#f5f7ff;--muted:#9aa7c0;--muted-2:#68758f;--border:rgba(255,255,255,.09);--border-strong:rgba(130,110,255,.42);--shadow:0 22px 70px rgba(0,0,0,.28);--radius:16px;--radius-sm:11px;color-scheme:dark}
+:root{--bg:#f3f5f0;--bg-soft:#e9eee7;--surface:#fff;--surface-2:#f8faf6;--surface-3:#eef3ec;--primary:#24533e;--primary-2:#3d795b;--cyan:#409d7a;--green:#348b61;--pink:#d7836a;--amber:#c88b37;--red:#c85851;--text:#1d2a23;--muted:#65746a;--muted-2:#8b978e;--border:rgba(29,51,38,.12);--border-strong:rgba(61,121,91,.38);--shadow:0 20px 56px rgba(24,46,33,.09);--radius:16px;--radius-sm:11px;color-scheme:light}
 *{box-sizing:border-box}
 html{scroll-behavior:smooth}
 body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,Manrope,"Segoe UI",Arial,sans-serif;font-size:14px;line-height:1.55;-webkit-font-smoothing:antialiased}

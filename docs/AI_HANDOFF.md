@@ -46,7 +46,7 @@ Subscription/payment scope olib tashlangan. Productda demo mode, demo credential
 - Legacy mock account/rulelar migration bilan data yo‘qotmasdan deaktivatsiya qilinadi.
 - Seed command olib tashlandi; API Dockerfile faqat server quradi.
 - Landing/dashboard/analytics faqat core product va database natijasini ko‘rsatadi.
-- Public, auth va workspace UI professional light-first uslubga yangilandi; deep-navy sidebar saqlandi.
+- Public, auth va workspace UI forest-green/citrus design systemiga o‘tkazildi; oldingi violet/lavender stylesheet olib tashlandi.
 - Workspace bo‘ylab shrift, spacing, card, form, Inbox, builder va responsive o‘lchamlar o‘qiladigan professional scale’ga ko‘tarildi.
 - Dashboardga real `connected accounts` va `active automations` holatidan hisoblanadigan 3 bosqichli onboarding hero qo‘shildi; bo‘sh chart fake nuqtalar bilan to‘ldirilmaydi.
 - Til, workspace, analytics oralig‘i, account/fallback va team role tanlovlari `web/components/select-menu.tsx` orqali bir xil light/dark custom dropdown ishlatadi; native browser menu’ni qaytarmang.
@@ -59,7 +59,7 @@ Subscription/payment scope olib tashlangan. Productda demo mode, demo credential
 - OAuth state hashed/10-minute/one-time; PKCE S256, HttpOnly SameSite=Lax browser cookie va `Origin` allowlist tekshiruvi bilan login-CSRF/code interception himoyasi qo‘shildi.
 - Google credentials bo‘lmasa status `enabled=false` va UI aniq sozlanmagan holatni ko‘rsatadi. Migration `006_google_oauth.sql` additive.
 - OAuth callback’ning fake RSA issuer va disposable PostgreSQL bilan controlled E2E integration testi bor; bu live Google acceptance emas.
-- Public landing hero dark-violet ko‘rinishga yangilandi; telefon UI — faqat oqim illustratsiyasi, analytics/account data emas.
+- Public landing hero chuqur forest-green ko‘rinishda; telefon UI — faqat oqim illustratsiyasi, analytics/account data emas.
 - Public Boshlash flow endi `/setup`dagi Instagram OAuth bilan boshlanadi; undan oldingi email/parol onboarding tarixi pastda, 2026-11-12 patch bo‘limi joriy holat sifatida qaralsin.
 - `web/components/setup-wizard.tsx` real API’lar bilan 4 qadamli account → post → settings → create onboarding beradi; yangi endpoint/schema yo‘q.
 - `web/app/app/accounts/page.tsx` successful OAuth return’dan keyin account ID bilan wizard step 2’ni davom ettiradi. Meta callback URL/handler o‘zgarmagan.
