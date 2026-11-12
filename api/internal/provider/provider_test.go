@@ -301,17 +301,42 @@ func TestListMediaUsesConnectedAccountAndOfficialMediaEdge(t *testing.T) {
 						t.Fatalf("media request is missing %s: %s", expected, fields)
 					}
 				}
-				return jsonResponse(200, `{"data":[{"id":"media-1","caption":"Yangi mahsulot","media_type":"VIDEO","media_product_type":"REELS","media_url":"https://cdn.example.com/video.mp4","thumbnail_url":"https://cdn.example.com/cover.jpg","permalink":"https://www.instagram.com/reel/example/","timestamp":"2026-11-10T08:00:00Z"},{"caption":"missing id"}]}`), nil
+				return jsonResponse(200, `{"data":[{"id":"media-1","caption":"Yangi mahsulot","media_type":"VIDEO","media_product_type":"REELS","media_url":"https://cdn.example.com/video.mp4","thumbnail_url":"https://cdn.example.com/cover.jpg","permalink":"https://www.instagram.com/reel/example/","timestamp":"2026-11-10T08:00:00+0000"},{"caption":"missing id"}]}`), nil
 			})}
 			p := &Meta{cfg: config.Config{MetaAPIVersion: "v25.0", MetaLoginMode: test.loginMode}, client: client}
 			items, err := p.ListMedia(context.Background(), "token", "ig-1")
 			if err != nil || len(items) != 1 {
 				t.Fatalf("media list failed: %#v %v", items, err)
 			}
-			if items[0].ID != "media-1" || items[0].MediaProductType != "REELS" || items[0].ThumbnailURL == "" || items[0].Timestamp.IsZero() {
+			expectedTimestamp := time.Date(2026, time.November, 10, 8, 0, 0, 0, time.UTC)
+			if items[0].ID != "media-1" || items[0].MediaProductType != "REELS" || items[0].ThumbnailURL == "" || !items[0].Timestamp.Equal(expectedTimestamp) {
 				t.Fatalf("unexpected media: %#v", items[0])
 			}
 		})
+	}
+}
+
+func TestMediaUnmarshalAcceptsMetaAndRFC3339Timestamps(t *testing.T) {
+	for _, raw := range []string{
+		`{"id":"meta","timestamp":"2026-11-10T08:00:00+0000"}`,
+		`{"id":"rfc3339","timestamp":"2026-11-10T08:00:00Z"}`,
+		`{"id":"fractional","timestamp":"2026-11-10T08:00:00.123456+0000"}`,
+	} {
+		var media Media
+		if err := json.Unmarshal([]byte(raw), &media); err != nil {
+			t.Fatalf("timestamp format was rejected: %s: %v", raw, err)
+		}
+		if media.Timestamp.IsZero() {
+			t.Fatalf("timestamp was not populated: %s", raw)
+		}
+	}
+
+	var media Media
+	if err := json.Unmarshal([]byte(`{"id":"missing","timestamp":null}`), &media); err != nil {
+		t.Fatalf("null timestamp should not fail media parsing: %v", err)
+	}
+	if !media.Timestamp.IsZero() {
+		t.Fatal("null timestamp should remain zero")
 	}
 }
 

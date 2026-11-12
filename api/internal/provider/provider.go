@@ -40,6 +40,48 @@ type Media struct {
 	Timestamp        time.Time `json:"timestamp"`
 }
 
+// UnmarshalJSON accepts the timestamp offsets returned by Meta's Graph API.
+// Meta commonly emits offsets without a colon (for example, +0000), while
+// time.Time's default JSON decoder only accepts RFC3339 offsets such as +00:00.
+func (m *Media) UnmarshalJSON(data []byte) error {
+	type mediaFields Media
+	var wire struct {
+		*mediaFields
+		Timestamp json.RawMessage `json:"timestamp"`
+	}
+	wire.mediaFields = (*mediaFields)(m)
+	if err := json.Unmarshal(data, &wire); err != nil {
+		return err
+	}
+	if len(wire.Timestamp) == 0 || string(wire.Timestamp) == "null" {
+		m.Timestamp = time.Time{}
+		return nil
+	}
+	var raw string
+	if err := json.Unmarshal(wire.Timestamp, &raw); err != nil {
+		return err
+	}
+	parsed, err := parseMetaTimestamp(raw)
+	if err != nil {
+		return err
+	}
+	m.Timestamp = parsed
+	return nil
+}
+
+func parseMetaTimestamp(raw string) (time.Time, error) {
+	for _, layout := range []string{
+		time.RFC3339Nano,
+		"2006-01-02T15:04:05.999999999Z0700",
+		"2006-01-02T15:04:05Z0700",
+	} {
+		if parsed, err := time.Parse(layout, raw); err == nil {
+			return parsed, nil
+		}
+	}
+	return time.Time{}, errors.New("invalid Meta media timestamp")
+}
+
 type APIError struct {
 	StatusCode int
 	Code       int
