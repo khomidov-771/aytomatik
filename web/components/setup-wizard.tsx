@@ -175,14 +175,36 @@ export function SetupWizard() {
 
   async function createRule(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!selectedAccount || !canManage) return;
+    if (submitBusy) return;
+    if (!selectedAccount) {
+      setMessage(tr("Instagram akkauntini qayta tanlang.", "Снова выберите аккаунт Instagram.", "Select the Instagram account again."));
+      return;
+    }
+    if (!canManage) {
+      setMessage(tr("Qoida yaratish uchun workspace Manager yoki Owner ruxsati kerak.", "Для создания правила нужны права Manager или Owner workspace.", "Manager or Owner access is required to create a rule."));
+      return;
+    }
+    if (mediaScope === "selected" && mediaIDs.length === 0) {
+      setMessage(tr("Kamida bitta post yoki videoni tanlang.", "Выберите хотя бы одну публикацию или видео.", "Select at least one post or video."));
+      return;
+    }
+    if (keywords.length === 0 || !privateText.trim() || !publicSuccess.trim() || (followCheck && (!publicNotFollower.trim() || !publicUnknown.trim()))) {
+      setMessage(tr("Kalit so‘z va majburiy javob matnlarini tekshiring.", "Проверьте ключевые слова и обязательные тексты ответов.", "Check the keyword and required reply messages."));
+      return;
+    }
+    const normalizedName = ruleName.trim() || tr(
+      `@${selectedAccount.username} comment javoblari`,
+      `Ответы на комментарии @${selectedAccount.username}`,
+      `@${selectedAccount.username} comment replies`,
+    );
+    setRuleName(normalizedName);
     setSubmitBusy(true);
     setMessage("");
     try {
       const created = await api<Automation>("/automations", {
         method: "POST",
         ...jsonBody({
-          name: ruleName.trim(),
+          name: normalizedName,
           instagram_account_id: selectedAccount.id,
           match_mode: matchMode,
           keywords,
@@ -264,7 +286,7 @@ export function SetupWizard() {
         })}
       </nav>
 
-      {message && <div className="setup-inline-message" role="status"><CircleHelp/><span>{message}</span><button type="button" aria-label={tr("Yopish", "Закрыть", "Dismiss")} onClick={() => setMessage("")}>×</button></div>}
+      {message && safeStep !== 4 && <div className="setup-inline-message" role="alert"><CircleHelp/><span>{message}</span><button type="button" aria-label={tr("Yopish", "Закрыть", "Dismiss")} onClick={() => setMessage("")}>×</button></div>}
 
       {safeStep === 1 && <section className="setup-card setup-account-step">
         <div className="setup-card-heading"><div><span>{tr("1-QADAM", "ШАГ 1", "STEP 1")}</span><h2>{tr("Instagram akkauntingizni ulang", "Подключите Instagram аккаунт", "Connect your Instagram account")}</h2><p>{tr("Faqat rasmiy Meta login oynasi orqali. Parolingiz IDS Automate’ga berilmaydi.", "Только через официальное окно Meta. Пароль не передаётся IDS Automate.", "Only through Meta’s official login. IDS Automate never receives your password.")}</p></div><span className="setup-card-icon"><Instagram/></span></div>
@@ -320,13 +342,14 @@ export function SetupWizard() {
         <div className="setup-actions"><button className="btn secondary" onClick={() => go(2)}><ChevronLeft/>{tr("Orqaga", "Назад", "Back")}</button><button className="btn primary" onClick={continueFromSettings}>{tr("Ko‘rib chiqish", "Проверить настройки", "Review setup")} <ArrowRight/></button></div>
       </section>}
 
-      {safeStep === 4 && selectedAccount && <form className="setup-card" onSubmit={createRule}>
+      {safeStep === 4 && selectedAccount && <form className="setup-card" noValidate onSubmit={createRule}>
         <div className="setup-card-heading"><div><span>{tr("4-QADAM", "ШАГ 4", "STEP 4")}</span><h2>{tr("Qoidani ko‘rib chiqing", "Проверьте правило", "Review your rule")}</h2><p>{tr("Barchasi to‘g‘ri bo‘lsa, automation’ni ishga tushiring.", "Если всё верно, включите автоматизацию.", "Confirm the details and create your automation.")}</p></div><span className="setup-card-icon"><BadgeCheck/></span></div>
         <label className="setup-field-block"><span className="setup-label">{tr("Automation nomi", "Название автоматизации", "Automation name")}</span><input value={ruleName} onChange={(event) => setRuleName(event.target.value)} onFocus={() => { if (!ruleName) setRuleName(tr(`@${selectedAccount.username} comment javoblari`, `Ответы на комментарии @${selectedAccount.username}`, `@${selectedAccount.username} comment replies`)); }} minLength={2} maxLength={100} required/></label>
         <div className="setup-review-grid"><div className="setup-review-line"><span><Instagram/></span><div><small>{tr("Akkaunt", "Аккаунт", "Account")}</small><strong>{accountName}</strong></div></div><div className="setup-review-line"><span><Video/></span><div><small>{tr("Postlar", "Публикации", "Posts")}</small><strong>{mediaScope === "all" ? tr("Barcha mos postlar", "Все подходящие публикации", "All eligible posts") : tr(`${mediaIDs.length} ta tanlangan`, `Выбрано: ${mediaIDs.length}`, `${mediaIDs.length} selected`)}</strong></div></div><div className="setup-review-line"><span><Sparkles/></span><div><small>{tr("Kalit so‘zlar", "Ключевые слова", "Keywords")}</small><strong>{keywords.join(", ")}</strong></div></div><div className="setup-review-line"><span><UserCheck/></span><div><small>{tr("Follow tekshiruvi", "Проверка подписки", "Follow verification")}</small><strong>{followCheck ? tr("Yoqilgan", "Включена", "On") : tr("O‘chirilgan", "Выключена", "Off")}</strong></div></div></div>
         <div className="setup-review-flow"><div><MessageCircle/><span><small>{tr("Comment mos keldi", "Комментарий совпал", "Comment matched")}</small><strong>{tr("Kalit so‘z", "Ключевое слово", "Keyword")}</strong></span></div><ArrowRight/><div><Send/><span><small>{tr("Meta DM’ni tasdiqlaydi", "Meta подтверждает DM", "Meta confirms DM")}</small><strong>{tr("Private reply", "Личный ответ", "Private reply")}</strong></span></div><ArrowRight/><div><CheckCircle2/><span><small>{tr("Faqat DM muvaffaqiyatli bo‘lsa", "Только после успешного DM", "Only after DM succeeds")}</small><strong>{tr("Public comment", "Публичный ответ", "Public reply")}</strong></span></div></div>
         <label className="setup-active-toggle"><span><strong>{tr("Saqlangach faollashtirish", "Активировать после сохранения", "Activate after saving")}</strong><small>{tr("O‘chirilsa qoida saqlanadi, lekin commentlarni qayta ishlamaydi.", "Если выключено, правило сохранится, но не будет обрабатывать комментарии.", "When off, the rule is saved but will not process comments.")}</small></span><input type="checkbox" checked={active} onChange={(event) => setActive(event.target.checked)}/></label>
-        <div className="setup-actions"><button type="button" className="btn secondary" onClick={() => go(3)}><ChevronLeft/>{tr("Orqaga", "Назад", "Back")}</button><button className="btn primary large" disabled={submitBusy || !canManage || !ruleName.trim()}>{submitBusy ? <LoaderCircle className="setup-spinner"/> : <Zap/>}{submitBusy ? tr("Saqlanmoqda…", "Сохраняем…", "Saving…") : active ? tr("Automation’ni yoqish", "Включить автоматизацию", "Activate automation") : tr("Qoidani saqlash", "Сохранить правило", "Save rule")} {!submitBusy && <ArrowRight/>}</button></div>
+        {message && <div className="setup-inline-message" role="alert" aria-live="assertive"><AlertCircle/><span>{message}</span><button type="button" aria-label={tr("Yopish", "Закрыть", "Dismiss")} onClick={() => setMessage("")}>×</button></div>}
+        <div className="setup-actions"><button type="button" className="btn secondary" onClick={() => go(3)}><ChevronLeft/>{tr("Orqaga", "Назад", "Back")}</button><button type="submit" className="btn primary large" disabled={submitBusy}>{submitBusy ? <LoaderCircle className="setup-spinner"/> : <Zap/>}{submitBusy ? tr("Saqlanmoqda…", "Сохраняем…", "Saving…") : active ? tr("Automation’ni yoqish", "Включить автоматизацию", "Activate automation") : tr("Qoidani saqlash", "Сохранить правило", "Save rule")} {!submitBusy && <ArrowRight/>}</button></div>
       </form>}
       {!canManage && <div className="setup-notice warning"><ShieldCheck/><span>{tr("Automation yaratish uchun workspace Manager yoki Owner ruxsati kerak.", "Для создания автоматизации нужны права Manager или Owner в workspace.", "Workspace Manager or Owner access is required to create an automation.")}</span></div>}
       <p className="setup-footnote"><ShieldCheck/>{tr("Rasmiy Meta API · Takroriy javoblardan himoya · Har bir amal tarixda saqlanadi", "Официальный Meta API · Защита от дублей · История каждого действия", "Official Meta API · Duplicate reply protection · Every operation is recorded")}</p>
