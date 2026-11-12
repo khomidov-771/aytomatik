@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, Check, CheckCircle2, ChevronLeft, CircleHelp, Clock3, ExternalLink, Film, Images, Instagram, MessageCircle, RefreshCw, Save, Send, ShieldCheck, UserCheck } from "lucide-react";
+import { AlertTriangle, Check, CheckCircle2, ChevronLeft, CircleHelp, Clock3, ExternalLink, Film, FlaskConical, Images, Instagram, MessageCircle, RefreshCw, Save, Send, ShieldCheck, UserCheck } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { FormEvent, useState } from "react";
@@ -15,7 +15,7 @@ import { SelectMenu } from "./select-menu";
 const empty = {
   name: "",
   instagram_account_id: "",
-  match_mode: "contains",
+  match_mode: "keyword_list",
   keywords: "narx",
   exclusions: "",
   media_scope: "selected",
@@ -28,6 +28,17 @@ const empty = {
   unknown_fallback_policy: "skip_dm_neutral_reply",
   is_active: true,
   priority: 100,
+};
+
+type MatchPreview = {
+  original_comment: string;
+  normalized_comment: string;
+  matched: boolean;
+  matched_keyword: string;
+  normalized_keyword: string;
+  selected_automation: string;
+  expected_action: string;
+  sends_message: false;
 };
 
 function automationForm(automation: Automation) {
@@ -62,6 +73,10 @@ export function AutomationForm({ id }: { id?: string }) {
   const [draft, setDraft] = useState<typeof empty | null>(null);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
+  const [previewComment, setPreviewComment] = useState("");
+  const [matchPreview, setMatchPreview] = useState<MatchPreview | null>(null);
+  const [previewError, setPreviewError] = useState("");
+  const [previewing, setPreviewing] = useState(false);
   const copyMode = Boolean(id) && searchParams.has("copy");
 
   const localizedEmpty = {
@@ -85,6 +100,8 @@ export function AutomationForm({ id }: { id?: string }) {
 
   function field(name: string, value: string | boolean | number) {
     setDraft({ ...form, [name]: value });
+    setMatchPreview(null);
+    setPreviewError("");
   }
 
   function selectAccount(accountID: string) {
@@ -100,6 +117,33 @@ export function AutomationForm({ id }: { id?: string }) {
       ? selectedMediaIDs.filter((value) => value !== mediaID)
       : [...selectedMediaIDs, mediaID];
     setDraft({ ...form, media_ids: next.join(", ") });
+  }
+
+  async function runMatchPreview() {
+    setMatchPreview(null);
+    setPreviewError("");
+    if (!previewComment.trim() || keywordList.length === 0) {
+      setPreviewError(tr("Comment namunasi va kamida bitta kalit so‘z kiriting.", "Введите пример комментария и хотя бы одно ключевое слово.", "Enter a sample comment and at least one keyword."));
+      return;
+    }
+    setPreviewing(true);
+    try {
+      const result = await api<MatchPreview>("/automations/match-preview", {
+        method: "POST",
+        ...jsonBody({
+          name: form.name.trim(),
+          text: previewComment,
+          match_mode: form.match_mode,
+          keywords: keywordList,
+          exclusions: form.exclusions.split(",").map((value) => value.trim()).filter(Boolean),
+        }),
+      });
+      setMatchPreview(result);
+    } catch (requestError) {
+      setPreviewError(requestError instanceof ApiError ? requestError.message : tr("Moslikni tekshirib bo‘lmadi.", "Не удалось проверить совпадение.", "Could not check the match."));
+    } finally {
+      setPreviewing(false);
+    }
   }
 
   async function submit(event: FormEvent) {
@@ -168,7 +212,14 @@ export function AutomationForm({ id }: { id?: string }) {
         </section>
         <section className="panel builder-card builder-replies-card">
           <div className="builder-card-heading"><span className="builder-step-number">02</span><div><h2>{tr("Javoblarni sozlang", "Настройте ответы", "Set up your replies")}</h2><p>{tr("Kalit so‘zga mos comment kelganda yuboriladigan matnlar", "Тексты для комментария с подходящим ключевым словом", "Replies sent when a comment matches your keyword")}</p></div></div>
+          <label className="builder-name-field"><span>{tr("Qoida nomi", "Название правила", "Automation name")}</span><input value={form.name} onChange={(event) => field("name", event.target.value)} maxLength={120} placeholder={tr("Masalan: Reels — narx so‘rovlari", "Например: Reels — вопросы о цене", "For example: Reels — price questions")}/></label>
           <label className="builder-keyword-field"><span>{tr("Kalit so‘z", "Ключевое слово", "Keyword")}</span><input value={form.keywords} onChange={(event) => field("keywords", event.target.value)} required placeholder={tr("Masalan: narx, katalog", "Например: цена, каталог", "For example: price, catalog")}/><small>{tr("Bir nechta so‘zni vergul bilan ajrating.", "Разделяйте несколько слов запятыми.", "Separate multiple keywords with commas.")}</small></label>
+          <section className="builder-match-preview" aria-live="polite">
+            <div className="builder-match-preview-heading"><span><FlaskConical/><strong>{tr("Qoidani tekshirish", "Проверить правило", "Try this rule")}</strong></span><small>{tr("Haqiqiy backend moslik qoidasi ishlatiladi. Xabar yuborilmaydi.", "Используется реальная логика сопоставления backend. Сообщения не отправляются.", "Uses the backend matching logic. No message is sent.")}</small></div>
+            <div className="builder-match-preview-controls"><textarea value={previewComment} onChange={(event) => { setPreviewComment(event.target.value); setMatchPreview(null); setPreviewError(""); }} maxLength={1000} rows={2} placeholder={tr("Sinov commentini yozing — masalan: Narxi qancha?", "Введите пример комментария — например: Сколько стоит?", "Enter a sample comment — for example: How much does it cost?")}/><button type="button" className="btn secondary" onClick={() => void runMatchPreview()} disabled={previewing}><FlaskConical/>{previewing ? tr("Tekshirilmoqda...", "Проверяем...", "Checking...") : tr("Tekshirish", "Проверить", "Check match")}</button></div>
+            {previewError && <p className="builder-preview-error" role="alert">{previewError}</p>}
+            {matchPreview && <div className={matchPreview.matched ? "builder-preview-result matched" : "builder-preview-result unmatched"} role="status"><strong>{matchPreview.matched ? tr("Kalit so‘z mos keldi", "Ключевое слово найдено", "Keyword matched") : tr("Mos kalit so‘z topilmadi", "Подходящее ключевое слово не найдено", "No keyword matched")}</strong>{matchPreview.matched && <span>{tr("Topilgan kalit so‘z", "Совпавшее слово", "Matched keyword")}: <b>{matchPreview.matched_keyword}</b></span>}<small>{tr("Normallashtirilgan comment", "Нормализованный комментарий", "Normalized comment")}: {matchPreview.normalized_comment || "—"}</small><small>{tr("Sinov rejimi: hech qanday Direct yoki comment yuborilmadi.", "Проверка: Direct и комментарий не отправлялись.", "Preview only: no Direct or public comment was sent.")}</small></div>}
+          </section>
           <div className="builder-message-grid"><label><span>{tr("Direct xabari", "Сообщение в Direct", "Direct message")} <small>{form.private_reply_text.length}/1000</small></span><textarea value={form.private_reply_text} onChange={(event) => field("private_reply_text", event.target.value)} maxLength={1000} rows={5} required placeholder={tr("Mijozga yuboriladigan shaxsiy xabar...", "Личное сообщение клиенту...", "Private message sent to the customer...")}/><small>{tr("Shaxsiy javob comment yozgan odamga yuboriladi.", "Личный ответ отправляется автору комментария.", "This private reply goes to the commenter.")}</small></label><label><span>{tr("Comment ostidagi javob", "Ответ под комментарием", "Public comment reply")} <small>{form.public_success_reply_text.length}/1000</small></span><textarea value={form.public_success_reply_text} onChange={(event) => field("public_success_reply_text", event.target.value)} maxLength={1000} rows={5} required placeholder={tr("Masalan: Direct xabaringizga yubordik! 📩", "Например: Отправили вам в Direct! 📩", "For example: Sent you a Direct message! 📩")}/><small>{tr("Faqat Direct yuborilishi tasdiqlangach chiqadi.", "Публикуется только после подтверждения отправки Direct.", "Posted only after Meta confirms the Direct message.")}</small></label></div>
         </section>
         <details className="panel builder-advanced"><summary><span><strong>{tr("Qo‘shimcha sozlamalar", "Дополнительные настройки", "Additional settings")}</strong><small>{tr("Faqat kerak bo‘lsa o‘zgartiring", "Изменяйте при необходимости", "Change only if needed")}</small></span><span className="builder-advanced-chevron">⌄</span></summary><div className="builder-advanced-content">
@@ -192,3 +243,4 @@ function ExecutionHistory({ data, loading, error, reload }: { data?: AutomationE
   const dateLocale = locale === "ru" ? "ru-RU" : locale === "en" ? "en-US" : "uz-UZ";
   return <section className="panel execution-history"><div className="panel-header"><div><h2><Clock3/> {tr("Bajarilish tarixi", "История выполнения", "Execution history")}</h2><p>{tr("Har bir operation alohida saqlanadi", "Каждая операция сохраняется отдельно", "Every operation is stored separately")}</p></div></div><div className="execution-list">{data.map((execution) => <article className="execution-row" key={execution.id}><div className="execution-heading"><div><strong>@{execution.username || "instagram-user"}</strong><span>{execution.comment_text || execution.comment_id}</span></div><StatusPill status={execution.status}/></div><div className="execution-meta"><span><UserCheck/> Follow: {execution.follow_status}</span><span><Clock3/> {new Date(execution.received_at).toLocaleString(dateLocale)}</span></div>{execution.error_message && <div className="form-alert error"><AlertTriangle/>{execution.error_code}: {execution.error_message}</div>}<div className="action-ledger">{execution.actions.map((action) => <div key={action.action_type}><span>{action.action_type === "follow_check" ? <CircleHelp/> : action.action_type === "private_reply" ? <Send/> : <MessageCircle/>}{action.action_type.replaceAll("_", " ")}</span><StatusPill status={action.status}/><small>{action.outcome || action.error_code || "—"}{action.attempt_count > 1 ? tr(` · ${action.attempt_count} urinish`, ` · ${action.attempt_count} попытки`, ` · ${action.attempt_count} attempts`) : ""}</small></div>)}</div></article>)}</div></section>;
 }
+

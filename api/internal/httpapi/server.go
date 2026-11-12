@@ -67,6 +67,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("DELETE /api/v1/instagram/accounts/{id}", s.auth(true, "manager", s.instagramDisconnect))
 	mux.HandleFunc("GET /api/v1/automations", s.auth(false, "customer", s.automations))
 	mux.HandleFunc("POST /api/v1/automations", s.auth(true, "manager", s.createAutomation))
+	mux.HandleFunc("POST /api/v1/automations/match-preview", s.auth(true, "manager", s.previewAutomationMatch))
 	mux.HandleFunc("GET /api/v1/automations/{id}", s.auth(false, "customer", s.getAutomation))
 	mux.HandleFunc("PATCH /api/v1/automations/{id}", s.auth(true, "manager", s.updateAutomation))
 	mux.HandleFunc("DELETE /api/v1/automations/{id}", s.auth(true, "manager", s.deleteAutomation))
@@ -304,3 +305,4 @@ func cleanError(err error) string {
 	}
 	return value
 }
+

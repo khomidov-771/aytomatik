@@ -1,8 +1,9 @@
 package rules
 
 import (
-	"github.com/ids-automate/ids-automate/api/internal/domain"
 	"testing"
+
+	"github.com/ids-automate/ids-automate/api/internal/domain"
 )
 
 func TestMatchesNormalizesAndExcludes(t *testing.T) {
@@ -12,6 +13,44 @@ func TestMatchesNormalizesAndExcludes(t *testing.T) {
 	}
 	if Matches(rule, domain.CommentEvent{Text: "Bepul narx bormi?"}) {
 		t.Fatal("exclusion did not win")
+	}
+}
+
+func TestUzbekLatinCyrillicWholeWordMatches(t *testing.T) {
+	rule := domain.AutomationRule{TriggerType: "comment_created", MatchMode: "keyword_list", Keywords: []string{"olov"}, MediaScope: "all", IsActive: true}
+	for _, comment := range []string{"olov", "OLOV", "Olov", "oLoV", "Олов", "олов", "ОЛОВ", "Menga olov kerak", "Олов bormi?", "OLОV bormi?"} {
+		t.Run(comment, func(t *testing.T) {
+			if !Matches(rule, domain.CommentEvent{Text: comment}) {
+				t.Fatalf("expected %q to match", comment)
+			}
+		})
+	}
+}
+
+func TestWholeWordModeSupportsUzbekDigraphsAndPunctuation(t *testing.T) {
+	rule := domain.AutomationRule{TriggerType: "comment_created", MatchMode: "keyword_list", Keywords: []string{"g‘isht", "ko‘ylak", "sharf", "chim"}, MediaScope: "all", IsActive: true}
+	for keyword, comment := range map[string]string{"g‘isht": "Ғишт bormi?", "ko‘ylak": "Кўйлак kerak", "sharf": "Шарф", "chim": "Chim bor"} {
+		if !Matches(rule, domain.CommentEvent{Text: comment}) {
+			t.Errorf("expected %q (%q) to match", comment, keyword)
+		}
+	}
+	if Matches(rule, domain.CommentEvent{Text: "g‘ishtli"}) {
+		t.Fatal("whole-word mode matched a larger word")
+	}
+}
+
+func TestContainsModeCanMatchPartOfWord(t *testing.T) {
+	rule := domain.AutomationRule{TriggerType: "comment_created", MatchMode: "contains", Keywords: []string{"olov"}, MediaScope: "all", IsActive: true}
+	if !Matches(rule, domain.CommentEvent{Text: "olovli"}) {
+		t.Fatal("contains mode should allow partial-word matches")
+	}
+}
+
+func TestMostSpecificKeywordIsReturned(t *testing.T) {
+	rule := domain.AutomationRule{TriggerType: "comment_created", MatchMode: "keyword_list", Keywords: []string{"narx", "narx qancha"}, MediaScope: "all", IsActive: true}
+	matched, ok := MatchKeyword(rule, domain.CommentEvent{Text: "Narx qancha?"})
+	if !ok || matched != "narx qancha" {
+		t.Fatalf("expected most specific keyword, got %q, matched=%v", matched, ok)
 	}
 }
 
@@ -30,3 +69,4 @@ func TestExactSelectedMediaAndWordMode(t *testing.T) {
 		t.Fatal("word mode matched partial word")
 	}
 }
+

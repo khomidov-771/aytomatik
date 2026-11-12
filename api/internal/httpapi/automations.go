@@ -3,6 +3,7 @@ package httpapi
 import (
 	"net/http"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/ids-automate/ids-automate/api/internal/domain"
 	"github.com/ids-automate/ids-automate/api/internal/rules"
@@ -152,6 +153,46 @@ func (s *Server) deleteAutomation(w http.ResponseWriter, r *http.Request, p doma
 	}
 	w.WriteHeader(http.StatusNoContent)
 }
+
+func (s *Server) previewAutomationMatch(w http.ResponseWriter, r *http.Request, _ domain.Principal) {
+	var input struct {
+		Name       string   `json:"name"`
+		Text       string   `json:"text"`
+		MatchMode  string   `json:"match_mode"`
+		Keywords   []string `json:"keywords"`
+		Exclusions []string `json:"exclusions"`
+	}
+	if decode(r, &input) != nil {
+		fail(w, http.StatusBadRequest, "invalid_json", "Sinov matni formati noto‘g‘ri")
+		return
+	}
+	if input.MatchMode != "keyword_list" && input.MatchMode != "contains" && input.MatchMode != "exact" {
+		fail(w, http.StatusUnprocessableEntity, "validation_error", "Moslik turi noto‘g‘ri")
+		return
+	}
+	if utf8.RuneCountInString(input.Text) > 1000 || len(input.Keywords) == 0 || len(input.Keywords) > 20 {
+		fail(w, http.StatusUnprocessableEntity, "validation_error", "Comment 1000 belgidan, kalit so‘zlar esa 20 tadan oshmasin")
+		return
+	}
+	rule := domain.AutomationRule{TriggerType: "comment_created", MatchMode: input.MatchMode, Keywords: input.Keywords, Exclusions: input.Exclusions, MediaScope: "all", IsActive: true}
+	keyword, matched := rules.MatchKeyword(rule, domain.CommentEvent{Text: input.Text, MediaID: "preview-only"})
+	expectedAction := "none"
+	if matched {
+		expectedAction = "private_reply_then_public_reply"
+	}
+	respond(w, http.StatusOK, map[string]any{
+		"original_comment":    input.Text,
+		"normalized_comment":  rules.Normalize(input.Text),
+		"matched":             matched,
+		"matched_keyword":     keyword,
+		"normalized_keyword":  rules.Normalize(keyword),
+		"selected_automation": strings.TrimSpace(input.Name),
+		"expected_action":     expectedAction,
+		"sends_message":       false,
+	})
+}
+
 func (s *Server) previewMatch(rule domain.AutomationRule, text string) bool {
 	return rules.Matches(rule, domain.CommentEvent{Text: text, MediaID: "preview"})
 }
+

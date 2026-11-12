@@ -183,6 +183,15 @@ Billing va mock-event endpointlari mavjud emas.
 - Private reply comment ID orqali rasmiy private-reply endpointga yuboriladi.
 - Public reply comment `/{comment-id}/replies` orqali yuboriladi.
 
+## Automation keyword preview
+
+- `POST /api/v1/automations/match-preview` manager+ session va CSRF token talab qiladi; workspace auth middleware orqali tasdiqlanadi.
+- Request: `name`, `text`, `match_mode`, `keywords`, `exclusions`. Ruxsat etilgan match mode qiymatlari `keyword_list`, `contains`, `exact`.
+- Handler vaqtinchalik in-memory rule tuzib, worker ishlatadigan `rules.MatchKeyword` va `rules.Normalize` funksiyalarini chaqiradi. Database, provider yoki Meta API side-effecti yo‘q.
+- Response original/normalised comment, moslik, topilgan keyword va kutiladigan action nomini qaytaradi. `sends_message` doim `false`.
+- `keyword_list` whole-word/whole-phrase chegaralarini qo‘llaydi. Unicode NFKC, case-fold, apostrof variantlari va Uzbek Cyrillic→Latin transliteration ishlatiladi; saqlangan original matn o‘zgarmaydi.
+- Worker barcha active mos qoidalarni solishtirib, eng uzun normallashtirilgan keyword’li qoidani oladi. Tenglikda `ActiveRules` query tartibi ustuvorlikni belgilaydi.
+
 ## Xavfsizlik chegaralari
 
 - Instagram OAuth access tokenlari AES-256-GCM ciphertext sifatida saqlanadi. Google login access tokeni faqat ID tokenni verifikatsiya qilish oqimida ishlatiladi va persistence qilinmaydi.
@@ -192,3 +201,4 @@ Billing va mock-event endpointlari mavjud emas.
 - Strict JSON decoder 1 MiB; webhook body 2 MiB limit.
 - CORS allowlist, security headers, trusted proxy CIDR va auth rate limit bor.
 - Secret/raw token yoki to‘liq sensitive provider payload log qilinmaydi.
+

@@ -236,7 +236,16 @@ docker-compose.prod.yml production stack
 - [AI_HANDOFF.md](docs/AI_HANDOFF.md)
 - [META_SETUP_CHECKLIST.md](docs/META_SETUP_CHECKLIST.md)
 
+## 2026-11-13 UI va keyword matching yangilanishi
+
+- Product UI yagona binafsha rang tizimiga o‘tkazildi: dark navy workspace navigatsiyasi, light/dark tokenlar, sokin kartalar, hover/focus holatlari, responsive landing sahifasi va `prefers-reduced-motion` qo‘llovi.
+- Automation builder’da qoida nomi va backend’dagi aynan o‘sha matcherga murojaat qiladigan sinov maydoni bor. Sinov endpointi hech qanday Direct yoki public comment yubormaydi.
+- Yangi qoida default holatda butun so‘z/ibora (`keyword_list`) bo‘yicha ishlaydi. Uzbek lotin/kirill va apostrof variantlari bir xil shaklga normallashtiriladi; `contains` ataylab tanlansa qisman so‘z mosligi saqlanadi.
+- Bir nechta qoida mos kelsa eng uzun mos kalit so‘zli qoida tanlanadi; tenglikda `ActiveRules` qaytargan tartib saqlanadi.
+- Bu kod holati real Meta acceptance degani emas. Ushbu topshiriqda testlar ataylab ishga tushirilmaydi; yakuniy build/deploy dalili status hujjatiga yoziladi.
+
 ### 2026-11-12 OAuth xato tekshiruvi
 
 OAuth callback diagnostikasi `d5c1678` release’dan production API va web servislariga chiqarildi. Health, OAuth status va muhim sahifalar HTTP 200 qaytardi; PostgreSQL konteyneri qayta yaratilmagan va ma’lumotlar saqlangan. Same-origin OAuth start preflight rozilik belgilanmaganda kutilgan HTTP 422 `terms_required` qaytardi, shuning uchun Meta OAuth oynasi hali ishga tushirilmagan. Real Meta consent, Instagram account discovery, webhook va DM **live tasdiqlanmagan**: foydalanuvchi `/setup`da shartlarni o‘zi qabul qilib, keyin rasmiy Meta oynasidagi ulanishni yakunlab callback’ga qaytishi kerak. Instagram parolini agentga yubormang. Batafsil: [PROJECT_STATUS.md](docs/PROJECT_STATUS.md), [NEXT_STEPS.md](docs/NEXT_STEPS.md).
+
 

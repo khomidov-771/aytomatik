@@ -160,10 +160,16 @@ func (w *Worker) process(ctx context.Context, queued store.QueuedCommentEvent) {
 		return
 	}
 	var match *domain.AutomationRule
+	bestSpecificity := -1
 	for i := range items {
-		if rules.Matches(items[i], job.Event) {
+		keyword, matched := rules.MatchKeyword(items[i], job.Event)
+		if !matched {
+			continue
+		}
+		specificity := len([]rune(rules.Normalize(keyword)))
+		if match == nil || specificity > bestSpecificity {
 			match = &items[i]
-			break
+			bestSpecificity = specificity
 		}
 	}
 	if match == nil {
@@ -390,3 +396,4 @@ func (w *Worker) retryOrFail(ctx context.Context, queued store.QueuedCommentEven
 		slog.Error("worker could not schedule retry", "event_id", queued.EventID, "error", err)
 	}
 }
+
