@@ -1,6 +1,6 @@
 # Keyingi qadamlar
 
-2026-11-12 foydalanuvchi Meta roziligini tasdiqlagach, production’da ikki OAuth callback token almashinuvidan keyin `assigned_instagram_accounts`dan bo‘sh ro‘yxat oldi. Hech qanday Instagram account/token saqlanmadi. Local patch minimal `id,username` account query, aniq `asset_discovery_empty` log kodi va UZ/RU/EN yo‘riqlarini qo‘shdi; code-level checks o‘tdi va `0f22098` GitHub `main`ga push qilindi. Production deploy SSH public-key urinishida `Permission denied (publickey,password)` bilan to‘xtadi; serverga yozuv qilinmadi. Keyingi qadam — SSH ruxsati tiklangach rollback saqlab API/web image’larini deploy qilish; so‘ng foydalanuvchi Meta’dagi Business/Creator turi, portfolio access va config asset tanlovini tekshirib qayta consent qilishi kerak.
+2026-11-12 yangilanishi: foydalanuvchi Meta Unified Login’da Business/Creator akkauntni tanlab ruxsat berdi; `@khomidov_771` production’da ulandi. Media API’dagi `+0000` timestamp parse xatosi `009b920`da tuzatildi, GitHub `main`ga push qilindi va faqat API image deploy qilindi. Production wizard’da real akkauntdan 2 ta post chiqdi. OAuth/account discovery va media listing o‘tdi; signed webhook, comment execution, follow natijasi, DM va public reply hali live tasdiqlanmagan.
 
 Joriy frontendda UZ/RU/EN va light/dark tema tayyor. Yangi ekran qo‘shilganda matnni `usePreferences().tr(uz, ru, en)` orqali uchala tilda berish va ikkala temada ko‘rish talab qilinadi.
 
@@ -27,33 +27,24 @@ Kod/konfiguratsiya fayllari:
 
 Local Google backend testi uchun Google Cloud’da `http://localhost:8080/api/v1/auth/google/callback` callback URI va `GOOGLE_REDIRECT_URL` kerak. Haqiqiy Google credential bo‘lmasa OAuth’ni live ishlaydi deb ko‘rsatmang.
 
-## P0 — Asset discovery xatosini tuzatib, onboarding’ni live davom ettirish
+## Bajarildi — OAuth ulanishi va real media picker
 
-OAuth-only onboarding va asset-discovery diagnostika patch’ining code-level quality gate’lari 2026-11-12 lokalda PASS; `0f22098` GitHub `main`ga push qilindi. SSH key ruxsati bo‘lmagani uchun production deployni hali bajarmang; avval xavfsiz SSH access tiklansin, keyin release’ni detached build context’dan chiqarib deploy qiling. Server `/opt/ids-automate` checkout’i, `.env.production`, PostgreSQL, volumes, Nginx va operator fayllarini overwrite/reset qilmang.
+- Foydalanuvchi rasmiy Meta consent’ni o‘zi tasdiqladi; production UI `@khomidov_771` akkauntini `Meta · Unified Login` sifatida ulangan deb ko‘rsatdi.
+- Media parse xatosi `009b920`da tuzatildi. `go test ./...`, `go vet ./...`, `go build ./cmd/server ./cmd/migrate` PASS.
+- API image alohida detached worktree’dan build qilindi va production’da faqat API servisi bilan almashtirildi. Rollback image saqlandi; server root checkout’dagi operator edits, `.env.production`, PostgreSQL, web va Nginx o‘zgartirilmadi.
+- Production `/healthz` va Instagram OAuth status HTTP 200; API/web/PostgreSQL running. Browser wizard’da Meta API’dan 2 ta real post ko‘rindi.
+- OAuth/account discovery va token-backed media list tasdiqlandi; webhook subscription/test delivery, follow, DM yoki public reply live tasdiqlangani yo‘q.
 
-Fayllar: `api/internal/config/config.go`, `api/internal/httpapi/instagram.go`, `api/internal/httpapi/server.go`, `api/internal/store/store.go`, `api/internal/migrations/007_instagram_login.sql`, `web/components/setup-wizard.tsx`, `web/app/page.tsx`, public auth pages.
+## P0 — Comment-to-DM live acceptance
 
-Tekshiruv: `go test ./...`, `go vet ./...`, `go build ./cmd/server ./cmd/migrate`, frontend lint/test/build, PostgreSQL migration/identity/session test. Auth callback state replay, cross-browser cookie mismatch, terms missing, unique account claim, existing account mapping va cross-tenant negative testlar bilan qoplansin. Hozir bularning hech biri yangi patch’da bajarilmagan.
+OAuth/account discovery va real media list 2026-11-12 production’da PASS. Quyidagi oqimlar hali live sinovdan o‘tmagan; `enabled=true` faqat sozlama holati, DM/comment acceptance emas. Unified Login’da follow check hozircha `UNKNOWN` bo‘lib qoladi. Token/loglarni chiqarmang.
 
-Shundan keyin `/setup` oqimini real OAuth eligible account bilan live tekshiring: callback’dan so‘ng session cookie saqlanishi, account ID bilan video picker ochilishi va `POST /automations` ishlashini kuzating.
+Qolgan kerakli shartlar:
 
-- Hozirgi frontend test/build o‘tdi; bu real account, post yoki Meta delivery dalili emas.
-- Unified Login account discovery `account_type` qaytarmasa, subtype `UNKNOWN` deb ko‘rsatiladi; Business/Creator qiymatini taxmin qilmang.
-- Follow status Unified Login’da `UNKNOWN`; explicit fallback’ni tekshiring.
-- Automation POST response ID, active state, selected media IDs va server-side execution history bilan verifikatsiya qiling.
-
-## P0 — Live Meta acceptance test
-
-Joriy production App ID/Secret juftligi Meta token exchange bosqichigacha yetgan, ammo ikki marta `assigned_instagram_accounts` bo‘sh qaytgan. Public status `enabled=true` faqat sozlamalarni anglatadi. Foydalanuvchi Meta Business’da Professional Business/Creator hisobini, tanlangan Business Portfolio access’ini va Unified Login config’dagi Instagram asset selection/permissions’ni tekshirib, keyin yangi consent qilishi kerak. Token/loglarni chiqarmang.
-
-Kerak:
-
-- Meta App ID/App Secret;
-- public HTTPS web/API URL;
-- webhook verify token/App Secret;
-- App role yoki tasdiqlangan test user;
-- Instagram Professional Business/Creator account;
-- bir test post va ikki test commenter (follower/not follower imkon bo‘lsa).
+- Ulangan akkaunt uchun signed real comment webhook Meta’dan saytga yetib kelishi.
+- Ajratilgan test post va testga ruxsatli ikkinchi Instagram akkaunt.
+- Foydalanuvchi tasdiqlagan aniq test keyword hamda private/public javob matnlari.
+- Real comment va DM yuborishdan oldin qabul qiluvchi, post va matn bo‘yicha foydalanuvchining action-time roziligi.
 
 O‘zgartiriladigan fayllar faqat real response incompatibility aniqlansa:
 
@@ -65,18 +56,15 @@ O‘zgartiriladigan fayllar faqat real response incompatibility aniqlansa:
 
 Tekshiruv:
 
-1. OAuth boshidan oxirigacha, state reuse rejection.
-2. Token exchange, scopes, expiry va encrypted database qiymati.
-3. Ulangan akkaunt uchun media picker real post/Reels’larni thumbnail/caption bilan olishi va tanlangan media ID rule’da saqlanishi.
-4. `subscribed_apps` yoki Instagram Login webhook subscription holati.
-5. Signed real comment webhook.
-6. FOLLOWER, NOT_FOLLOWER va permission/context yetishmagan UNKNOWN.
-7. Private reply provider ID va Instagram delivery ko‘rinishi.
-8. Private successdan keyingi public reply.
-9. Private failureda success public reply yo‘qligi.
-10. Bir comment qayta jo‘natilganda dublikat yo‘qligi.
+1. Meta webhook subscription va real signed test comment delivery.
+2. Tasdiqlangan post/unikal keyword comment’ida webhook, event, rule va action history.
+3. Unified Login follow check `UNKNOWN` fallback; `FOLLOWER` yoki `NOT_FOLLOWER` natijalarini asossiz ko‘rsatmaslik.
+4. Foydalanuvchi tasdiqlagach official private-reply delivery, provider message ID va execution action status.
+5. Public success reply faqat Meta private reply muvaffaqiyatini tasdiqlagach yuborilishini tekshirish.
+6. Meta test akkauntida private-reply rejection/permission scenario; xatoda public “DM yuborildi” chiqmasin.
+7. Xuddi shu comment qayta yetkazilganda duplicate DM va public reply bo‘lmasin.
 
-Acceptance: har bir holat database execution/action row va Meta response ID bilan dalillanadi. Shundan oldin live integratsiya “tayyor” deb belgilanmaydi.
+Acceptance: har bir holat database execution/action row va Meta response ID bilan dalillanadi. Shu testlar va foydalanuvchining action-time roziligisiz live integratsiya “tayyor” deb belgilanmaydi.
 
 ## P0 — Login path bo‘yicha follow capability qarori
 

@@ -18,6 +18,9 @@ Automation yaratishda foydalanuvchi Media ID yozmaydi: real OAuth orqali ulangan
 
 ## Holat
 
+- **2026-11-12 yangilanishi:** Meta Unified Login orqali `@khomidov_771` production saytga real ulandi. Postlar API’si dastlab HTTP 200 javobidagi Meta timestamp offset formatini o‘qiy olmagan; `+0000` va RFC3339 formatlarini qabul qiladigan tuzatish `009b920` commitida GitHub’ga push qilinib production API’ga chiqarildi. Sahifa yangilangach, real akkauntdan 2 ta post ko‘rsatildi.
+- Production `/healthz` HTTP 200 va Instagram OAuth status `api_ready=true`, `enabled=true` qaytardi. Faqat API konteyneri yangilandi; PostgreSQL, web, Nginx, production environment va production checkout o‘z joyida qoldi. Oldingi API image rollback uchun saqlandi.
+- Bu natija real OAuth/account discovery va media listni tasdiqlaydi. Signed webhook delivery, follower status, real comment automation, DM send va undan keyingi public reply hali **live test qilinmagan**.
 - Backend, frontend va PostgreSQL integratsion testlar lokal muhitda o‘tgan.
 - Meta OAuth, webhook, private/public reply va follow requestlari controlled HTTP testlarda tekshirilgan.
 - Professional light/dark UI va uch tilli asosiy product oqimlari frontend lint, unit test va production builddan o‘tgan.
@@ -25,8 +28,8 @@ Automation yaratishda foydalanuvchi Media ID yozmaydi: real OAuth orqali ulangan
 - Google sign-in tugmasi public login/register sahifalaridan olib tashlangan. Server-side Google OAuth backend kodi saqlanadi, lekin joriy public onboarding oqimiga ulanmagan.
 - Google OAuth server-side authorization-code/OIDC, PKCE, signed ID-token va Postgres account linking oqimi kodga qo‘shilgan; disposable PostgreSQL va controlled OIDC server bilan tekshirilgan.
 - Google OAuth kodi GitHub `main` va production serverga `8c15cde` commitida deploy qilindi. Production `GET /api/v1/auth/google/status` HTTP 200 bilan `enabled=false`, credentialsiz start esa HTTP 503 qaytardi. Google Cloud Client ID/Secret production serverga qo‘yilib, real Google browser flow qabul qilinmaguncha real Google sign-in **ishlamaydi**.
-- 2026-11-12 real Meta roziligidan keyingi ikki callback’da token almashinuvidan so‘ng account-discovery endpoint’i bo‘sh ro‘yxat qaytardi. Hech qanday account yoki token saqlanmadi; webhook, media, follow, DM va public reply’ga o‘tilmadi. Professional akkaunt va Business Portfolio/Meta configuration asset ruxsatlarini tekshirish kerak.
-- Empty-asset diagnostics va foydalanuvchi yo‘riqlari `0f22098` commitida GitHub `main`ga push qilindi. Production deploy SSH public-key authentication mavjud bo‘lmagani uchun bajarilmadi; public saytga yangi UI hali chiqarilgan deb hisoblamang.
+- Avvalgi Meta consent urinishlari `assigned_instagram_accounts`dan bo‘sh ro‘yxat olgan. Keyingi urinishda foydalanuvchi Professional akkauntni tanlagach ulanish muvaffaqiyatli tugadi; account va token keyingi media chaqiruvida ishladi.
+- Empty-asset diagnostics `0f22098`da, Meta media timestamp tuzatishi `009b920`da GitHub `main`ga push qilindi. Production API `009b920` manbasidan alohida release worktree orqali build qilindi; operator checkout’iga `pull/reset/clean` ishlatilmadi.
 - Meta bergan Unified Login Configuration ID `.env.example`da public konfiguratsiya sifatida ko‘rsatilgan. Secretlar repositoryga yozilmaydi.
 
 Avvalgi tekshiruvda boshqa Meta App Secret `OAuthException` code `190` bilan rad etilgan edi. Joriy serverdagi juftlik credential probe’dan o‘tdi. Bu foydalanuvchi roziligi bilan OAuth, asset sharing yoki live Comment-to-DM muvaffaqiyatini isbotlamaydi.

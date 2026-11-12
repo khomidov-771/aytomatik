@@ -283,3 +283,22 @@ Avvalo diff’ni audit qiling va `gofmt`ni tugating; keyin foydalanuvchi ruxsat 
 - Bo‘sh `data`ni “connected” deb saqlamang; Meta login tokenini callback/browserga chiqarmang.
 - “Webhooks/messages/comments ruxsati bor” degan test config inferensiyasini real subscriber testiga teng ko‘rmang.
 
+## 2026-11-12 — Meta OAuth va media API live davomiyligi
+
+- Foydalanuvchi Meta’dagi Unified Login consent’ni o‘zi tasdiqladi va Instagram’ni Business/Creator turiga o‘tkazib, consent oynasida tanladi. Production UI endi `@khomidov_771`, `Meta · Unified Login`, `Ulangan` holatini ko‘rsatdi.
+- OAuth callback muvaffaqiyatli yakunlandi. Keyin `GET /instagram/accounts/{id}/media` Meta’dan HTTP 200 olib, `timestamp` JSON parsing sabab xato qaytardi. Production logdan faqat `meta_api_http_200_code_0` o‘qildi; response body yoki token olinmadi.
+- Root cause: Meta timestamp kompakt `+0000` offset formatida bo‘lishi mumkin. `api/internal/provider/provider.go`dagi `Media.UnmarshalJSON` `+0000`, millisekundli/frac-second timestamp va RFC3339 formatlarini parse qiladi; `null` timestamp e’tibordan chiqmaydi. `provider_test.go` compact offset fixture’ni qamrab oladi.
+- `009b920` commit GitHub `main`ga push qilindi. Local checks: `go test ./...`, `go vet ./...`, `go build ./cmd/server ./cmd/migrate`, `git diff --check` — PASS.
+- Production deploy 2026-11-12: origin/main’dan `/tmp/ids-automate-media-009b920` detached worktree yaratilib, API image alohida build/recreate qilindi. Oldingi image `ids-automate-api:backup-media-009b920` tagida qoldi.
+- `/opt/ids-automate` operator checkout’i (HEAD `8c15cde`), tracked API edits, `.env.production*`, `docker-compose.ids.yml`, web, Nginx va PostgreSQL/volume saqlandi. Schema migration bajarilmadi.
+- Post-deploy: public `/healthz` HTTP 200 (`status=ok`), Instagram OAuth status HTTP 200 (`api_ready=true`, `enabled=true`, `login_mode=unified`); API/web/PostgreSQL containerlar running. Browser’da real ulangan akkaunt media listi 2 ta post bilan render bo‘ldi. Keyingi 10 minut loglarda media sync xatosi chiqmadi.
+- Live tasdiq: Meta OAuth + account discovery + token-backed media list. Live tasdiqlanmagan: webhook delivery, comment event/rule execution, follow status, private reply, public reply va dedupe.
+
+### Davom etish
+
+1. Avvalgi Media timestamp xatosi tuzatilgan va production’da media list ishlaydi; bu ikki qadamni qayta bajarmang.
+2. API, web, PostgreSQL running va health/status’ni xavfsiz tarzda tekshiring. Production root checkout’da local operator editlari va untracked config bor; `pull`, `reset`, `clean`, root `compose build` yoki `.env.production`ni almashtirmang.
+3. Comment-to-DM live acceptance uchun foydalanuvchi tanlagan test post, ikkinchi ruxsatli Instagram commenter, aniq test keyword va javob matnlari kerak. Haqiqiy comment/DM boshqa hisobga ketadigan paytda qabul qiluvchi, post va matnni action-time tasdiqlat; foydalanuvchining avvalgi “real test qiling” ko‘rsatmasi qabul qiluvchini yoki xabarni o‘zingiz uydirishga ruxsat bermaydi.
+4. Unified Login follow verification live tasdiqlanmagan; hozir `UNKNOWN` fallback bilan cheklaning. Meta’dan real field/permission dalili bo‘lmasa follower statusini taxmin qilmang.
+5. Har bir real webhook/action natijasini execution/action row va Meta response ID bilan tasdiqlab, `PROJECT_STATUS.md` va `NEXT_STEPS.md`ni yangilang. Controlled provider testni live Meta deb yozmang.
+

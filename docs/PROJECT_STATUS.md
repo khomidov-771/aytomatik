@@ -2,6 +2,16 @@
 
 Tekshiruv: 2026-11-12. Branch main; audit hujjatlari commit 4218851, Google OAuth kod commit 8c15cde, frontend onboarding redesign commit e90505a. Holat repository kodi, bajarilgan testlar va production endpoint/container tekshiruvlariga asoslangan.
 
+## Eng so‘nggi real Meta dalili — 2026-11-12
+
+- Foydalanuvchi rasmiy Unified Login oynasida Professional Instagram akkauntini tanlab ruxsat berdi. Production UI `@khomidov_771` akkauntini `Meta · Unified Login` va `Ulangan` holatida ko‘rsatdi.
+- OAuth callback’dan keyin account/session yaratildi; ulangan akkaunt uchun production media so‘rovi dastlab HTTP 200 javobini dekodlashda yiqildi. Xavfsiz server logida `meta_api_http_200_code_0` ko‘rindi.
+- Root cause: Meta media `timestamp` qiymati `+0000` timezone offset bilan kelishi mumkin, ammo Go `time.Time` default JSON decoderi bu shaklni qabul qilmaydi. `Media.UnmarshalJSON` Meta kompakt offseti, fractional seconds va RFC3339’ni qabul qiladi; null/missing timestamp media listni buzmaydi.
+- Tuzatish `009b920` commitida GitHub `main`ga push qilindi. Backend `go test ./...`, `go vet ./...`, `go build ./cmd/server ./cmd/migrate` — barchasi PASS.
+- Production’da faqat API image qayta build/recreate qilindi. Oldingi API image rollback uchun saqlandi; PostgreSQL, web, Nginx, `.env.production`, root checkout’dagi operator edits/untracked files va DB schema o‘zgartirilmadi.
+- Deploydan keyin production `/healthz` HTTP 200 (`status=ok`), Instagram status HTTP 200 (`api_ready=true`, `enabled=true`, `login_mode=unified`) va API/web/PostgreSQL containerlar `running` holatida. User browser’da real ulangan akkauntdan 2 ta Meta media post ko‘rindi; oxirgi 10 daqiqada media sync xatosi loglanmadi.
+- **Tasdiqlangan:** real Meta OAuth/account discovery va media list. **Tasdiqlanmagan:** signed webhook event, real comment rule execution, follow check, private reply delivery va DM muvaffaqiyatidan keyingi public reply. Shu sabab mahsulotning asosiy comment-to-DM oqimi hali to‘liq tayyor emas.
+
 ## Umumiy natija
 
 Oldingi 17-gate Meta auditining 70.6% ko‘rsatkichi Google OAuth va yangilangan production kuzatuvini o‘z ichiga olmaydi; shu sabab u joriy tayyorlik foizi sifatida ishlatilmasin. Google oqimi controlled testlarda o‘tdi va yangi kod production’ga deploy qilindi. Production status endpoint `enabled=false` qaytaryapti, chunki Google OAuth client qiymatlari serverda yo‘q. Shu bois hozirgi holat **100% emas**, joriy foiz qayta hisoblanmagan.
@@ -24,8 +34,8 @@ Bu product completion foizi emas. Meta yoki Google’dagi real foydalanuvchi oqi
 | 10 | OAuth/token/webhook request logic | PASS controlled | Provider/security tests; no live Meta |
 | 11 | Comment-to-DM decision matrix | PASS controlled | Worker tests cover disabled/follower/not-follower/UNKNOWN policies |
 | 12 | Action idempotency/history | PASS controlled | PostgreSQL action ledger retry/dedup/history test |
-| 13 | Live Meta OAuth | BLOCKED | Avvalgi production Graph tekshiruvi App Secret’ni code `190` bilan rad etdi; real test account ulanmagan |
-| 14 | Live signed webhook receive | BLOCKED | Public HTTPS Meta subscription yo‘q |
+| 13 | Live Meta OAuth/account discovery | PASS, bitta real account | 2026-11-12 production Unified Login callback muvaffaqiyatli; `@khomidov_771` ulangan |
+| 14 | Live signed webhook receive | NOT TESTED | Unified Login callback subscribed the app successfully; no signed live comment event received yet |
 | 15 | Live follow verification | BLOCKED | Eligible Instagram Login messaging context yo‘q |
 | 16 | Live private reply | BLOCKED | Real comment/access token yo‘q |
 | 17 | Live public reply and ordering | BLOCKED | Real private-reply success event yo‘q |
@@ -35,15 +45,15 @@ Bu product completion foizi emas. Meta yoki Google’dagi real foydalanuvchi oqi
 | Modul | Haqiqiy holat |
 |---|---|
 | Legacy registration/login/email verification/reset backend | Kod saqlangan; public email/parol sahifalari Instagram onboarding’ga redirect qiladi. Ushbu auth/UI o‘zgarishi hozir test qilinmagan |
-| Instagram OAuth public authentication | `/auth/instagram/start` va callback, browser-bound hashed state, workspace identity mapping, HttpOnly session va OAuth-only UI kodi qo‘shildi; hozircha build, migration yoki flow tekshiruvi bajarilmagan |
+| Instagram OAuth public authentication | Production’da Unified Login orqali bitta real Professional account ulandi; callback/session/account discovery ishladi. Keng App Review/canary account holatlari alohida tasdiqlanmagan |
 | Session/CSRF/RBAC/workspace switch | Implemented va controlled testdan o‘tgan |
 | Multi-tenant store | Implemented; cross-tenant negative integration test bor |
 | Instagram account UI | Real OAuth-only; demo account yaratmaydi |
 | Instagram Login adapter | Kod va controlled HTTP test bor; live tekshirilmagan |
-| Unified Login adapter | Auth URL, exchange, assigned asset, subscription controlled test bor; live tekshirilmagan |
-| Token encryption | AES-256-GCM implementation/test bor; real token saqlanmagan |
+| Unified Login adapter | Production OAuth, assigned asset discovery va `subscribed_apps` success ishladi. Signed real webhook event hali olinmagan |
+| Token encryption | AES-256-GCM implementation/controlled test bor; OAuth’dan keyin saqlangan real token bilan media API muvaffaqiyatli ishladi. Token qiymati chiqarilmagan yoki loglanmagan |
 | Webhook verify/parser | HMAC va Meta-shaped payload controlled test bor; live payload tekshirilmagan |
-| Automation builder | Account/keyword/templates/follow/fallback/active fields ishlaydi. Raw Media ID olib tashlangan; real connected account uchun Meta media edge’dan post/Reels preview tanlovi qo‘shilgan. Provider request controlled testdan o‘tgan, live token bilan hali tekshirilmagan |
+| Automation builder/media picker | Account/keyword/templates/follow/fallback/active fields UI/API mavjud. 2026-11-12 production’da `GET /media` real connected account’dan 2 ta post qaytardi; user browser’da cards ko‘rindi |
 | Follow tri-state | Implemented. Unified → UNKNOWN. Instagram Login field/error semantics controlled testda |
 | Private reply | Official endpoint adapter va state machine implemented; live tekshirilmagan |
 | Public comment reply | Private successdan keyingi branch implemented; live tekshirilmagan |
