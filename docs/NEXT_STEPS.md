@@ -1,5 +1,15 @@
 # Keyingi qadamlar
 
+2026-11-12 joriy holat: production Meta app webhook obunasida `comments,messages,messaging_postbacks` rasmiy Graph API orqali yozildi va qayta `GET` bilan tasdiqlandi. PostgreSQL’da real account hozir `disconnected`; faol qoida, webhook event va execution `0`. Oldingi real OAuth/media muvaffaqiyati tarixiy dalil, hozirgi faol ulanish emas.
+
+## P0 — xabar yuborish oqimini qayta tiklash
+
+1. Workspace egasi `/app/accounts`dagi **Qayta ulash** orqali official Meta OAuth’ni qayta yakunlaydi. Instagram paroli, OTP, authorization code yoki tokenni agentga bermaydi. `instagram_accounts.status=connected` va yangi token bilan media ro‘yxati ishlashini faqat metadata orqali tekshiring.
+2. `/setup` yoki automation builder’da kerakli post, aniq keyword, private DM va public reply matnlarini kiritib, qoidani **faol** saqlaydi. Qoidaning account, media scope, keyword va `is_active=true` holatini API/database’dan tasdiqlang. O‘chirilgan ikki qoidaning matnini taxmin qilib tiklamang.
+3. Account darajasidagi `GET /{ig-id}/subscribed_apps` real authorized token bilan `comments` fieldini ko‘rsatishini secretsiz tekshiring. App darajasidagi obuna allaqachon tekshirilgan, ammo bu account va haqiqiy delivery o‘rniga o‘tmaydi.
+4. Ikkinchi ruxsatli test akkaunt yangi keyword comment yozadi. Signed webhook, event, execution, private action va Meta message ID’ni ketma-ket kuzating. Private successdan keyingi public reply’ni alohida tasdiqlang; Meta reject/timeout yoki duplicate holatini sent deb ko‘rsatmang.
+5. Agar event kelmasa, Meta App Review/access mode, account subscription va callback delivery diagnostikasini tekshiring. Agar event kelib DM rad etilsa, faqat sanitized Meta HTTP/numeric error code asosida provider/permission muammosini tuzating.
+
 2026-11-12 yangilanishi: foydalanuvchi Meta Unified Login’da Business/Creator akkauntni tanlab ruxsat berdi; `@khomidov_771` production’da ulandi. Media API’dagi `+0000` timestamp parse xatosi `009b920`da tuzatildi, GitHub `main`ga push qilindi va faqat API image deploy qilindi. Production wizard’da real akkauntdan 2 ta post chiqdi. OAuth/account discovery va media listing o‘tdi; signed webhook, comment execution, follow natijasi, DM va public reply hali live tasdiqlanmagan.
 
 Joriy frontendda UZ/RU/EN va light/dark tema tayyor. Yangi ekran qo‘shilganda matnni `usePreferences().tr(uz, ru, en)` orqali uchala tilda berish va ikkala temada ko‘rish talab qilinadi.

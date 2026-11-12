@@ -2,6 +2,12 @@
 
 Yangilangan: 2026-11-12.
 
+## Joriy to‘siq va 2026-11-12 production tuzatishi
+
+- Oldingi successful Unified Login va media list tarixiy dalil. Hozir `@khomidov_771` account row’i `disconnected`; `automation_rules`, `webhook_events`, `automation_executions`, `automation_execution_actions` har biri `0` qator. Audit 07:38 UTC atrofida ikki rule deletion va account disconnect qayd etgan. Token va o‘chirilgan rule matnlarini uydirib tiklamang.
+- Real Meta Graph API app subscription `GET` dastlab Instagram object’ni `active=true`, callback mos deb qaytardi, ammo `fields` yo‘q edi. `POST /{app-id}/subscriptions` bilan `comments,messages,messaging_postbacks` sozlandi (`HTTP 200`, `success=true`); keyingi `GET` uch field va callback’ni tasdiqladi. Bu production Meta konfiguratsiyasi o‘zgardi; repository kodi, DB va containerlar o‘zgarmadi.
+- Birinchi davom topshirig‘i: foydalanuvchi official OAuth’da account’ni qayta ulasin va exact post/keyword/private/public matnli faol rule yaratsin. Keyin real authorized account subscription va boshqa test hisobdan signed yangi comment delivery’ni tekshiring. Event/action/Meta response ID bo‘lmasa DM ishlaydi deb yozmang. Instagram password/OTP ishlatmang.
+
 ## Birinchi o‘qiladigan fayllar
 
 1. `AGENTS.md`

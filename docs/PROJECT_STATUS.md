@@ -2,6 +2,13 @@
 
 Tekshiruv: 2026-11-12. Branch main; audit hujjatlari commit 4218851, Google OAuth kod commit 8c15cde, frontend onboarding redesign commit e90505a. Holat repository kodi, bajarilgan testlar va production endpoint/container tekshiruvlariga asoslangan.
 
+## Eng so‘nggi production holati — 2026-11-12
+
+- `@khomidov_771` avval real OAuth bilan ulangan va ikki media post olingan, ammo joriy PostgreSQL holati `disconnected`. Audit jurnalida 07:38 UTC atrofida ikki `automation.deleted` va bir `instagram.disconnected` amal qayd etilgan. Hozir `automation_rules`, `webhook_events`, `automation_executions` va `automation_execution_actions` jadvallarida har birida `0` qator bor. Shu holatda private reply adapteri real comment uchun chaqirilmagan.
+- Meta Graph API `GET /{app-id}/subscriptions?fields=object,callback_url,fields,active` dastlab `HTTP 200`, Instagram obunasi `active=true` va production callback mosligini qaytardi, lekin `fields` maydoni yo‘q edi. `POST /{app-id}/subscriptions` bilan `comments,messages,messaging_postbacks` yozildi: `HTTP 200`, `success=true`. Qayta `GET` aynan shu uch field, `active=true` va mos callback’ni qaytardi. Serverda webhook HMAC secret Meta App Secret bilan mosligi faqat boolean sifatida tekshirildi; secret qiymatlari olinmadi.
+- Bu app darajasidagi webhook konfiguratsiya tuzatishi. Account darajasidagi yangi `subscribed_apps`, signed real comment webhook, keyword match, private DM va public reply hali live tekshirilmagan. Akkaunt official Meta OAuth orqali qayta ulanib, faol qoida saqlanib, boshqa test hisobdan yangi mos comment kelmaguncha productning asosiy oqimi tayyor deyilmaydi.
+- Joriy tekshiruv faqat production metadata va Meta Graph API bilan bajarildi; kod, database, image va `.env.production` o‘zgartirilmadi, DM yuborilmadi. Oldingi lokal build/test natijalari yangi live acceptance dalili emas.
+
 ## Eng so‘nggi real Meta dalili — 2026-11-12
 
 - Foydalanuvchi rasmiy Unified Login oynasida Professional Instagram akkauntini tanlab ruxsat berdi. Production UI `@khomidov_771` akkauntini `Meta · Unified Login` va `Ulangan` holatida ko‘rsatdi.
@@ -35,9 +42,9 @@ Bu product completion foizi emas. Meta yoki Google’dagi real foydalanuvchi oqi
 | 11 | Comment-to-DM decision matrix | PASS controlled | Worker tests cover disabled/follower/not-follower/UNKNOWN policies |
 | 12 | Action idempotency/history | PASS controlled | PostgreSQL action ledger retry/dedup/history test |
 | 13 | Live Meta OAuth/account discovery | PASS, bitta real account | 2026-11-12 production Unified Login callback muvaffaqiyatli; `@khomidov_771` ulangan |
-| 14 | Live signed webhook receive | NOT TESTED | Unified Login callback subscribed the app successfully; no signed live comment event received yet |
+| 14 | Live signed webhook receive | NOT TESTED | Meta app subscription now lists `comments,messages,messaging_postbacks`; no signed live comment event received yet |
 | 15 | Live follow verification | BLOCKED | Eligible Instagram Login messaging context yo‘q |
-| 16 | Live private reply | BLOCKED | Real comment/access token yo‘q |
+| 16 | Live private reply | BLOCKED | Account disconnected, active rule va real comment yo‘q |
 | 17 | Live public reply and ordering | BLOCKED | Real private-reply success event yo‘q |
 
 ## Modul holati

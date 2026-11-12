@@ -17,7 +17,7 @@ Configuration ID public OAuth metadata. App Secret, webhook secret va access tok
 - [ ] Exact redirect: `https://<domain>/api/v1/instagram/callback`.
 - [ ] Exact webhook: `https://<domain>/api/v1/webhooks/instagram`.
 - [ ] Verify token server environment bilan bir xil.
-- [ ] `comments`, `messages` va amaldagi kerakli webhook fieldlari subscribed.
+- [x] App darajasida `comments`, `messages`, `messaging_postbacks` fieldlari Graph API `GET /{app-id}/subscriptions`da qayta tasdiqlandi (2026-11-12). Account darajasidagi obuna alohida tekshiriladi.
 - [ ] Exactly one test Instagram Professional account asset ulashga berilgan.
 - [ ] Comment management va messaging permissions current Meta dashboardda tasdiqlangan.
 - [ ] Test users/business va App Review/Advanced Access tayyor.
@@ -67,6 +67,8 @@ Commentning o‘zi follow/profile permissionni kafolatlamaydi. Scraping/private 
 - [ ] Rate limit, revoked token va permission error operatorga aniq chiqadi.
 
 ## Joriy holat
+
+2026-11-12 so‘nggi audit: app-level Instagram webhook subscription `active=true`, callback production URL bilan mos va `comments,messages,messaging_postbacks` fieldlari Meta Graph API `GET` javobida aniq ko‘rindi. Bunga qadar shu `GET` `fields`ni qaytarmagan; rasmiy `POST /{app-id}/subscriptions` `success=true` bilan fieldlarni yozdi. Account hozir `disconnected`, qoida/event/actionlar `0`; account-level subscription va real delivery hali tekshirilmagan. Quyidagi eski audit matni o‘sha vaqtdagi tarixiy holatdir.
 
 2026-11-12 tekshiruvida production `META_*` env qiymatlari konteyner bilan mos, Unified Login va Configuration ID kutilgan qiymatlarda, redirect URI production callback bilan aynan mos. Serverdagi joriy App ID/Secret juftligi Meta credential probe’dan o‘tdi; token javobi chiqarilmadi yoki saqlanmadi. OAuth statusini `enabled=false` qilgan backend validator xatosi Google callback yo‘lini Instagram callback uchun talab qilgani sababli bo‘lgan va tuzatildi. API deploydan so‘ng public status `api_ready=true`, `enabled=true`, `login_mode=unified` qaytardi. Haqiqiy Instagram OAuth consent, asset discovery, webhook va message delivery hali **NOT TESTED LIVE**.
 

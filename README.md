@@ -18,6 +18,8 @@ Automation yaratishda foydalanuvchi Media ID yozmaydi: real OAuth orqali ulangan
 
 ## Holat
 
+- **2026-11-12, eng so‘nggi production audit:** Meta Graph API’da Instagram app webhook obunasi avval faol va callback manzili to‘g‘ri edi, lekin `fields` ro‘yxati qaytmagan. Rasmiy `POST /{app-id}/subscriptions` orqali `comments,messages,messaging_postbacks` sozlandi (`HTTP 200`, `success=true`); keyingi `GET` uchala fieldni, `active=true` va to‘g‘ri callback’ni tasdiqladi. Bu app darajasidagi sozlamani tasdiqlaydi, real comment/DM yetkazilishini emas.
+- Shu audit paytida production database’da `@khomidov_771` holati `disconnected`, automation qoidalari `0`, webhook eventlari `0`, execution/actionlari `0` edi. Audit jurnalida ikkita qoida o‘chirilgani va akkaunt uzilgani qayd etilgan. Qayta rasmiy OAuth ulanish, yangi faol qoida va yangi mos comment kerak; live DM hali tasdiqlanmagan.
 - **2026-11-12 yangilanishi:** Meta Unified Login orqali `@khomidov_771` production saytga real ulandi. Postlar API’si dastlab HTTP 200 javobidagi Meta timestamp offset formatini o‘qiy olmagan; `+0000` va RFC3339 formatlarini qabul qiladigan tuzatish `009b920` commitida GitHub’ga push qilinib production API’ga chiqarildi. Sahifa yangilangach, real akkauntdan 2 ta post ko‘rsatildi.
 - Production `/healthz` HTTP 200 va Instagram OAuth status `api_ready=true`, `enabled=true` qaytardi. Faqat API konteyneri yangilandi; PostgreSQL, web, Nginx, production environment va production checkout o‘z joyida qoldi. Oldingi API image rollback uchun saqlandi.
 - Bu natija real OAuth/account discovery va media listni tasdiqlaydi. Signed webhook delivery, follower status, real comment automation, DM send va undan keyingi public reply hali **live test qilinmagan**.
