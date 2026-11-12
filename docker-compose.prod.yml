@@ -97,11 +97,15 @@ services:
 
 volumes:
   ids_postgres_prod:
+    name: ids_automate_pgdata
   ids_redis_prod:
   letsencrypt:
   certbot_webroot:
 
 networks:
   frontend:
+    name: ids_automate_frontend
   backend:
+    name: ids_automate_backend
     internal: true
+
