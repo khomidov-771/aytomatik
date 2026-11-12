@@ -16,10 +16,13 @@ export function PublicHeader() {
       <Link href="/#features" onClick={() => setOpen(false)}>{tr("Imkoniyatlar", "Возможности", "Features")}</Link>
       <Link href="/#guide" onClick={() => setOpen(false)}>{tr("Qanday ishlaydi", "Как это работает", "How it works")}</Link>
       <Link href="/#safety" onClick={() => setOpen(false)}>{tr("Xavfsizlik", "Безопасность", "Security")}</Link>
+      <Link className="public-nav-auth mobile-auth-link" href="/login" onClick={() => setOpen(false)}>{tr("Kirish", "Войти", "Sign in")}</Link>
+      <Link className="public-nav-auth mobile-auth-link" href="/register" onClick={() => setOpen(false)}>{tr("Ro‘yxatdan o‘tish", "Регистрация", "Create account")}</Link>
     </nav>
     <div className="header-actions">
       <PreferencesControls compact />
-      <Link className="btn primary desktop-only" href="/setup">{tr("Instagram bilan boshlash", "Начать через Instagram", "Start with Instagram")}</Link>
+      <Link className="btn secondary desktop-only" href="/login">{tr("Kirish", "Войти", "Sign in")}</Link>
+      <Link className="btn primary desktop-only" href="/register">{tr("Ro‘yxatdan o‘tish", "Регистрация", "Create account")}</Link>
       <button className="icon-btn mobile-menu" aria-label={tr("Menyuni ochish", "Открыть меню", "Open menu")} onClick={() => setOpen(!open)}>{open ? <X /> : <Menu />}</button>
     </div>
   </div></header>;

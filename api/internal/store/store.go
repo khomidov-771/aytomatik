@@ -25,6 +25,8 @@ var ErrInvalidRole = errors.New("invalid role")
 var ErrGoogleAccountNotFound = errors.New("google login account not found")
 var ErrGoogleIdentityConflict = errors.New("google identity is already linked to another account")
 var ErrInstagramIdentityConflict = errors.New("Instagram identity is linked to another workspace")
+var ErrInstagramIdentityNotFound = errors.New("Instagram identity is not registered")
+var ErrInstagramIdentityExists = errors.New("Instagram identity is already registered")
 
 type GoogleLoginState struct {
 	Nonce        string
@@ -333,12 +335,14 @@ func (s *Store) ConsumeInstagramLoginState(ctx context.Context, stateHash, brows
 }
 
 // CompleteInstagramLogin binds a verified Meta Instagram identity to an
-// isolated workspace. Existing connected accounts reuse the user that linked
-// the account; new identities receive a new owner workspace. The account,
-// encrypted token and identity mapping commit atomically.
-func (s *Store) CompleteInstagramLogin(ctx context.Context, in AccountInput, passwordHash string, termsAcceptedAt time.Time) (domain.Principal, string, error) {
+// existing workspace for login, or creates a new owner workspace for register.
+// The account, encrypted token and identity mapping commit atomically.
+func (s *Store) CompleteInstagramLogin(ctx context.Context, in AccountInput, passwordHash, intent string, termsAcceptedAt time.Time) (domain.Principal, string, error) {
 	if strings.TrimSpace(in.InstagramUserID) == "" || strings.TrimSpace(in.TokenCiphertext) == "" || strings.TrimSpace(in.Provider) == "" {
 		return domain.Principal{}, "", errors.New("verified Instagram account identity and encrypted token are required")
+	}
+	if intent != "login" && intent != "register" {
+		return domain.Principal{}, "", errors.New("Instagram authentication intent must be login or register")
 	}
 	if termsAcceptedAt.IsZero() {
 		return domain.Principal{}, "", errors.New("terms acceptance timestamp is required")
@@ -373,10 +377,15 @@ func (s *Store) CompleteInstagramLogin(ctx context.Context, in AccountInput, pas
 	if errors.Is(err, pgx.ErrNoRows) {
 		var existingWorkspace, connectedBy string
 		accountErr := tx.QueryRow(ctx, `SELECT workspace_id,connected_by FROM instagram_accounts
-			WHERE provider=$1 AND instagram_user_id=$2 AND status='connected' ORDER BY connected_at LIMIT 1 FOR UPDATE`,
+			WHERE provider=$1 AND instagram_user_id=$2 ORDER BY connected_at LIMIT 1 FOR UPDATE`,
 			in.Provider, in.InstagramUserID).Scan(&existingWorkspace, &connectedBy)
 		if accountErr == nil {
+			if intent == "register" {
+				return domain.Principal{}, "", ErrInstagramIdentityExists
+			}
 			userID, workspaceID = connectedBy, existingWorkspace
+		} else if errors.Is(accountErr, pgx.ErrNoRows) && intent == "login" {
+			return domain.Principal{}, "", ErrInstagramIdentityNotFound
 		} else if errors.Is(accountErr, pgx.ErrNoRows) {
 			if passwordHash == "" {
 				return domain.Principal{}, "", errors.New("unusable local credential hash is required")
@@ -407,6 +416,9 @@ func (s *Store) CompleteInstagramLogin(ctx context.Context, in AccountInput, pas
 	} else if err != nil {
 		return domain.Principal{}, "", err
 	} else {
+		if intent == "register" {
+			return domain.Principal{}, "", ErrInstagramIdentityExists
+		}
 		if _, err = tx.Exec(ctx, `UPDATE instagram_oauth_identities SET username=$1,terms_accepted_at=$2
 			WHERE provider=$3 AND instagram_user_id=$4`, username, termsAcceptedAt, in.Provider, in.InstagramUserID); err != nil {
 			return domain.Principal{}, "", err

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { AlertCircle, ArrowLeft, ArrowRight, BadgeCheck, Check, CheckCircle2, ChevronLeft, CircleHelp, Film, Instagram, LoaderCircle, LockKeyhole, MessageCircle, RefreshCw, Send, ShieldCheck, Sparkles, UserCheck, Video, Zap } from "lucide-react";
 import { FormEvent, useEffect, useState } from "react";
 import { Logo } from "@/components/logo";
@@ -11,6 +11,7 @@ import { ApiError, api, jsonBody } from "@/lib/api";
 import type { Automation, InstagramAccount, InstagramMedia, User } from "@/lib/types";
 
 type AuthState = "loading" | "ready" | "signed_out" | "error";
+type AuthIntent = "login" | "register";
 type AccountList = { items: InstagramAccount[]; provider: string; login_mode: string; meta_configured: boolean };
 type SetupStep = 1 | 2 | 3 | 4;
 type FallbackPolicy = Automation["unknown_fallback_policy"];
@@ -29,6 +30,7 @@ function initialStep(value: string | null): SetupStep {
 
 export function SetupWizard() {
   const { locale, tr } = usePreferences();
+  const router = useRouter();
   const searchParams = useSearchParams();
   const [authState, setAuthState] = useState<AuthState>("loading");
   const [authError, setAuthError] = useState("");
@@ -50,7 +52,9 @@ export function SetupWizard() {
   const [active, setActive] = useState(true);
   const [connectBusy, setConnectBusy] = useState(false);
   const [loginBusy, setLoginBusy] = useState(false);
+  const [authMode, setAuthMode] = useState<AuthIntent>(() => searchParams.get("auth_mode") === "login" ? "login" : "register");
   const [acceptTerms, setAcceptTerms] = useState(false);
+  const [rememberMe, setRememberMe] = useState(true);
   const [submitBusy, setSubmitBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [createdRule, setCreatedRule] = useState<Automation | null>(null);
@@ -74,6 +78,10 @@ export function SetupWizard() {
       });
     return () => { current = false; };
   }, [tr]);
+
+  useEffect(() => {
+    if (authState === "ready" && searchParams.get("auth_mode") === "login") router.replace("/app");
+  }, [authState, router, searchParams]);
 
   const accounts = useApi<AccountList>(authState === "ready" ? "/instagram/accounts" : null);
   const instagramLogin = useApi<InstagramLoginStatus>(authState === "signed_out" ? "/auth/instagram/status" : null);
@@ -114,7 +122,7 @@ export function SetupWizard() {
     try {
       const result = await api<{ authorization_url: string }>("/auth/instagram/start", {
         method: "POST",
-        ...jsonBody({ accept_terms: true, remember_me: false }),
+        ...jsonBody({ intent: authMode, accept_terms: true, remember_me: rememberMe }),
       });
       window.location.assign(result.authorization_url);
     } catch (error) {
@@ -236,6 +244,10 @@ export function SetupWizard() {
     const oauthCode = searchParams.get("instagram_error");
     const oauthMessage = oauthCode === "cancelled"
       ? tr("Instagram ulash bekor qilindi. Istasangiz, qaytadan boshlang.", "Подключение Instagram отменено. Вы можете попробовать ещё раз.", "Instagram sign-in was cancelled. You can try again.")
+      : oauthCode === "account_not_found"
+        ? tr("Bu Instagram hisobi IDS Automate’da mavjud emas. Iltimos, ro‘yxatdan o‘ting.", "Аккаунт Instagram ещё не зарегистрирован в IDS Automate. Пожалуйста, зарегистрируйтесь.", "This Instagram account does not have an IDS Automate account yet. Please register.")
+        : oauthCode === "account_already_exists"
+          ? tr("Bu Instagram hisobi allaqachon mavjud. Kirish bo‘limidan kiring.", "Этот аккаунт Instagram уже зарегистрирован. Перейдите ко входу.", "This Instagram account is already registered. Please use Sign in.")
       : oauthCode === "account_conflict"
         ? tr("Bu Instagram akkaunti boshqa workspace’ga ulangan. Avvalgi IDS ma’lumotlari egasi bilan bog‘laning.", "Этот Instagram аккаунт уже подключён к другому workspace. Свяжитесь с владельцем прежних данных IDS.", "This Instagram account is already connected to another workspace. Contact the owner of the existing IDS data.")
         : oauthCode === "oauth_token_exchange_failed"
@@ -251,15 +263,20 @@ export function SetupWizard() {
         : oauthCode
           ? tr("Instagram orqali kirish yakunlanmadi. Meta sozlamalarini tekshirib, qayta urinib ko‘ring.", "Не удалось завершить вход через Instagram. Проверьте настройки Meta и попробуйте снова.", "Instagram sign-in did not complete. Check the Meta configuration and try again.")
           : "";
-    return <SetupShell><div className="setup-auth-card"><span className="setup-state-icon"><Instagram/></span><span className="setup-eyebrow">{tr("IDS WORKSPACE · INSTAGRAM LOGIN", "IDS WORKSPACE · ВХОД INSTAGRAM", "IDS WORKSPACE · INSTAGRAM SIGN-IN")}</span><h1>{tr("Instagram’ni ulang va boshlang", "Подключите Instagram и начните", "Connect Instagram and get started")}</h1><p>{tr("IDS uchun alohida login yoki parol kerak emas. Rasmiy Meta oynasida Instagram akkauntingizni tanlang; keyin video, kalit so‘z va javoblarni sozlaysiz.", "Отдельный логин или пароль IDS не нужен. Выберите Instagram аккаунт в официальном окне Meta, затем настройте видео, ключевые слова и ответы.", "You do not need a separate IDS username or password. Choose your Instagram account in Meta’s official window, then configure posts, keywords, and replies.")}</p>
+    return <SetupShell><div className="setup-auth-card"><span className="setup-state-icon"><Instagram/></span><span className="setup-eyebrow">{tr("IDS WORKSPACE · INSTAGRAM", "IDS WORKSPACE · INSTAGRAM", "IDS WORKSPACE · INSTAGRAM")}</span><h1>{authMode === "login" ? tr("Instagram bilan kirish", "Войти через Instagram", "Sign in with Instagram") : tr("Instagram bilan ro‘yxatdan o‘tish", "Регистрация через Instagram", "Create an account with Instagram")}</h1><p>{authMode === "login" ? tr("Mavjud IDS hisobingizga ulangan Instagram akkauntni rasmiy Meta oynasida tasdiqlang.", "Подтвердите в официальном окне Meta Instagram аккаунт, связанный с вашим IDS.", "Confirm the Instagram account linked to your IDS account in Meta’s official window.") : tr("Instagram akkauntingizni rasmiy Meta oynasida tasdiqlang. Yangi IDS hisobingiz Instagram bilan yaratiladi.", "Подтвердите аккаунт Instagram в официальном окне Meta. Новый аккаунт IDS будет создан через Instagram.", "Confirm your Instagram account in Meta’s official window to create a new IDS account.")}</p>
+      <div className="setup-auth-mode" role="group" aria-label={tr("Kirish usuli", "Способ входа", "Account access mode")}>
+        <button type="button" className={authMode === "login" ? "active" : ""} aria-pressed={authMode === "login"} onClick={() => { setAuthMode("login"); setAuthError(""); }}>{tr("Kirish", "Войти", "Sign in")}</button>
+        <button type="button" className={authMode === "register" ? "active" : ""} aria-pressed={authMode === "register"} onClick={() => { setAuthMode("register"); setAuthError(""); }}>{tr("Ro‘yxatdan o‘tish", "Регистрация", "Create account")}</button>
+      </div>
       {oauthMessage && <div className="setup-inline-message" role="alert"><AlertCircle/><span>{oauthMessage}</span></div>}
       {authError && <div className="setup-inline-message" role="alert"><AlertCircle/><span>{authError}</span></div>}
       {instagramLogin.loading && <div className="setup-state"><LoaderCircle className="setup-spinner"/><span>{tr("Meta ulanishi tekshirilmoqda…", "Проверяем Meta…", "Checking Meta availability…")}</span></div>}
       {!instagramLogin.loading && (instagramLogin.error || !instagramLogin.data?.enabled) && <div className="setup-notice warning"><AlertCircle/><span>{instagramLogin.error || tr("Meta OAuth hozir serverda sozlanmagan. Instagram login tugmasi Meta credentials tayyor bo‘lgach yoqiladi.", "Meta OAuth ещё не настроен на сервере. Кнопка входа включится после настройки Meta credentials.", "Meta OAuth is not configured on the server yet. Instagram sign-in will be available when the Meta credentials are ready.")}</span></div>}
       {!instagramLogin.loading && instagramLogin.data?.enabled && !instagramLogin.data.api_ready && <div className="setup-notice warning"><AlertCircle/><span>{tr("Instagram OAuth urinishiga ruxsat bor, ammo webhook konfiguratsiyasi to‘liq bo‘lmagani uchun comment avtomatizatsiyasi hali ishlashga tayyor emas.", "Вход Instagram доступен, но автоматизация комментариев пока не готова: не завершена настройка webhook.", "Instagram OAuth can be attempted, but comment automation is not ready until the webhook configuration is complete.")}</span></div>}
       <label className="check terms"><input type="checkbox" checked={acceptTerms} onChange={(event) => setAcceptTerms(event.target.checked)}/><span>{tr("Men", "Я принимаю", "I accept the")} <Link href="/terms">{tr("Foydalanish shartlari", "Условия использования", "Terms of use")}</Link> {tr("va", "и", "and")} <Link href="/privacy">{tr("Maxfiylik siyosati", "Политику конфиденциальности", "Privacy policy")}</Link></span></label>
-      <div className="setup-button-row"><button className="btn primary large" type="button" disabled={loginBusy || instagramLogin.loading || !instagramLogin.data?.enabled || !acceptTerms} onClick={() => void startInstagramLogin()}><Instagram/>{loginBusy ? tr("Meta oynasi ochilmoqda…", "Открываем Meta…", "Opening Meta…") : tr("Instagram bilan davom etish", "Продолжить через Instagram", "Continue with Instagram")}<ArrowRight/></button></div>
-      <div className="setup-login-assurance"><ShieldCheck/><span>{tr("Instagram parolingiz IDS serveriga kelmaydi. Kirish tasdiqlangach, siz uchun himoyalangan workspace yaratiladi. Serverdagi sozlama Meta credentials haqiqiyligini oldindan tasdiqlamaydi.", "Пароль Instagram не попадает на сервер IDS. После подтверждения для вас будет создан защищённый workspace. Наличие настроек на сервере не подтверждает, что Meta приняла credentials.", "Your Instagram password never reaches IDS. A protected workspace is created after Meta confirms your account. Server configuration alone does not prove that Meta has accepted its credentials.")}</span></div>
+      <label className="setup-remember"><input type="checkbox" checked={rememberMe} onChange={(event) => setRememberMe(event.target.checked)}/><span>{tr("Meni eslab qolish (30 kun)", "Запомнить меня (30 дней)", "Remember me (30 days)")}</span></label>
+      <div className="setup-button-row"><button className="btn primary large" type="button" disabled={loginBusy || instagramLogin.loading || !instagramLogin.data?.enabled || !acceptTerms} onClick={() => void startInstagramLogin()}><Instagram/>{loginBusy ? tr("Meta oynasi ochilmoqda…", "Открываем Meta…", "Opening Meta…") : authMode === "login" ? tr("Instagram bilan kirish", "Войти через Instagram", "Sign in with Instagram") : tr("Instagram bilan ro‘yxatdan o‘tish", "Зарегистрироваться через Instagram", "Create account with Instagram")}<ArrowRight/></button></div>
+      <div className="setup-login-assurance"><ShieldCheck/><span>{authMode === "login" ? tr("Bu qurilmada 30 kungacha saqlanadigan sessiya ochiladi. Boshqa qurilmalarda ham Instagram bilan alohida kirishingiz mumkin. Parolingiz IDS serveriga kelmaydi.", "Сессия на этом устройстве сохранится до 30 дней. На других устройствах можно отдельно войти через Instagram. Пароль не передаётся IDS.", "Your session can stay signed in on this device for up to 30 days. Sign in separately on other devices. Your password never reaches IDS.") : tr("Instagram parolingiz IDS serveriga kelmaydi. Yangi himoyalangan workspace faqat rasmiy Meta tasdig‘idan keyin yaratiladi.", "Пароль Instagram не попадает на сервер IDS. Новый защищённый workspace создаётся только после подтверждения Meta.", "Your Instagram password never reaches IDS. A new protected workspace is created only after Meta confirms your account.")}</span></div>
     </div></SetupShell>;
   }
 

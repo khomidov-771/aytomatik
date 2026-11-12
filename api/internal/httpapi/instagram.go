@@ -36,8 +36,9 @@ func (s *Server) instagramLoginStart(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var input struct {
-		AcceptTerms bool `json:"accept_terms"`
-		RememberMe  bool `json:"remember_me"`
+		Intent      string `json:"intent"`
+		AcceptTerms bool   `json:"accept_terms"`
+		RememberMe  bool   `json:"remember_me"`
 	}
 	if decode(r, &input) != nil {
 		fail(w, http.StatusBadRequest, "invalid_json", "Ma’lumot formati noto‘g‘ri")
@@ -47,13 +48,17 @@ func (s *Server) instagramLoginStart(w http.ResponseWriter, r *http.Request) {
 		fail(w, http.StatusUnprocessableEntity, "terms_required", "Davom etishdan oldin foydalanish shartlari va maxfiylik siyosatini qabul qiling")
 		return
 	}
+	if input.Intent != "login" && input.Intent != "register" {
+		fail(w, http.StatusBadRequest, "invalid_auth_intent", "Instagram orqali login yoki ro‘yxatdan o‘tishni tanlang")
+		return
+	}
 
 	randomState, err := security.RandomToken(32)
 	if err != nil {
 		statusError(w, err)
 		return
 	}
-	state := "idsi." + randomState
+	state := "idsi." + input.Intent + "." + randomState
 	browserBinding, err := security.RandomToken(32)
 	if err != nil {
 		statusError(w, err)
@@ -79,7 +84,12 @@ func (s *Server) instagramLoginStart(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) instagramLoginCallback(w http.ResponseWriter, r *http.Request) {
 	stateValue := r.URL.Query().Get("state")
+	intent, intentValid := instagramLoginIntent(stateValue)
 	if len(stateValue) < 16 || len(stateValue) > 128 {
+		s.redirectInstagramLoginError(w, "invalid_state")
+		return
+	}
+	if !intentValid {
 		s.redirectInstagramLoginError(w, "invalid_state")
 		return
 	}
@@ -87,26 +97,26 @@ func (s *Server) instagramLoginCallback(w http.ResponseWriter, r *http.Request) 
 	cookie, err := r.Cookie(cookieName)
 	if err != nil || cookie.Value == "" {
 		s.clearInstagramStateCookie(w, cookieName)
-		s.redirectInstagramLoginError(w, "invalid_state")
+		s.redirectInstagramLoginError(w, "invalid_state", intent)
 		return
 	}
 	s.clearInstagramStateCookie(w, cookieName)
 	state, err := s.store.ConsumeInstagramLoginState(r.Context(), security.TokenHash(stateValue), security.TokenHash(cookie.Value))
 	if err != nil || !state.AcceptTerms {
-		s.redirectInstagramLoginError(w, "invalid_state")
+		s.redirectInstagramLoginError(w, "invalid_state", intent)
 		return
 	}
 	if providerError := r.URL.Query().Get("error"); providerError != "" {
 		if providerError == "access_denied" {
-			s.redirectInstagramLoginError(w, "cancelled")
+			s.redirectInstagramLoginError(w, "cancelled", intent)
 		} else {
-			s.redirectInstagramLoginError(w, "provider_error")
+			s.redirectInstagramLoginError(w, "provider_error", intent)
 		}
 		return
 	}
 	code := r.URL.Query().Get("code")
 	if code == "" || len(code) > 4096 || s.provider.Name() != "meta" || !s.cfg.MetaOAuthReady() {
-		s.redirectInstagramLoginError(w, "oauth_unavailable")
+		s.redirectInstagramLoginError(w, "oauth_unavailable", intent)
 		return
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 15*time.Second)
@@ -115,37 +125,44 @@ func (s *Server) instagramLoginCallback(w http.ResponseWriter, r *http.Request) 
 	if err != nil || account.ID == "" || account.AccessToken == "" {
 		failureCode := instagramOAuthFailureCode(err, account)
 		slog.Warn("Instagram login OAuth exchange failed", "provider", s.provider.Name(), "error_code", provider.ErrorCode(err), "failure_reason", failureCode)
-		s.redirectInstagramLoginError(w, failureCode)
+		s.redirectInstagramLoginError(w, failureCode, intent)
 		return
 	}
 	encrypted, err := s.cipher.Encrypt(account.AccessToken)
 	if err != nil {
 		slog.Error("Instagram login token encryption failed", "provider", s.provider.Name())
-		s.redirectInstagramLoginError(w, "account_save_failed")
+		s.redirectInstagramLoginError(w, "account_save_failed", intent)
 		return
 	}
-	randomPassword, err := security.RandomToken(48)
-	if err != nil {
-		statusError(w, err)
-		return
-	}
-	passwordHash, err := security.HashPassword(randomPassword)
-	if err != nil {
-		statusError(w, err)
-		return
+	passwordHash := ""
+	if intent == "register" {
+		randomPassword, randomErr := security.RandomToken(48)
+		if randomErr != nil {
+			statusError(w, randomErr)
+			return
+		}
+		passwordHash, err = security.HashPassword(randomPassword)
+		if err != nil {
+			statusError(w, err)
+			return
+		}
 	}
 	principal, accountID, err := s.store.CompleteInstagramLogin(r.Context(), store.AccountInput{
 		InstagramUserID: account.ID, Username: account.Username, AccountType: account.AccountType,
 		AvatarURL: account.AvatarURL, TokenCiphertext: encrypted, Provider: s.provider.Name(),
 		Scopes: account.Scopes, TokenExpiresAt: account.ExpiresAt,
-	}, passwordHash, state.TermsAcceptedAt)
+	}, passwordHash, intent, state.TermsAcceptedAt)
 	if err != nil {
 		code := "account_save_failed"
 		if errors.Is(err, store.ErrAccountClaimed) || errors.Is(err, store.ErrInstagramIdentityConflict) {
 			code = "account_conflict"
+		} else if errors.Is(err, store.ErrInstagramIdentityNotFound) {
+			code = "account_not_found"
+		} else if errors.Is(err, store.ErrInstagramIdentityExists) {
+			code = "account_already_exists"
 		}
 		slog.Warn("Instagram login account binding failed", "provider", s.provider.Name(), "error_code", code)
-		s.redirectInstagramLoginError(w, code)
+		s.redirectInstagramLoginError(w, code, intent)
 		return
 	}
 	ttl := s.cfg.ShortSessionTTL
@@ -154,12 +171,29 @@ func (s *Server) instagramLoginCallback(w http.ResponseWriter, r *http.Request) 
 	}
 	sessionToken, _, expiresAt, err := s.startSession(r, principal, ttl)
 	if err != nil {
-		statusError(w, err)
+		s.redirectInstagramLoginError(w, "account_save_failed", intent)
 		return
 	}
 	s.setSessionCookie(w, sessionToken, expiresAt, state.RememberMe)
-	redirect := strings.TrimRight(s.cfg.AppURL, "/") + "/setup?step=2&account=" + url.QueryEscape(accountID)
+	redirect := strings.TrimRight(s.cfg.AppURL, "/") + "/app"
+	if intent == "register" {
+		redirect = strings.TrimRight(s.cfg.AppURL, "/") + "/setup?step=2&account=" + url.QueryEscape(accountID)
+	}
 	http.Redirect(w, r, redirect, http.StatusSeeOther)
+}
+
+func instagramLoginIntent(state string) (string, bool) {
+	switch {
+	case strings.HasPrefix(state, "idsi.login."):
+		return "login", true
+	case strings.HasPrefix(state, "idsi.register."):
+		return "register", true
+	case strings.HasPrefix(state, "idsi.") && !strings.Contains(strings.TrimPrefix(state, "idsi."), "."):
+		// Preserve OAuth attempts that were started before the intent-aware flow.
+		return "register", true
+	default:
+		return "", false
+	}
 }
 
 func instagramStateCookieName(state string) string {
@@ -173,8 +207,8 @@ func (s *Server) clearInstagramStateCookie(w http.ResponseWriter, name string) {
 	http.SetCookie(w, &http.Cookie{Name: name, Value: "", Path: "/api/v1/instagram", MaxAge: -1, HttpOnly: true, Secure: s.cfg.CookieSecure, SameSite: http.SameSiteLaxMode})
 }
 
-func (s *Server) redirectInstagramLoginError(w http.ResponseWriter, code string) {
-	allowed := map[string]bool{"invalid_state": true, "cancelled": true, "provider_error": true, "oauth_unavailable": true, "oauth_exchange_failed": true, "oauth_token_exchange_failed": true, "instagram_asset_access_failed": true, "instagram_asset_not_shared": true, "multiple_instagram_assets": true, "webhook_subscription_failed": true, "account_save_failed": true, "account_conflict": true}
+func (s *Server) redirectInstagramLoginError(w http.ResponseWriter, code string, intent ...string) {
+	allowed := map[string]bool{"invalid_state": true, "cancelled": true, "provider_error": true, "oauth_unavailable": true, "oauth_exchange_failed": true, "oauth_token_exchange_failed": true, "instagram_asset_access_failed": true, "instagram_asset_not_shared": true, "multiple_instagram_assets": true, "webhook_subscription_failed": true, "account_save_failed": true, "account_conflict": true, "account_not_found": true, "account_already_exists": true}
 	if !allowed[code] {
 		code = "provider_error"
 	}
@@ -183,7 +217,12 @@ func (s *Server) redirectInstagramLoginError(w http.ResponseWriter, code string)
 		base = &url.URL{Scheme: "https", Host: "localhost"}
 	}
 	base.Path = strings.TrimRight(base.Path, "/") + "/setup"
-	base.RawQuery = "instagram_error=" + url.QueryEscape(code)
+	query := base.Query()
+	query.Set("instagram_error", code)
+	if len(intent) > 0 && (intent[0] == "login" || intent[0] == "register") {
+		query.Set("auth_mode", intent[0])
+	}
+	base.RawQuery = query.Encode()
 	w.Header().Set("Location", base.String())
 	w.WriteHeader(http.StatusSeeOther)
 }
