@@ -195,4 +195,3 @@ func (s *Server) previewAutomationMatch(w http.ResponseWriter, r *http.Request, 
 func (s *Server) previewMatch(rule domain.AutomationRule, text string) bool {
 	return rules.Matches(rule, domain.CommentEvent{Text: text, MediaID: "preview"})
 }
-

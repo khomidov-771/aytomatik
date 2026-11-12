@@ -131,7 +131,7 @@ func (w *Worker) Depth() int {
 
 func (w *Worker) process(ctx context.Context, queued store.QueuedCommentEvent) {
 	job := Job{EventID: queued.EventID, WorkspaceID: queued.WorkspaceID, AccountID: queued.AccountID, Event: queued.Event}
-	providerAccountID, encrypted, accountProvider, scopes, err := w.store.AccountSecretByID(ctx, job.WorkspaceID, job.AccountID)
+	providerAccountID, encrypted, accountProvider, loginMode, scopes, err := w.store.AccountSecretByID(ctx, job.WorkspaceID, job.AccountID)
 	if err != nil {
 		if saveErr := w.finish(ctx, job, nil, "failed", "account_unavailable", "connected account could not be loaded"); saveErr != nil {
 			slog.Error("worker account lookup and failure persistence failed", "event_id", job.EventID, "error", err, "persistence_error", saveErr)
@@ -142,6 +142,7 @@ func (w *Worker) process(ctx context.Context, queued store.QueuedCommentEvent) {
 		_ = w.finish(ctx, job, nil, "failed", "provider_mismatch", "connected account provider does not match active provider")
 		return
 	}
+	instagramProvider := provider.ForLoginMode(w.provider, loginMode)
 	if job.Event.ParticipantID == job.Event.AccountID {
 		_ = w.finish(ctx, job, nil, "skipped_policy", "self_comment", "self-trigger prevention")
 		return
@@ -194,7 +195,7 @@ func (w *Worker) process(ctx context.Context, queued store.QueuedCommentEvent) {
 			return
 		}
 		if acquired {
-			checked, checkErr := w.provider.CheckFollowerStatus(ctx, token, job.Event.ParticipantID, scopes)
+			checked, checkErr := instagramProvider.CheckFollowerStatus(ctx, token, job.Event.ParticipantID, scopes)
 			followStatus = checked
 			actionStatus := "succeeded"
 			errorCode := ""
@@ -250,7 +251,7 @@ func (w *Worker) process(ctx context.Context, queued store.QueuedCommentEvent) {
 			return
 		}
 		if acquired {
-			delivery, deliveryErr := w.provider.SendPrivateReply(ctx, token, providerAccountID, job.Event.CommentID, match.PrivateReplyText)
+			delivery, deliveryErr := instagramProvider.SendPrivateReply(ctx, token, providerAccountID, job.Event.CommentID, match.PrivateReplyText)
 			if deliveryErr != nil {
 				actionStatus := "failed"
 				finalStatus := "failed"
@@ -311,7 +312,7 @@ func (w *Worker) process(ctx context.Context, queued store.QueuedCommentEvent) {
 	if state.MessageText != "" {
 		publicText = state.MessageText
 	}
-	publicDelivery, publicErr := w.provider.SendPublicCommentReply(ctx, token, job.Event.CommentID, publicText)
+	publicDelivery, publicErr := instagramProvider.SendPublicCommentReply(ctx, token, job.Event.CommentID, publicText)
 	if publicErr != nil {
 		code := provider.ErrorCode(publicErr)
 		actionStatus := "failed"
@@ -396,4 +397,3 @@ func (w *Worker) retryOrFail(ctx context.Context, queued store.QueuedCommentEven
 		slog.Error("worker could not schedule retry", "event_id", queued.EventID, "error", err)
 	}
 }
-

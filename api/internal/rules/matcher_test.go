@@ -69,4 +69,3 @@ func TestExactSelectedMediaAndWordMode(t *testing.T) {
 		t.Fatal("word mode matched partial word")
 	}
 }
-

@@ -350,6 +350,9 @@ func (s *Store) CompleteInstagramLogin(ctx context.Context, in AccountInput, pas
 	if in.Scopes == nil {
 		in.Scopes = []string{}
 	}
+	if in.LoginMode == "" {
+		in.LoginMode = "unified"
+	}
 	username := strings.TrimPrefix(strings.TrimSpace(in.Username), "@")
 	if username == "" {
 		username = "Instagram"
@@ -433,12 +436,12 @@ func (s *Store) CompleteInstagramLogin(ctx context.Context, in AccountInput, pas
 		return domain.Principal{}, "", ErrInstagramIdentityConflict
 	}
 	var accountID string
-	err = tx.QueryRow(ctx, `INSERT INTO instagram_accounts(workspace_id,instagram_user_id,username,account_type,avatar_url,token_ciphertext,token_expires_at,scopes,status,provider,connected_by,last_sync_at)
-		VALUES($1,$2,$3,$4,$5,$6,$7,$8,'connected',$9,$10,now())
+	err = tx.QueryRow(ctx, `INSERT INTO instagram_accounts(workspace_id,instagram_user_id,username,account_type,avatar_url,token_ciphertext,token_expires_at,scopes,status,provider,login_mode,connected_by,last_sync_at)
+		VALUES($1,$2,$3,$4,$5,$6,$7,$8,'connected',$9,$10,$11,now())
 		ON CONFLICT(workspace_id,instagram_user_id) DO UPDATE SET username=EXCLUDED.username,account_type=EXCLUDED.account_type,
 		avatar_url=EXCLUDED.avatar_url,token_ciphertext=EXCLUDED.token_ciphertext,token_expires_at=EXCLUDED.token_expires_at,
-		scopes=EXCLUDED.scopes,status='connected',provider=EXCLUDED.provider,connected_by=EXCLUDED.connected_by,last_sync_at=now()
-		RETURNING id`, workspaceID, in.InstagramUserID, username, in.AccountType, in.AvatarURL, in.TokenCiphertext, in.TokenExpiresAt, in.Scopes, in.Provider, userID).Scan(&accountID)
+		scopes=EXCLUDED.scopes,status='connected',provider=EXCLUDED.provider,login_mode=EXCLUDED.login_mode,connected_by=EXCLUDED.connected_by,last_sync_at=now()
+		RETURNING id`, workspaceID, in.InstagramUserID, username, in.AccountType, in.AvatarURL, in.TokenCiphertext, in.TokenExpiresAt, in.Scopes, in.Provider, in.LoginMode, userID).Scan(&accountID)
 	if pgErr, ok := err.(*pgconn.PgError); ok && pgErr.Code == "23505" {
 		return domain.Principal{}, "", ErrAccountClaimed
 	}
@@ -568,7 +571,7 @@ func googlePrincipalForUser(ctx context.Context, tx pgx.Tx, userID string) (doma
 }
 
 type AccountInput struct {
-	InstagramUserID, Username, AccountType, AvatarURL, TokenCiphertext, Provider string
+	InstagramUserID, Username, AccountType, AvatarURL, TokenCiphertext, Provider, LoginMode string
 	Scopes                                                                       []string
 	TokenExpiresAt                                                               *time.Time
 }
@@ -577,8 +580,11 @@ func (s *Store) UpsertInstagramAccount(ctx context.Context, workspaceID, userID 
 	if in.Scopes == nil {
 		in.Scopes = []string{}
 	}
-	_, err := s.DB.Exec(ctx, `INSERT INTO instagram_accounts(workspace_id,instagram_user_id,username,account_type,avatar_url,token_ciphertext,token_expires_at,scopes,status,provider,connected_by,last_sync_at)
-		VALUES($1,$2,$3,$4,$5,$6,$7,$8,'connected',$9,$10,now()) ON CONFLICT(workspace_id,instagram_user_id) DO UPDATE SET username=EXCLUDED.username,account_type=EXCLUDED.account_type,avatar_url=EXCLUDED.avatar_url,token_ciphertext=EXCLUDED.token_ciphertext,token_expires_at=EXCLUDED.token_expires_at,scopes=EXCLUDED.scopes,status='connected',provider=EXCLUDED.provider,connected_by=EXCLUDED.connected_by,last_sync_at=now()`, workspaceID, in.InstagramUserID, in.Username, in.AccountType, in.AvatarURL, in.TokenCiphertext, in.TokenExpiresAt, in.Scopes, in.Provider, userID)
+	if in.LoginMode == "" {
+		in.LoginMode = "unified"
+	}
+	_, err := s.DB.Exec(ctx, `INSERT INTO instagram_accounts(workspace_id,instagram_user_id,username,account_type,avatar_url,token_ciphertext,token_expires_at,scopes,status,provider,login_mode,connected_by,last_sync_at)
+		VALUES($1,$2,$3,$4,$5,$6,$7,$8,'connected',$9,$10,$11,now()) ON CONFLICT(workspace_id,instagram_user_id) DO UPDATE SET username=EXCLUDED.username,account_type=EXCLUDED.account_type,avatar_url=EXCLUDED.avatar_url,token_ciphertext=EXCLUDED.token_ciphertext,token_expires_at=EXCLUDED.token_expires_at,scopes=EXCLUDED.scopes,status='connected',provider=EXCLUDED.provider,login_mode=EXCLUDED.login_mode,connected_by=EXCLUDED.connected_by,last_sync_at=now()`, workspaceID, in.InstagramUserID, in.Username, in.AccountType, in.AvatarURL, in.TokenCiphertext, in.TokenExpiresAt, in.Scopes, in.Provider, in.LoginMode, userID)
 	var pgErr *pgconn.PgError
 	if errors.As(err, &pgErr) && pgErr.Code == "23505" && pgErr.ConstraintName == "instagram_accounts_active_provider_uidx" {
 		return ErrAccountClaimed
@@ -591,7 +597,7 @@ func (s *Store) UpsertInstagramAccount(ctx context.Context, workspaceID, userID 
 }
 
 func (s *Store) ListInstagramAccounts(ctx context.Context, workspaceID string) ([]domain.InstagramAccount, error) {
-	rows, err := s.DB.Query(ctx, `SELECT id,instagram_user_id,username,account_type,COALESCE(avatar_url,''),status,provider,scopes,token_expires_at,connected_at,last_sync_at FROM instagram_accounts WHERE workspace_id=$1 AND provider<>'mock' ORDER BY connected_at DESC`, workspaceID)
+	rows, err := s.DB.Query(ctx, `SELECT id,instagram_user_id,username,account_type,COALESCE(avatar_url,''),status,provider,login_mode,scopes,token_expires_at,connected_at,last_sync_at FROM instagram_accounts WHERE workspace_id=$1 AND provider<>'mock' ORDER BY connected_at DESC`, workspaceID)
 	if err != nil {
 		return nil, err
 	}
@@ -599,7 +605,7 @@ func (s *Store) ListInstagramAccounts(ctx context.Context, workspaceID string) (
 	items := []domain.InstagramAccount{}
 	for rows.Next() {
 		var a domain.InstagramAccount
-		if err = rows.Scan(&a.ID, &a.InstagramUserID, &a.Username, &a.AccountType, &a.AvatarURL, &a.Status, &a.Provider, &a.Scopes, &a.TokenExpiresAt, &a.ConnectedAt, &a.LastSyncAt); err != nil {
+		if err = rows.Scan(&a.ID, &a.InstagramUserID, &a.Username, &a.AccountType, &a.AvatarURL, &a.Status, &a.Provider, &a.LoginMode, &a.Scopes, &a.TokenExpiresAt, &a.ConnectedAt, &a.LastSyncAt); err != nil {
 			return nil, err
 		}
 		items = append(items, a)
@@ -627,8 +633,8 @@ func (s *Store) AccountSecretByProviderID(ctx context.Context, provider, provide
 	return
 }
 
-func (s *Store) AccountSecretByID(ctx context.Context, workspaceID, id string) (providerAccountID, tokenCiphertext, provider string, scopes []string, err error) {
-	err = s.DB.QueryRow(ctx, `SELECT instagram_user_id,token_ciphertext,provider,scopes FROM instagram_accounts WHERE id=$1 AND workspace_id=$2 AND status='connected'`, id, workspaceID).Scan(&providerAccountID, &tokenCiphertext, &provider, &scopes)
+func (s *Store) AccountSecretByID(ctx context.Context, workspaceID, id string) (providerAccountID, tokenCiphertext, provider, loginMode string, scopes []string, err error) {
+	err = s.DB.QueryRow(ctx, `SELECT instagram_user_id,token_ciphertext,provider,login_mode,scopes FROM instagram_accounts WHERE id=$1 AND workspace_id=$2 AND status='connected'`, id, workspaceID).Scan(&providerAccountID, &tokenCiphertext, &provider, &loginMode, &scopes)
 	if errors.Is(err, pgx.ErrNoRows) {
 		err = ErrNotFound
 	}

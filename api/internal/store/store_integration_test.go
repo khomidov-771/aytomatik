@@ -184,7 +184,7 @@ func TestTenantTokensInboxAndQueue(t *testing.T) {
 	if err != nil || len(accounts) != 1 {
 		t.Fatalf("alice accounts: %#v %v", accounts, err)
 	}
-	if _, _, _, _, err = s.AccountSecretByID(ctx, bob.WorkspaceID, accounts[0].ID); !errors.Is(err, store.ErrNotFound) {
+	if _, _, _, _, _, err = s.AccountSecretByID(ctx, bob.WorkspaceID, accounts[0].ID); !errors.Is(err, store.ErrNotFound) {
 		t.Fatalf("cross-tenant account lookup succeeded: %v", err)
 	}
 

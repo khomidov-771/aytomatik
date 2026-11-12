@@ -22,6 +22,7 @@ import (
 
 type Account struct {
 	ID, Username, AccountType, AvatarURL, AccessToken string
+	LoginMode                                         string
 	ExpiresAt                                         *time.Time
 	Scopes                                            []string
 }
@@ -98,8 +99,9 @@ type OAuthStageError struct{ Stage string }
 func (e *OAuthStageError) Error() string { return "Meta OAuth response was invalid" }
 
 var (
-	ErrInstagramAssetNotShared = errors.New("Meta did not share an Instagram professional account")
-	ErrMultipleInstagramAssets = errors.New("Meta shared multiple Instagram accounts")
+	ErrInstagramAssetNotShared     = errors.New("Meta did not share an Instagram professional account")
+	ErrMultipleInstagramAssets     = errors.New("Meta shared multiple Instagram accounts")
+	ErrProfessionalAccountRequired = errors.New("Instagram Login requires a Business or Creator account")
 )
 
 func (e *APIError) Error() string {
@@ -115,6 +117,9 @@ func ErrorCode(err error) string {
 	}
 	if errors.Is(err, ErrMultipleInstagramAssets) {
 		return "asset_discovery_multiple"
+	}
+	if errors.Is(err, ErrProfessionalAccountRequired) {
+		return "professional_account_required"
 	}
 	var apiErr *APIError
 	if errors.As(err, &apiErr) {
@@ -148,6 +153,8 @@ func InstagramOAuthFailureCode(err error) string {
 		return "instagram_asset_not_shared"
 	case errors.Is(err, ErrMultipleInstagramAssets):
 		return "multiple_instagram_assets"
+	case errors.Is(err, ErrProfessionalAccountRequired):
+		return "instagram_professional_account_required"
 	}
 	var stageErr *OAuthStageError
 	if errors.As(err, &stageErr) {
@@ -203,6 +210,23 @@ func New(cfg config.Config) Instagram {
 		return &Meta{cfg: cfg, client: &http.Client{Timeout: 15 * time.Second}}
 	}
 	return &Mock{apiURL: cfg.APIURL}
+}
+
+// ForLoginMode returns a Meta client bound to the login path that issued an
+// account's token. This keeps legacy Unified tokens on graph.facebook.com while
+// new Instagram Business Login tokens use graph.instagram.com.
+func ForLoginMode(p Instagram, loginMode string) Instagram {
+	meta, ok := p.(*Meta)
+	if !ok || (loginMode != "instagram" && loginMode != "unified") {
+		return p
+	}
+	copy := *meta
+	copy.cfg.MetaLoginMode = loginMode
+	return &copy
+}
+
+func InstagramLoginClient(p Instagram) Instagram {
+	return ForLoginMode(p, "instagram")
 }
 
 type Mock struct{ apiURL string }
@@ -273,10 +297,10 @@ type Meta struct {
 
 func (m *Meta) Name() string { return "meta" }
 func (m *Meta) AuthorizationURL(state string) (string, error) {
-	if m.cfg.MetaAppID == "" {
-		return "", errors.New("Meta App ID is not configured")
-	}
 	if m.cfg.MetaLoginMode == "unified" {
+		if m.cfg.MetaAppID == "" {
+			return "", errors.New("Meta App ID is not configured")
+		}
 		if m.cfg.MetaLoginConfigID == "" {
 			return "", errors.New("Meta Unified Login configuration ID is not configured")
 		}
@@ -290,7 +314,10 @@ func (m *Meta) AuthorizationURL(state string) (string, error) {
 		}
 		return "https://www.facebook.com/dialog/oauth?" + q.Encode(), nil
 	}
-	q := url.Values{"client_id": {m.cfg.MetaAppID}, "redirect_uri": {m.cfg.MetaRedirectURI}, "response_type": {"code"}, "state": {state}, "scope": {"instagram_business_basic,instagram_business_manage_comments,instagram_business_manage_messages"}}
+	if m.cfg.InstagramLoginAppID == "" {
+		return "", errors.New("Instagram Login App ID is not configured")
+	}
+	q := url.Values{"client_id": {m.cfg.InstagramLoginAppID}, "redirect_uri": {m.cfg.MetaRedirectURI}, "response_type": {"code"}, "state": {state}, "scope": {"instagram_business_basic,instagram_business_manage_comments,instagram_business_manage_messages"}}
 	return "https://www.instagram.com/oauth/authorize?" + q.Encode(), nil
 }
 func (m *Meta) ExchangeCode(ctx context.Context, code string) (Account, error) {
@@ -301,10 +328,13 @@ func (m *Meta) ExchangeCode(ctx context.Context, code string) (Account, error) {
 }
 
 func (m *Meta) exchangeInstagramCode(ctx context.Context, code string) (Account, error) {
+	if m.cfg.InstagramLoginAppID == "" || m.cfg.InstagramLoginAppSecret == "" {
+		return Account{}, errors.New("Instagram Login OAuth credentials are not configured")
+	}
 	var body bytes.Buffer
 	writer := multipart.NewWriter(&body)
-	_ = writer.WriteField("client_id", m.cfg.MetaAppID)
-	_ = writer.WriteField("client_secret", m.cfg.MetaAppSecret)
+	_ = writer.WriteField("client_id", m.cfg.InstagramLoginAppID)
+	_ = writer.WriteField("client_secret", m.cfg.InstagramLoginAppSecret)
 	_ = writer.WriteField("grant_type", "authorization_code")
 	_ = writer.WriteField("redirect_uri", m.cfg.MetaRedirectURI)
 	_ = writer.WriteField("code", code)
@@ -322,15 +352,19 @@ func (m *Meta) exchangeInstagramCode(ctx context.Context, code string) (Account,
 	if token.AccessToken == "" {
 		return Account{}, &OAuthStageError{Stage: "token_exchange"}
 	}
-	longURL := "https://graph.instagram.com/access_token?" + url.Values{"grant_type": {"ig_exchange_token"}, "client_secret": {m.cfg.MetaAppSecret}, "access_token": {token.AccessToken}}.Encode()
+	longURL := "https://graph.instagram.com/access_token?" + url.Values{"grant_type": {"ig_exchange_token"}, "client_secret": {m.cfg.InstagramLoginAppSecret}, "access_token": {token.AccessToken}}.Encode()
 	longReq, _ := http.NewRequestWithContext(ctx, http.MethodGet, longURL, nil)
 	var long struct {
 		AccessToken string `json:"access_token"`
 		ExpiresIn   int    `json:"expires_in"`
 	}
-	if err := m.do(longReq, &long); err == nil && long.AccessToken != "" {
-		token.AccessToken = long.AccessToken
+	if err := m.do(longReq, &long); err != nil {
+		return Account{}, err
 	}
+	if long.AccessToken == "" {
+		return Account{}, &OAuthStageError{Stage: "token_exchange"}
+	}
+	token.AccessToken = long.AccessToken
 	identityURL := "https://graph.instagram.com/" + m.cfg.MetaAPIVersion + "/me?" + url.Values{"fields": {"user_id,username,account_type,profile_picture_url"}, "access_token": {token.AccessToken}}.Encode()
 	identityReq, _ := http.NewRequestWithContext(ctx, http.MethodGet, identityURL, nil)
 	var identity struct {
@@ -349,12 +383,27 @@ func (m *Meta) exchangeInstagramCode(ctx context.Context, code string) (Account,
 	if identity.UserID == "" {
 		return Account{}, &OAuthStageError{Stage: "asset_discovery"}
 	}
+	if !isInstagramProfessionalAccount(identity.AccountType) {
+		return Account{}, ErrProfessionalAccountRequired
+	}
+	if err := m.subscribeInstagramWebhooks(ctx, token.AccessToken); err != nil {
+		return Account{}, err
+	}
 	var expiry *time.Time
 	if long.ExpiresIn > 0 {
 		value := time.Now().Add(time.Duration(long.ExpiresIn) * time.Second)
 		expiry = &value
 	}
-	return Account{ID: identity.UserID, Username: identity.Username, AccountType: identity.AccountType, AvatarURL: identity.ProfilePictureURL, AccessToken: token.AccessToken, ExpiresAt: expiry, Scopes: token.Permissions}, nil
+	return Account{ID: identity.UserID, Username: identity.Username, AccountType: identity.AccountType, AvatarURL: identity.ProfilePictureURL, AccessToken: token.AccessToken, LoginMode: "instagram", ExpiresAt: expiry, Scopes: token.Permissions}, nil
+}
+
+func isInstagramProfessionalAccount(accountType string) bool {
+	switch strings.ToUpper(strings.TrimSpace(accountType)) {
+	case "BUSINESS", "CREATOR", "MEDIA_CREATOR":
+		return true
+	default:
+		return false
+	}
 }
 
 func (m *Meta) exchangeUnifiedCode(ctx context.Context, code string) (Account, error) {
@@ -408,6 +457,7 @@ func (m *Meta) exchangeUnifiedCode(ctx context.Context, code string) (Account, e
 		AccountType: "UNKNOWN",
 		AvatarURL:   selected.ProfilePictureURL,
 		AccessToken: token.AccessToken,
+		LoginMode:   "unified",
 		ExpiresAt:   expiry,
 		Scopes:      scopes,
 	}, nil
@@ -422,6 +472,8 @@ func (m *Meta) DisconnectAccount(ctx context.Context, token, accountID string) e
 		if err := m.deleteGraphResource(ctx, host+"/"+m.cfg.MetaAPIVersion+"/"+url.PathEscape(accountID)+"/subscribed_apps", token); err != nil {
 			return fmt.Errorf("Meta webhook unsubscribe failed: %w", err)
 		}
+	} else if err := m.deleteGraphResource(ctx, host+"/"+m.cfg.MetaAPIVersion+"/me/subscribed_apps", token); err != nil {
+		return fmt.Errorf("Instagram webhook unsubscribe failed: %w", err)
 	}
 	if err := m.deleteGraphResource(ctx, host+"/"+m.cfg.MetaAPIVersion+"/me/permissions", token); err != nil {
 		return fmt.Errorf("Meta permission revoke failed: %w", err)
@@ -568,6 +620,24 @@ func (m *Meta) subscribeUnifiedWebhooks(ctx context.Context, graphBase, token, a
 	}
 	if err := m.do(req, &response); err != nil {
 		return fmt.Errorf("Meta webhook subscription failed: %w", err)
+	}
+	if !response.Success {
+		return &OAuthStageError{Stage: "webhook_subscription"}
+	}
+	return nil
+}
+
+func (m *Meta) subscribeInstagramWebhooks(ctx context.Context, token string) error {
+	form := url.Values{"subscribed_fields": {"messages,comments,messaging_postbacks"}}
+	endpoint := "https://graph.instagram.com/" + m.cfg.MetaAPIVersion + "/me/subscribed_apps"
+	req, _ := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, strings.NewReader(form.Encode()))
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	var response struct {
+		Success bool `json:"success"`
+	}
+	if err := m.do(req, &response); err != nil {
+		return fmt.Errorf("Instagram webhook subscription failed: %w", err)
 	}
 	if !response.Success {
 		return &OAuthStageError{Stage: "webhook_subscription"}

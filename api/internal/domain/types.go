@@ -26,6 +26,7 @@ type InstagramAccount struct {
 	AvatarURL       string     `json:"avatar_url,omitempty"`
 	Status          string     `json:"status"`
 	Provider        string     `json:"provider"`
+	LoginMode       string     `json:"login_mode"`
 	Scopes          []string   `json:"scopes"`
 	TokenExpiresAt  *time.Time `json:"token_expires_at,omitempty"`
 	ConnectedAt     time.Time  `json:"connected_at"`

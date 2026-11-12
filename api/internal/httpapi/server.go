@@ -305,4 +305,3 @@ func cleanError(err error) string {
 	}
 	return value
 }
-

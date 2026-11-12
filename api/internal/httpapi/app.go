@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/ids-automate/ids-automate/api/internal/domain"
+	"github.com/ids-automate/ids-automate/api/internal/provider"
 	"github.com/ids-automate/ids-automate/api/internal/security"
 	"github.com/ids-automate/ids-automate/api/internal/store"
 )
@@ -63,7 +64,7 @@ func (s *Server) sendMessage(w http.ResponseWriter, r *http.Request, p domain.Pr
 		fail(w, 409, "policy_window_closed", "Meta messaging oynasi yopilgan; xabar yuborilmadi")
 		return
 	}
-	providerAccountID, encrypted, accountProvider, _, err := s.store.AccountSecretByID(r.Context(), p.WorkspaceID, accountID)
+	providerAccountID, encrypted, accountProvider, loginMode, _, err := s.store.AccountSecretByID(r.Context(), p.WorkspaceID, accountID)
 	if err != nil {
 		statusError(w, err)
 		return
@@ -86,7 +87,8 @@ func (s *Server) sendMessage(w http.ResponseWriter, r *http.Request, p domain.Pr
 		respond(w, 200, map[string]any{"message_id": messageID, "status": "already_accepted"})
 		return
 	}
-	delivery, err := s.provider.SendMessage(r.Context(), token, providerAccountID, participantID, input.Text)
+	instagramProvider := provider.ForLoginMode(s.provider, loginMode)
+	delivery, err := instagramProvider.SendMessage(r.Context(), token, providerAccountID, participantID, input.Text)
 	if err != nil {
 		if updateErr := s.store.CompleteManualMessage(r.Context(), p.WorkspaceID, conversationID, messageID, "failed", ""); updateErr != nil {
 			slog.Error("manual delivery failure state could not be stored", "message_id", messageID, "error", updateErr)
@@ -244,7 +246,7 @@ func (s *Server) settings(w http.ResponseWriter, r *http.Request, p domain.Princ
 		return
 	}
 	settings["instagram_provider"] = s.provider.Name()
-	settings["meta_login_mode"] = s.cfg.MetaLoginMode
+	settings["meta_login_mode"] = "instagram"
 	settings["meta_configured"] = s.metaConfigured()
 	settings["queue_depth"] = s.worker.Depth()
 	settings["webhook_url"] = strings.TrimRight(s.cfg.APIURL, "/") + "/api/v1/webhooks/instagram"

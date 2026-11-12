@@ -42,6 +42,8 @@ func setMetaEnv(t *testing.T) {
 	t.Setenv("META_APP_SECRET", strings.Repeat("a", 32))
 	t.Setenv("META_WEBHOOK_VERIFY_TOKEN", strings.Repeat("v", 32))
 	t.Setenv("META_WEBHOOK_APP_SECRET", strings.Repeat("a", 32))
+	t.Setenv("INSTAGRAM_LOGIN_APP_ID", "1234567890123456")
+	t.Setenv("INSTAGRAM_LOGIN_APP_SECRET", strings.Repeat("i", 32))
 	t.Setenv("META_LOGIN_MODE", "unified")
 	t.Setenv("META_LOGIN_CONFIG_ID", "2331645327602552")
 }
@@ -118,24 +120,28 @@ func TestProductionRequiresSecurePublicURLsAndCookie(t *testing.T) {
 	}
 }
 
-func TestUnifiedMetaRequiresConfigurationID(t *testing.T) {
+func TestInstagramLoginDoesNotRequireLegacyUnifiedConfigurationID(t *testing.T) {
 	validProductionEnv(t)
 	t.Setenv("META_LOGIN_MODE", "unified")
 	t.Setenv("META_LOGIN_CONFIG_ID", "")
-	if _, err := Load(); err == nil || !strings.Contains(err.Error(), "META_LOGIN_CONFIG_ID") {
-		t.Fatalf("unified login without configuration id must be rejected, got %v", err)
+	if _, err := Load(); err != nil {
+		t.Fatalf("direct Instagram Login must not require a legacy Unified configuration id: %v", err)
 	}
 }
 
 func TestMetaConfigurationReadyRejectsPlaceholders(t *testing.T) {
 	cfg := Config{
-		InstagramProvider:  "meta",
-		MetaAppID:          "1234567890123456",
-		MetaAppSecret:      "app-secret",
-		MetaLoginMode:      "unified",
-		MetaLoginConfigID:  "2331645327602552",
-		WebhookVerifyToken: strings.Repeat("v", 32),
-		WebhookAppSecret:   "app-secret",
+		Env:                     "production",
+		InstagramProvider:       "meta",
+		MetaAppID:               "1234567890123456",
+		MetaAppSecret:           "app-secret",
+		InstagramLoginAppID:     "1234567890123456",
+		InstagramLoginAppSecret: strings.Repeat("i", 32),
+		MetaLoginMode:           "unified",
+		MetaLoginConfigID:       "2331645327602552",
+		MetaRedirectURI:         "https://instagram.schat.uz/api/v1/instagram/callback",
+		WebhookVerifyToken:      strings.Repeat("v", 32),
+		WebhookAppSecret:        "app-secret",
 	}
 	if cfg.MetaConfigurationReady() {
 		t.Fatal("placeholder Meta secrets must not be reported as configured")
@@ -146,20 +152,22 @@ func TestMetaConfigurationReadyRejectsPlaceholders(t *testing.T) {
 		t.Fatal("plausible Meta production configuration should be ready for live OAuth verification")
 	}
 	cfg.MetaLoginConfigID = "config-id"
-	if cfg.MetaConfigurationReady() {
-		t.Fatal("non-numeric Unified Login configuration ID must be rejected")
+	if !cfg.MetaConfigurationReady() {
+		t.Fatal("legacy Unified Login configuration must not affect direct Instagram readiness")
 	}
 }
 
 func TestMetaOAuthReadyAcceptsInstagramCallbackAndRejectsOtherPaths(t *testing.T) {
 	cfg := Config{
-		Env:               "production",
-		InstagramProvider: "meta",
-		MetaAppID:         "1234567890123456",
-		MetaAppSecret:     strings.Repeat("a", 32),
-		MetaLoginMode:     "unified",
-		MetaLoginConfigID: "2331645327602552",
-		MetaRedirectURI:   "https://instagram.schat.uz/api/v1/instagram/callback",
+		Env:                     "production",
+		InstagramProvider:       "meta",
+		MetaAppID:               "1234567890123456",
+		MetaAppSecret:           strings.Repeat("a", 32),
+		InstagramLoginAppID:     "1234567890123456",
+		InstagramLoginAppSecret: strings.Repeat("i", 32),
+		MetaLoginMode:           "unified",
+		MetaLoginConfigID:       "2331645327602552",
+		MetaRedirectURI:         "https://instagram.schat.uz/api/v1/instagram/callback",
 	}
 	if !cfg.MetaOAuthReady() {
 		t.Fatal("valid production Instagram callback must enable Meta OAuth")
@@ -198,4 +206,3 @@ func TestGoogleOAuthConfiguration(t *testing.T) {
 		t.Fatalf("production Google callback must use HTTPS: %v", err)
 	}
 }
-

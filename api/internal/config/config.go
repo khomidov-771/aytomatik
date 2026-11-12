@@ -12,38 +12,40 @@ import (
 )
 
 type Config struct {
-	Env                string
-	Port               string
-	AppURL             string
-	APIURL             string
-	DatabaseURL        string
-	RedisURL           string
-	SessionSecret      string
-	EncryptionKey      []byte
-	CookieSecure       bool
-	AllowedOrigins     []string
-	InstagramProvider  string
-	MetaAppID          string
-	MetaAppSecret      string
-	MetaAPIVersion     string
-	MetaLoginMode      string
-	MetaLoginConfigID  string
-	MetaRedirectURI    string
-	WebhookVerifyToken string
-	WebhookAppSecret   string
-	MailProvider       string
-	MailFrom           string
-	SMTPHost           string
-	SMTPPort           string
-	SMTPUser           string
-	SMTPPassword       string
-	SMTPStartTLS       bool
-	GoogleClientID     string
-	GoogleClientSecret string
-	GoogleRedirectURL  string
-	TrustedProxyCIDRs  []string
-	ShortSessionTTL    time.Duration
-	SessionTTL         time.Duration
+	Env                     string
+	Port                    string
+	AppURL                  string
+	APIURL                  string
+	DatabaseURL             string
+	RedisURL                string
+	SessionSecret           string
+	EncryptionKey           []byte
+	CookieSecure            bool
+	AllowedOrigins          []string
+	InstagramProvider       string
+	MetaAppID               string
+	MetaAppSecret           string
+	InstagramLoginAppID     string
+	InstagramLoginAppSecret string
+	MetaAPIVersion          string
+	MetaLoginMode           string
+	MetaLoginConfigID       string
+	MetaRedirectURI         string
+	WebhookVerifyToken      string
+	WebhookAppSecret        string
+	MailProvider            string
+	MailFrom                string
+	SMTPHost                string
+	SMTPPort                string
+	SMTPUser                string
+	SMTPPassword            string
+	SMTPStartTLS            bool
+	GoogleClientID          string
+	GoogleClientSecret      string
+	GoogleRedirectURL       string
+	TrustedProxyCIDRs       []string
+	ShortSessionTTL         time.Duration
+	SessionTTL              time.Duration
 }
 
 // MetaConfigurationReady reports whether the configured values are plausible
@@ -51,29 +53,35 @@ type Config struct {
 // them; the OAuth exchange remains the authoritative live verification.
 // This prevents non-empty placeholders from being exposed as "configured".
 func (c Config) MetaConfigurationReady() bool {
-	if c.InstagramProvider != "meta" || !numericMetaID(c.MetaAppID) || !plausibleMetaSecret(c.MetaAppSecret) {
-		return false
-	}
-	if len(strings.TrimSpace(c.WebhookVerifyToken)) < 20 || !plausibleMetaSecret(c.WebhookAppSecret) {
-		return false
-	}
-	if c.MetaLoginMode == "unified" && !numericMetaID(c.MetaLoginConfigID) {
-		return false
-	}
-	return true
+	return c.InstagramLoginOAuthReady() && c.MetaWebhookReady()
+}
+
+// MetaWebhookReady checks the shared app credentials needed to verify signed
+// callbacks. OAuth login mode and legacy Unified Login configuration do not
+// affect the new Instagram-only onboarding flow.
+func (c Config) MetaWebhookReady() bool {
+	return c.InstagramProvider == "meta" &&
+		numericMetaID(c.MetaAppID) &&
+		plausibleMetaSecret(c.MetaAppSecret) &&
+		len(strings.TrimSpace(c.WebhookVerifyToken)) >= 20 &&
+		plausibleMetaSecret(c.WebhookAppSecret)
+}
+
+// InstagramLoginOAuthReady reports whether the Instagram Business Login flow
+// can be started. Instagram's OAuth credentials are separate from the Meta app
+// credentials used for webhook signatures and existing Unified Login accounts.
+func (c Config) InstagramLoginOAuthReady() bool {
+	return c.InstagramProvider == "meta" &&
+		numericMetaID(c.InstagramLoginAppID) &&
+		plausibleMetaSecret(c.InstagramLoginAppSecret) &&
+		isMetaOAuthRedirectURL(c.MetaRedirectURI, c.Env == "production")
 }
 
 // MetaOAuthReady indicates that the server can attempt the configured official
 // Meta OAuth exchange. It does not mean Meta has accepted the credentials or
 // that webhooks and messaging permissions are ready.
 func (c Config) MetaOAuthReady() bool {
-	if c.InstagramProvider != "meta" || !numericMetaID(c.MetaAppID) || !plausibleMetaSecret(c.MetaAppSecret) || !isMetaOAuthRedirectURL(c.MetaRedirectURI, c.Env == "production") {
-		return false
-	}
-	if c.MetaLoginMode == "unified" && !numericMetaID(c.MetaLoginConfigID) {
-		return false
-	}
-	return c.MetaLoginMode == "instagram" || c.MetaLoginMode == "unified"
+	return c.InstagramLoginOAuthReady()
 }
 
 // GoogleOAuthReady only reports whether the server has enough values to start
@@ -99,44 +107,43 @@ func plausibleMetaSecret(value string) bool {
 
 func Load() (Config, error) {
 	appEnv := env("APP_ENV", "development")
-	metaLoginConfigID := strings.TrimSpace(os.Getenv("META_LOGIN_CONFIG_ID"))
 	metaLoginMode := env("META_LOGIN_MODE", "instagram")
-	if metaLoginConfigID != "" && os.Getenv("META_LOGIN_MODE") == "" {
-		metaLoginMode = "unified"
-	}
+	metaLoginConfigID := strings.TrimSpace(os.Getenv("META_LOGIN_CONFIG_ID"))
 	apiURL := strings.TrimRight(env("API_URL", "http://localhost:8080"), "/")
 	c := Config{
-		Env:                appEnv,
-		Port:               env("PORT", "8080"),
-		AppURL:             env("APP_URL", "http://localhost:3000"),
-		APIURL:             apiURL,
-		DatabaseURL:        os.Getenv("DATABASE_URL"),
-		RedisURL:           os.Getenv("REDIS_URL"),
-		SessionSecret:      os.Getenv("SESSION_SECRET"),
-		CookieSecure:       env("COOKIE_SECURE", "false") == "true",
-		AllowedOrigins:     split(env("ALLOWED_ORIGINS", "http://localhost:3000")),
-		InstagramProvider:  env("INSTAGRAM_PROVIDER", "meta"),
-		MetaAppID:          os.Getenv("META_APP_ID"),
-		MetaAppSecret:      os.Getenv("META_APP_SECRET"),
-		MetaAPIVersion:     env("META_API_VERSION", "v25.0"),
-		MetaLoginMode:      metaLoginMode,
-		MetaLoginConfigID:  metaLoginConfigID,
-		MetaRedirectURI:    env("META_REDIRECT_URI", "http://localhost:8080/api/v1/instagram/callback"),
-		WebhookVerifyToken: os.Getenv("META_WEBHOOK_VERIFY_TOKEN"),
-		WebhookAppSecret:   os.Getenv("META_WEBHOOK_APP_SECRET"),
-		MailProvider:       env("MAIL_PROVIDER", "log"),
-		MailFrom:           env("MAIL_FROM", "IDS Automate <noreply@localhost>"),
-		SMTPHost:           os.Getenv("MAIL_SMTP_HOST"),
-		SMTPPort:           env("MAIL_SMTP_PORT", "587"),
-		SMTPUser:           os.Getenv("MAIL_SMTP_USER"),
-		SMTPPassword:       os.Getenv("MAIL_SMTP_PASSWORD"),
-		SMTPStartTLS:       env("MAIL_SMTP_STARTTLS", "true") == "true",
-		GoogleClientID:     strings.TrimSpace(os.Getenv("GOOGLE_CLIENT_ID")),
-		GoogleClientSecret: strings.TrimSpace(os.Getenv("GOOGLE_CLIENT_SECRET")),
-		GoogleRedirectURL:  strings.TrimSpace(env("GOOGLE_REDIRECT_URL", apiURL+"/api/v1/auth/google/callback")),
-		TrustedProxyCIDRs:  split(env("TRUSTED_PROXY_CIDRS", "127.0.0.1/32,::1/128,172.16.0.0/12")),
-		ShortSessionTTL:    24 * time.Hour,
-		SessionTTL:         30 * 24 * time.Hour,
+		Env:                     appEnv,
+		Port:                    env("PORT", "8080"),
+		AppURL:                  env("APP_URL", "http://localhost:3000"),
+		APIURL:                  apiURL,
+		DatabaseURL:             os.Getenv("DATABASE_URL"),
+		RedisURL:                os.Getenv("REDIS_URL"),
+		SessionSecret:           os.Getenv("SESSION_SECRET"),
+		CookieSecure:            env("COOKIE_SECURE", "false") == "true",
+		AllowedOrigins:          split(env("ALLOWED_ORIGINS", "http://localhost:3000")),
+		InstagramProvider:       env("INSTAGRAM_PROVIDER", "meta"),
+		MetaAppID:               os.Getenv("META_APP_ID"),
+		MetaAppSecret:           os.Getenv("META_APP_SECRET"),
+		InstagramLoginAppID:     strings.TrimSpace(os.Getenv("INSTAGRAM_LOGIN_APP_ID")),
+		InstagramLoginAppSecret: strings.TrimSpace(os.Getenv("INSTAGRAM_LOGIN_APP_SECRET")),
+		MetaAPIVersion:          env("META_API_VERSION", "v25.0"),
+		MetaLoginMode:           metaLoginMode,
+		MetaLoginConfigID:       metaLoginConfigID,
+		MetaRedirectURI:         env("META_REDIRECT_URI", "http://localhost:8080/api/v1/instagram/callback"),
+		WebhookVerifyToken:      os.Getenv("META_WEBHOOK_VERIFY_TOKEN"),
+		WebhookAppSecret:        os.Getenv("META_WEBHOOK_APP_SECRET"),
+		MailProvider:            env("MAIL_PROVIDER", "log"),
+		MailFrom:                env("MAIL_FROM", "IDS Automate <noreply@localhost>"),
+		SMTPHost:                os.Getenv("MAIL_SMTP_HOST"),
+		SMTPPort:                env("MAIL_SMTP_PORT", "587"),
+		SMTPUser:                os.Getenv("MAIL_SMTP_USER"),
+		SMTPPassword:            os.Getenv("MAIL_SMTP_PASSWORD"),
+		SMTPStartTLS:            env("MAIL_SMTP_STARTTLS", "true") == "true",
+		GoogleClientID:          strings.TrimSpace(os.Getenv("GOOGLE_CLIENT_ID")),
+		GoogleClientSecret:      strings.TrimSpace(os.Getenv("GOOGLE_CLIENT_SECRET")),
+		GoogleRedirectURL:       strings.TrimSpace(env("GOOGLE_REDIRECT_URL", apiURL+"/api/v1/auth/google/callback")),
+		TrustedProxyCIDRs:       split(env("TRUSTED_PROXY_CIDRS", "127.0.0.1/32,::1/128,172.16.0.0/12")),
+		ShortSessionTTL:         24 * time.Hour,
+		SessionTTL:              30 * 24 * time.Hour,
 	}
 	if c.DatabaseURL == "" {
 		return c, errors.New("DATABASE_URL is required")
@@ -164,9 +171,6 @@ func Load() (Config, error) {
 	}
 	if c.MetaLoginMode != "instagram" && c.MetaLoginMode != "unified" {
 		return c, errors.New("META_LOGIN_MODE must be instagram or unified")
-	}
-	if c.Env == "production" && c.InstagramProvider == "meta" && c.MetaLoginMode == "unified" && c.MetaLoginConfigID == "" {
-		return c, errors.New("unified Meta login requires META_LOGIN_CONFIG_ID")
 	}
 	if c.MailProvider != "log" && c.MailProvider != "smtp" {
 		return c, errors.New("MAIL_PROVIDER must be log or smtp")
@@ -249,4 +253,3 @@ func split(value string) []string {
 	}
 	return parts
 }
-

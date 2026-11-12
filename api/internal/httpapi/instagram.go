@@ -19,16 +19,16 @@ import (
 
 func (s *Server) instagramLoginStatus(w http.ResponseWriter, _ *http.Request) {
 	respond(w, http.StatusOK, map[string]any{
-		"enabled":    s.provider.Name() == "meta" && s.cfg.MetaOAuthReady(),
+		"enabled":    s.provider.Name() == "meta" && s.cfg.InstagramLoginOAuthReady(),
 		"provider":   s.provider.Name(),
-		"login_mode": s.cfg.MetaLoginMode,
-		"api_ready":  s.metaConfigured(),
+		"login_mode": "instagram",
+		"api_ready":  s.cfg.MetaWebhookReady(),
 	})
 }
 
 func (s *Server) instagramLoginStart(w http.ResponseWriter, r *http.Request) {
-	if s.provider.Name() != "meta" || !s.cfg.MetaOAuthReady() {
-		fail(w, http.StatusServiceUnavailable, "instagram_login_unavailable", "Instagram orqali kirish uchun Meta OAuth server sozlamalari tayyor emas")
+	if s.provider.Name() != "meta" || !s.cfg.InstagramLoginOAuthReady() {
+		fail(w, http.StatusServiceUnavailable, "instagram_login_unavailable", "Instagram Business Login sozlamalari serverda tayyor emas")
 		return
 	}
 	if !contains(s.cfg.AllowedOrigins, r.Header.Get("Origin")) {
@@ -73,7 +73,8 @@ func (s *Server) instagramLoginStart(w http.ResponseWriter, r *http.Request) {
 		Path: "/api/v1/instagram", MaxAge: 600, HttpOnly: true,
 		Secure: s.cfg.CookieSecure, SameSite: http.SameSiteLaxMode,
 	})
-	authorizationURL, err := s.provider.AuthorizationURL(state)
+	instagramProvider := provider.InstagramLoginClient(s.provider)
+	authorizationURL, err := instagramProvider.AuthorizationURL(state)
 	if err != nil {
 		s.clearInstagramStateCookie(w, instagramStateCookieName(state))
 		fail(w, http.StatusServiceUnavailable, "instagram_login_unavailable", "Meta OAuth manzili tayyorlanmadi")
@@ -115,13 +116,14 @@ func (s *Server) instagramLoginCallback(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	code := r.URL.Query().Get("code")
-	if code == "" || len(code) > 4096 || s.provider.Name() != "meta" || !s.cfg.MetaOAuthReady() {
+	if code == "" || len(code) > 4096 || s.provider.Name() != "meta" || !s.cfg.InstagramLoginOAuthReady() {
 		s.redirectInstagramLoginError(w, "oauth_unavailable", intent)
 		return
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 15*time.Second)
 	defer cancel()
-	account, err := s.provider.ExchangeCode(ctx, code)
+	instagramProvider := provider.InstagramLoginClient(s.provider)
+	account, err := instagramProvider.ExchangeCode(ctx, code)
 	if err != nil || account.ID == "" || account.AccessToken == "" {
 		failureCode := instagramOAuthFailureCode(err, account)
 		slog.Warn("Instagram login OAuth exchange failed", "provider", s.provider.Name(), "error_code", provider.ErrorCode(err), "failure_reason", failureCode)
@@ -149,7 +151,7 @@ func (s *Server) instagramLoginCallback(w http.ResponseWriter, r *http.Request) 
 	}
 	principal, accountID, err := s.store.CompleteInstagramLogin(r.Context(), store.AccountInput{
 		InstagramUserID: account.ID, Username: account.Username, AccountType: account.AccountType,
-		AvatarURL: account.AvatarURL, TokenCiphertext: encrypted, Provider: s.provider.Name(),
+		AvatarURL: account.AvatarURL, TokenCiphertext: encrypted, Provider: s.provider.Name(), LoginMode: account.LoginMode,
 		Scopes: account.Scopes, TokenExpiresAt: account.ExpiresAt,
 	}, passwordHash, intent, state.TermsAcceptedAt)
 	if err != nil {
@@ -208,7 +210,7 @@ func (s *Server) clearInstagramStateCookie(w http.ResponseWriter, name string) {
 }
 
 func (s *Server) redirectInstagramLoginError(w http.ResponseWriter, code string, intent ...string) {
-	allowed := map[string]bool{"invalid_state": true, "cancelled": true, "provider_error": true, "oauth_unavailable": true, "oauth_exchange_failed": true, "oauth_token_exchange_failed": true, "instagram_asset_access_failed": true, "instagram_asset_not_shared": true, "multiple_instagram_assets": true, "webhook_subscription_failed": true, "account_save_failed": true, "account_conflict": true, "account_not_found": true, "account_already_exists": true}
+	allowed := map[string]bool{"invalid_state": true, "cancelled": true, "provider_error": true, "oauth_unavailable": true, "oauth_exchange_failed": true, "oauth_token_exchange_failed": true, "instagram_asset_access_failed": true, "instagram_asset_not_shared": true, "instagram_professional_account_required": true, "multiple_instagram_assets": true, "webhook_subscription_failed": true, "account_save_failed": true, "account_conflict": true, "account_not_found": true, "account_already_exists": true}
 	if !allowed[code] {
 		code = "provider_error"
 	}
@@ -241,8 +243,8 @@ func instagramOAuthFailureCode(err error, account provider.Account) string {
 }
 
 func (s *Server) instagramConnect(w http.ResponseWriter, r *http.Request, p domain.Principal) {
-	if !s.metaConfigured() {
-		fail(w, http.StatusServiceUnavailable, "provider_not_configured", "Meta credentials sozlanmagan; Instagram ulanishi bloklangan")
+	if s.provider.Name() != "meta" || !s.cfg.InstagramLoginOAuthReady() {
+		fail(w, http.StatusServiceUnavailable, "provider_not_configured", "Instagram Business Login sozlamalari serverda tayyor emas")
 		return
 	}
 	state, err := security.RandomToken(32)
@@ -254,12 +256,13 @@ func (s *Server) instagramConnect(w http.ResponseWriter, r *http.Request, p doma
 		statusError(w, err)
 		return
 	}
-	authURL, err := s.provider.AuthorizationURL(state)
+	instagramProvider := provider.InstagramLoginClient(s.provider)
+	authURL, err := instagramProvider.AuthorizationURL(state)
 	if err != nil {
 		fail(w, 503, "provider_not_configured", cleanError(err))
 		return
 	}
-	respond(w, 200, map[string]any{"authorization_url": authURL, "provider": s.provider.Name(), "login_mode": s.cfg.MetaLoginMode})
+	respond(w, 200, map[string]any{"authorization_url": authURL, "provider": s.provider.Name(), "login_mode": "instagram"})
 }
 func (s *Server) instagramCallback(w http.ResponseWriter, r *http.Request) {
 	state := r.URL.Query().Get("state")
@@ -279,7 +282,8 @@ func (s *Server) instagramCallback(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, redirect+"?error=invalid_state", http.StatusFound)
 		return
 	}
-	account, err := s.provider.ExchangeCode(r.Context(), code)
+	instagramProvider := provider.InstagramLoginClient(s.provider)
+	account, err := instagramProvider.ExchangeCode(r.Context(), code)
 	if err != nil || account.ID == "" || account.AccessToken == "" {
 		failureCode := instagramOAuthFailureCode(err, account)
 		slog.Warn("Instagram OAuth exchange failed", "provider", s.provider.Name(), "error_code", provider.ErrorCode(err), "failure_reason", failureCode)
@@ -291,7 +295,7 @@ func (s *Server) instagramCallback(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, redirect+"?error=token_storage_failed", http.StatusFound)
 		return
 	}
-	err = s.store.UpsertInstagramAccount(r.Context(), workspaceID, userID, store.AccountInput{InstagramUserID: account.ID, Username: account.Username, AccountType: account.AccountType, AvatarURL: account.AvatarURL, TokenCiphertext: encrypted, Provider: s.provider.Name(), Scopes: account.Scopes, TokenExpiresAt: account.ExpiresAt})
+	err = s.store.UpsertInstagramAccount(r.Context(), workspaceID, userID, store.AccountInput{InstagramUserID: account.ID, Username: account.Username, AccountType: account.AccountType, AvatarURL: account.AvatarURL, TokenCiphertext: encrypted, Provider: s.provider.Name(), LoginMode: account.LoginMode, Scopes: account.Scopes, TokenExpiresAt: account.ExpiresAt})
 	if err != nil {
 		code := "account_save_failed"
 		if errors.Is(err, store.ErrAccountClaimed) {
@@ -308,15 +312,15 @@ func (s *Server) instagramAccounts(w http.ResponseWriter, r *http.Request, p dom
 		statusError(w, err)
 		return
 	}
-	respond(w, 200, map[string]any{"items": items, "provider": s.provider.Name(), "login_mode": s.cfg.MetaLoginMode, "meta_configured": s.metaConfigured()})
+	respond(w, 200, map[string]any{"items": items, "provider": s.provider.Name(), "login_mode": "instagram", "meta_configured": s.metaConfigured()})
 }
 
 func (s *Server) metaConfigured() bool {
-	return s.provider.Name() == "meta" && s.cfg.MetaConfigurationReady()
+	return s.provider.Name() == "meta" && s.cfg.InstagramLoginOAuthReady() && s.cfg.MetaWebhookReady()
 }
 
 func (s *Server) instagramMedia(w http.ResponseWriter, r *http.Request, p domain.Principal) {
-	providerAccountID, encrypted, accountProvider, _, err := s.store.AccountSecretByID(r.Context(), p.WorkspaceID, r.PathValue("id"))
+	providerAccountID, encrypted, accountProvider, loginMode, _, err := s.store.AccountSecretByID(r.Context(), p.WorkspaceID, r.PathValue("id"))
 	if err != nil {
 		statusError(w, err)
 		return
@@ -331,7 +335,8 @@ func (s *Server) instagramMedia(w http.ResponseWriter, r *http.Request, p domain
 		fail(w, http.StatusInternalServerError, "token_unavailable", "Instagram akkauntini qayta ulang")
 		return
 	}
-	items, err := s.provider.ListMedia(r.Context(), token, providerAccountID)
+	instagramProvider := provider.ForLoginMode(s.provider, loginMode)
+	items, err := instagramProvider.ListMedia(r.Context(), token, providerAccountID)
 	if err != nil {
 		slog.Warn("instagram media sync failed", "workspace_id", p.WorkspaceID, "account_id", r.PathValue("id"), "error_code", provider.ErrorCode(err))
 		fail(w, http.StatusBadGateway, "media_sync_failed", "Instagram postlari yuklanmadi. Akkauntni qayta ulang yoki Meta ruxsatlarini tekshiring")
@@ -342,14 +347,15 @@ func (s *Server) instagramMedia(w http.ResponseWriter, r *http.Request, p domain
 
 func (s *Server) instagramDisconnect(w http.ResponseWriter, r *http.Request, p domain.Principal) {
 	accountID := r.PathValue("id")
-	providerAccountID, encrypted, accountProvider, _, secretErr := s.store.AccountSecretByID(r.Context(), p.WorkspaceID, accountID)
+	providerAccountID, encrypted, accountProvider, loginMode, _, secretErr := s.store.AccountSecretByID(r.Context(), p.WorkspaceID, accountID)
 	if secretErr != nil {
 		statusError(w, secretErr)
 		return
 	}
 	if accountProvider == s.provider.Name() {
 		if token, decryptErr := s.cipher.Decrypt(encrypted); decryptErr == nil {
-			if disconnectErr := s.provider.DisconnectAccount(r.Context(), token, providerAccountID); disconnectErr != nil {
+			instagramProvider := provider.ForLoginMode(s.provider, loginMode)
+			if disconnectErr := instagramProvider.DisconnectAccount(r.Context(), token, providerAccountID); disconnectErr != nil {
 				slog.Warn("provider cleanup failed during local account disconnect", "workspace_id", p.WorkspaceID, "account_id", accountID, "error", disconnectErr)
 			}
 		}
