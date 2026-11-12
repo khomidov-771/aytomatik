@@ -611,6 +611,7 @@ html[data-theme="dark"] .setup-page .preferences-controls .select-menu-popover>b
   .marketing-page .feature-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
   .marketing-page .workflow-section{grid-template-columns:minmax(0,1fr);gap:28px;padding:46px 36px}
   .setup-auth-layout{width:min(calc(100% - 40px),620px);margin:30px auto 48px;grid-template-columns:minmax(0,1fr);gap:14px}
+  .setup-auth-story{display:none}
   .setup-auth-story{min-height:0;padding:30px 32px;border-radius:23px}
   .setup-auth-story h2{max-width:15ch;margin:22px 0 10px;font-size:34px}
   .setup-auth-story-flow{margin-top:24px}
