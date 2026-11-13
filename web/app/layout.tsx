@@ -2,9 +2,10 @@ import type { Metadata } from "next";
 import { PreferencesProvider } from "@/components/preferences-provider";
 import "./globals.css";
 import "./design-system.css";
+import "./replio.css";
 
-export const metadata: Metadata = { title: { default: "IDS Automate", template: "%s — IDS Automate" }, description: "Instagram comment-to-DM avtomatlashtirish platformasi" };
-const themeScript = `(function(){try{var t=localStorage.getItem('ids-theme');if(t!=='light'&&t!=='dark'){t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'}document.documentElement.dataset.theme=t;document.documentElement.style.colorScheme=t}catch(e){}})()`;
+export const metadata: Metadata = { title: { default: "REPLIO", template: "%s — REPLIO" }, description: "Every comment starts a conversation. Instagram comment-to-DM automation." };
+const themeScript = `(function(){try{var t=localStorage.getItem('ids-theme');if(t!=='light'&&t!=='dark'){t='dark'}document.documentElement.dataset.theme=t;document.documentElement.style.colorScheme=t}catch(e){}})()`;
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return <html lang="uz" suppressHydrationWarning>
@@ -12,3 +13,4 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
     <body><PreferencesProvider>{children}</PreferencesProvider></body>
   </html>;
 }
+
