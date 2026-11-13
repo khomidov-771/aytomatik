@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, ArrowRight, Check, CheckCircle2, ChevronLeft, ChevronRight, CircleHelp, Clock3, ExternalLink, Film, FlaskConical, Images, Instagram, MessageCircle, RefreshCw, Save, Send, ShieldCheck, UserCheck } from "lucide-react";
+import { AlertTriangle, ArrowRight, Check, CheckCircle2, ChevronLeft, CircleHelp, Clock3, ExternalLink, Film, FlaskConical, Images, Instagram, MessageCircle, RefreshCw, Save, Send, ShieldCheck, UserCheck } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { FormEvent, useState } from "react";
