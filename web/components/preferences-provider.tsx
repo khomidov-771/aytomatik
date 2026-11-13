@@ -27,14 +27,12 @@ function isTheme(value: string | null): value is Theme {
 
 export function PreferencesProvider({ children }: { children: React.ReactNode }) {
   const [locale, updateLocale] = useState<Locale>("uz");
-  const [theme, updateTheme] = useState<Theme>("light");
+  const [theme, updateTheme] = useState<Theme>("dark");
 
   useEffect(() => {
     const storedLocale = window.localStorage.getItem("ids-locale");
     const storedTheme = window.localStorage.getItem("ids-theme");
-    const preferredTheme: Theme = isTheme(storedTheme)
-      ? storedTheme
-      : window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    const preferredTheme: Theme = isTheme(storedTheme) ? storedTheme : "dark";
     const timer = window.setTimeout(() => {
       if (isLocale(storedLocale)) updateLocale(storedLocale);
       updateTheme(preferredTheme);
@@ -91,3 +89,4 @@ export function PreferencesControls({ compact = false }: { compact?: boolean }) 
     </button>
   </div>;
 }
+
