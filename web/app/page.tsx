@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, MessageCircle, ShieldCheck, UserCheck, Zap } from "lucide-react";
+import { ArrowRight, Check, MessageCircle, Send, ShieldCheck, UserCheck, Zap } from "lucide-react";
 import { Logo } from "@/components/logo";
 import { PublicHeader } from "@/components/public-header";
 import { usePreferences } from "@/components/preferences-provider";
@@ -30,14 +30,35 @@ export default function LandingPage() {
           <div className="hero-note"><ShieldCheck size={16} /> {tr("Instagram paroli so‘ralmaydi. Ulanish rasmiy Meta oynasida bo‘ladi.", "Пароль Instagram не запрашивается. Подключение проходит через официальный экран Meta.", "Your Instagram password is never requested. Connection uses Meta’s official sign-in.")}</div>
         </div>
         <div className="hero-visual" data-reveal="scale" aria-label={tr("Comment-to-DM oqimining uch bosqichi", "Три шага Comment-to-DM", "Three steps in the Comment-to-DM flow")}>
-          <section className="hero-sequence">
-            <header className="hero-sequence-heading"><div><span>{tr("COMMENT-TO-DM", "COMMENT-TO-DM", "COMMENT-TO-DM")}</span><h2>{tr("Bir oqim. Uch aniq qadam.", "Один процесс. Три понятных шага.", "One workflow. Three clear steps.")}</h2></div><span className="hero-sequence-index">01—03</span></header>
-            <ol className="hero-sequence-list">
-              <li><span className="hero-sequence-number">01</span><div><small>{tr("IZOH", "КОММЕНТАРИЙ", "COMMENT")}</small><strong>{tr("Postga yangi izoh keladi", "Новый комментарий к публикации", "A new comment arrives")}</strong><p>{tr("Faqat tanlangan postlar yoki Reels", "Только выбранные публикации или Reels", "On selected posts or Reels")}</p></div></li>
-              <li><span className="hero-sequence-number">02</span><div><small>{tr("MOSLIK", "СОВПАДЕНИЕ", "MATCH")}</small><strong>{tr("Kalit so‘z va shartlar tekshiriladi", "Проверяются ключевое слово и условия", "Keywords and conditions are checked")}</strong><p>{tr("Follow tekshiruvi ixtiyoriy", "Проверка подписки — по желанию", "Follow verification is optional")}</p></div></li>
-              <li><span className="hero-sequence-number">03</span><div><small>{tr("JAVOB", "ОТВЕТ", "REPLY")}</small><strong>{tr("Private reply, keyin public javob", "Личный ответ, затем публичный", "Private reply, then public reply")}</strong><p>{tr("Public javob faqat DM tasdiqlansa yuboriladi", "Публичный ответ — только после подтверждённого DM", "Public reply follows only after DM is confirmed")}</p></div></li>
-            </ol>
-            <footer className="hero-sequence-footer"><ShieldCheck/><span>{tr("Har bir urinish va natija tarixda saqlanadi.", "Каждая попытка и результат сохраняются в истории.", "Every attempt and outcome is recorded.")}</span></footer>
+          <section className="hero-sequence" aria-label={tr("Comment-to-DM jarayoni sxemasi", "Схема процесса Comment-to-DM", "Comment-to-DM workflow diagram")}>
+            <header className="hero-sequence-heading">
+              <div><span>{tr("COMMENT → DIRECT · OQIM SXEMASI", "COMMENT → DIRECT · СХЕМА", "COMMENT → DIRECT · WORKFLOW")}</span><h2>{tr("Izohdan Direct’gacha", "От комментария до Direct", "From comment to Direct")}</h2></div>
+              <span className="hero-sequence-index"><i />{tr("3 bosqich", "3 шага", "3 steps")}</span>
+            </header>
+            <div className="hero-flow-scene" role="img" aria-label={tr("Namunaviy izoh, kalit so‘z mosligi va Direct javobining ketma-ketlik sxemasi", "Схема: пример комментария, совпадение ключевого слова и ответ в Direct", "Illustrative sequence: sample comment, keyword match, and Direct reply")}>
+              <svg className="hero-flow-track" viewBox="0 0 560 430" fill="none" aria-hidden="true" preserveAspectRatio="none">
+                <path className="hero-flow-track-base" d="M375 104C485 126 438 174 363 190" />
+                <path className="hero-flow-track-base" d="M207 248C103 270 139 317 246 337" />
+                <path className="hero-flow-track-light" d="M375 104C485 126 438 174 363 190" />
+                <path className="hero-flow-track-light flow-track-second" d="M207 248C103 270 139 317 246 337" />
+                <circle r="5" className="hero-flow-particle"><animateMotion dur="3.6s" repeatCount="indefinite" path="M375 104C485 126 438 174 363 190" /></circle>
+                <circle r="5" className="hero-flow-particle particle-second"><animateMotion dur="3.6s" begin="1.8s" repeatCount="indefinite" path="M207 248C103 270 139 317 246 337" /></circle>
+              </svg>
+              <article className="hero-flow-card hero-flow-comment">
+                <div className="hero-flow-card-top"><span className="hero-flow-icon comment-icon"><MessageCircle /></span><span className="hero-flow-step">01 <i>/</i> COMMENT</span><span className="hero-flow-arrival"><i />{tr("Yangi izoh", "Новый комментарий", "New comment")}</span></div>
+                <div className="hero-flow-message"><small>{tr("IZOH NAMUNASI", "ПРИМЕР КОММЕНТАРИЯ", "SAMPLE COMMENT")}</small><strong>“{tr("Narxi qancha?", "Сколько стоит?", "How much does it cost?")}”</strong></div>
+              </article>
+              <article className="hero-flow-card hero-flow-match">
+                <div className="hero-flow-card-top"><span className="hero-flow-icon match-icon"><Zap /></span><span className="hero-flow-step">02 <i>/</i> MATCH</span><span className="hero-flow-match-label"><Check />{tr("Mos keldi", "Совпало", "Matched")}</span></div>
+                <div className="hero-flow-match-row"><span>{tr("Kalit so‘z", "Ключевое слово", "Keyword")}</span><strong>narx</strong><span className="hero-flow-match-rule">{tr("aniq moslik", "точное совпадение", "exact match")}</span></div>
+              </article>
+              <article className="hero-flow-card hero-flow-reply">
+                <div className="hero-flow-card-top"><span className="hero-flow-icon reply-icon"><Send /></span><span className="hero-flow-step">03 <i>/</i> PRIVATE REPLY</span></div>
+                <div className="hero-flow-reply-bubble">{tr("Assalomu alaykum! Batafsil ma’lumotni Direct orqali yuboramiz.", "Здравствуйте! Подробности отправим вам в Direct.", "Hello! We’ll send the details to your Direct messages.")}</div>
+                <div className="hero-flow-public"><span><Check /></span>{tr("DM tasdiqlansa, keyin public javob", "Публичный ответ — после успешного DM", "Public reply after DM is confirmed")}</div>
+              </article>
+            </div>
+            <footer className="hero-sequence-footer"><ShieldCheck/><span>{tr("Bu — qoida qanday ishlashini ko‘rsatuvchi sxema.", "Это схема последовательности работы правила.", "A diagram of the rule sequence, not a live event.")}</span></footer>
           </section>
         </div>
       </section>
@@ -55,16 +76,15 @@ export default function LandingPage() {
       </section>
 
       <section className="workflow-section" id="guide">
-        <div className="workflow-copy"><span className="section-label">{tr("Javob siyosati", "Правила ответа", "Reply policy")}</span><h2>{tr("Aniq siyosat. Taxminsiz javob.", "Понятные правила. Без догадок.", "Clear rules. No guesswork.")}</h2><p>{tr("Meta follow holatini aniqlay olmasa, tizim foydalanuvchini obuna bo‘lmagan deb belgilamaydi. Workspace egasi noma’lum holat uchun amalni oldindan tanlaydi.", "Если Meta не может определить подписку, система не считает пользователя неподписанным. Владелец workspace заранее выбирает действие для неизвестного статуса.", "If Meta cannot determine follow status, the system does not assume the person is a non-follower. The workspace owner chooses the fallback in advance.")}</p></div>
-        <div className="workflow-outcomes" aria-label={tr("Follow natijalariga ko‘ra bajariladigan amallar", "Действия по результату проверки подписки", "Actions by follow-check outcome")}>
+        <div className="workflow-copy" data-reveal="left"><span className="section-label">{tr("Javob siyosati", "Правила ответа", "Reply policy")}</span><h2>{tr("Aniq siyosat. Taxminsiz javob.", "Понятные правила. Без догадок.", "Clear rules. No guesswork.")}</h2><p>{tr("Meta follow holatini aniqlay olmasa, tizim foydalanuvchini obuna bo‘lmagan deb belgilamaydi. Workspace egasi noma’lum holat uchun amalni oldindan tanlaydi.", "Если Meta не может определить подписку, система не считает пользователя неподписанным. Владелец workspace заранее выбирает действие для неизвестного статуса.", "If Meta cannot determine follow status, the system does not assume the person is a non-follower. The workspace owner chooses the fallback in advance.")}</p></div>
+        <div className="workflow-outcomes" data-reveal="scale" aria-label={tr("Follow natijalariga ko‘ra bajariladigan amallar", "Действия по результату проверки подписки", "Actions by follow-check outcome")}>
           <div><span className="outcome-status follower">FOLLOWER</span><p>{tr("Private reply muvaffaqiyatli bo‘lsa, keyin public javob.", "После успешного личного ответа публикуется комментарий.", "Post the public reply only after private delivery succeeds.")}</p></div>
           <div><span className="outcome-status not-follower">NOT_FOLLOWER</span><p>{tr("DM yuborilmaydi. Obuna bo‘lishga chaqiruvchi public javob.", "Без DM. Публикуется просьба подписаться.", "Skip the DM and publish the configured follow prompt.")}</p></div>
           <div><span className="outcome-status unknown">UNKNOWN</span><p>{tr("Oldindan tanlangan fallback ishlaydi; status taxmin qilinmaydi.", "Применяется выбранное действие; статус не угадывается.", "Use the selected fallback; never guess the status.")}</p></div>
         </div>
       </section>
-      <section className="cta-panel"><div><span className="section-label">{tr("Boshlash", "Начать", "Get started")}</span><h2>{tr("Birinchi qoidangizni bugun sozlang.", "Настройте первое правило сегодня.", "Set up your first rule today.")}</h2><p>{tr("Instagramni ulang, postni tanlang va yuboriladigan javoblarni o‘zingiz belgilang.", "Подключите Instagram, выберите публикацию и задайте тексты ответов.", "Connect Instagram, select a post, and write the replies you want to send.")}</p></div><Link className="btn primary large" href="/register">{tr("Instagramni ulash", "Подключить Instagram", "Connect Instagram")} <ArrowRight /></Link></section>
+      <section className="cta-panel" data-reveal="scale"><div><span className="section-label">{tr("Boshlash", "Начать", "Get started")}</span><h2>{tr("Birinchi qoidangizni bugun sozlang.", "Настройте первое правило сегодня.", "Set up your first rule today.")}</h2><p>{tr("Instagramni ulang, postni tanlang va yuboriladigan javoblarni o‘zingiz belgilang.", "Подключите Instagram, выберите публикацию и задайте тексты ответов.", "Connect Instagram, select a post, and write the replies you want to send.")}</p></div><Link className="btn primary large" href="/register">{tr("Instagramni ulash", "Подключить Instagram", "Connect Instagram")} <ArrowRight /></Link></section>
     </main>
     <footer className="public-footer"><Logo /><p>Instagram Comment-to-DM · Official Meta API</p><div><Link href="/setup">{tr("Instagram ulash", "Подключить Instagram", "Connect Instagram")}</Link><Link href="/terms">{tr("Shartlar", "Условия", "Terms")}</Link><span>© 2026 IDS Automate</span></div></footer>
   </div>;
 }
-
