@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, Check, Film, Instagram, MessageCircle, MousePointerClick, Send, ShieldCheck, Sparkles, UserCheck, Zap } from "lucide-react";
+import { ArrowDown, ArrowRight, Check, Instagram, MessageCircle, MousePointerClick, Send, ShieldCheck, Sparkles, UserCheck, Zap } from "lucide-react";
 import { Logo } from "@/components/logo";
 import { PublicHeader } from "@/components/public-header";
 import { usePreferences } from "@/components/preferences-provider";
@@ -24,23 +24,25 @@ export default function LandingPage() {
         <div className="hero-glow" />
         <div className="hero-copy" data-reveal="left">
           <span className="hero-kicker"><Sparkles size={15} /> {tr("Instagram Professional uchun rasmiy automation", "Официальная автоматизация для Instagram Professional", "Official automation for Instagram Professional")}</span>
-          <h1>{tr("Commentni", "Превращайте", "Turn comments into")} <span>{tr("aniq va xavfsiz", "точно и безопасно", "precise and safe")}</span> {tr("Direct oqimiga aylantiring", "комментарии в Direct", "Direct conversations")}</h1>
-          <p>{tr("Real comment → keyword match → ixtiyoriy follow tekshiruvi → private reply → tasdiqlangandan keyin public javob.", "Реальный комментарий → ключевое слово → проверка подписки → личный ответ → публичный ответ после подтверждения.", "Real comment → keyword match → optional follow check → private reply → public reply after confirmation.")}</p>
+          <h1>{tr("Instagram izohlarini", "Превращайте комментарии Instagram", "Turn Instagram comments")} <span>{tr("mijoz suhbatiga", "в диалоги с клиентами", "into customer conversations")}</span> {tr("aylantiring", "", "")}</h1>
+          <p>{tr("Har bir comment uchun qoidani bir marta sozlang. IDS Automate kalit so‘zni tekshiradi va rasmiy Meta API orqali javob oqimini boshqaradi.", "Настройте правило один раз. IDS Automate проверит ключевое слово и обработает ответы через официальный API Meta.", "Set up a rule once. IDS Automate checks the keyword and orchestrates replies through Meta’s official API.")}</p>
           <div className="hero-actions"><Link className="btn primary large" href="/register">{tr("Instagram bilan ro‘yxatdan o‘tish", "Зарегистрироваться через Instagram", "Sign up with Instagram")} <ArrowRight size={18} /></Link></div>
-          <div className="hero-note"><ShieldCheck size={16} /> {tr("Instagram paroli so‘ralmaydi. Faqat rasmiy Meta API.", "Пароль Instagram не запрашивается. Только официальный Meta API.", "We never ask for your Instagram password. Official Meta API only.")}</div>
+          <div className="hero-note"><ShieldCheck size={16} /> {tr("Parol so‘ralmaydi · Rasmiy Meta API · Har bir harakat qayd etiladi", "Без запроса пароля · Официальный API Meta · Все действия записываются", "No password collection · Official Meta API · Actions are recorded")}</div>
         </div>
-        <div className="hero-visual" data-reveal="scale" aria-label={tr("Comment-to-DM oqimining ko‘rgazmali namunasi", "Иллюстрация потока Comment-to-DM", "Illustration of the Comment-to-DM flow")}>
-          <div className="hero-phone-orbit" />
-          <div className="hero-phone">
-            <div className="hero-phone-top"><span>9:41</span><i/><span>•••</span></div>
-            <div className="hero-phone-title"><Instagram size={16}/><strong>Reels</strong><span>•••</span></div>
-            <div className="hero-phone-art"><div className="hero-phone-art-glow"/><span className="hero-phone-video"><Film/></span><small>COMMENT → DIRECT</small></div>
-            <div className="hero-phone-caption"><strong>{tr("Video commenti", "Комментарий к видео", "Video comment")}</strong><p>{tr("Mahsulot haqida batafsil", "Подробности о товаре", "Product details")}</p></div>
-            <div className="hero-phone-comment"><MessageCircle/><span>{tr("Narxi qancha?", "Сколько стоит?", "How much does it cost?")}</span></div>
-            <div className="hero-phone-reply"><Send/><span>{tr("Ma’lumot Direct’ga yuborildi", "Информация отправлена в Direct", "Details sent to Direct")}</span><Check/></div>
-          </div>
-          <div className="hero-float-chip"><span><MessageCircle/></span><div><strong>{tr("Real comment", "Реальный комментарий", "Real comment")}</strong><small>{tr("Kalit so‘z aniqlandi", "Ключевое слово найдено", "Keyword matched")}</small></div></div>
-          <div className="hero-float-send"><span><Send/></span>{tr("Private reply → Public reply", "Личный ответ → Публичный ответ", "Private reply → Public reply")}</div>
+        <div className="hero-visual" data-reveal="scale" aria-label={tr("Comment-to-DM qoidasi qanday ishlashining sxemasi", "Схема работы правила Comment-to-DM", "Diagram of a Comment-to-DM rule")}>
+          <div className="hero-board-orbit orbit-one"/><div className="hero-board-orbit orbit-two"/>
+          <section className="hero-board" aria-label={tr("Oqim namunasi", "Пример потока", "Flow illustration")}>
+            <header className="hero-board-header"><span className="hero-board-brand"><Instagram/></span><span><small>{tr("COMMENT-TO-DM QOIDASI", "ПРАВИЛО COMMENT-TO-DM", "COMMENT-TO-DM RULE")}</small><strong>{tr("Javob oqimi", "Сценарий ответа", "Reply workflow")}</strong></span><span className="hero-board-label">{tr("SXEMA", "СХЕМА", "FLOW")}</span></header>
+            <div className="hero-flow-list">
+              <article className="hero-flow-card"><span className="hero-flow-icon comment"><MessageCircle/></span><div><small>{tr("1 · TRIGGER", "1 · ТРИГГЕР", "1 · TRIGGER")}</small><strong>{tr("Izoh keladi", "Поступает комментарий", "A comment arrives")}</strong><p>{tr("Tanlangan post yoki Reel’da", "К выбранной публикации или Reel", "On a selected post or Reel")}</p></div><span className="hero-flow-check"><Check/></span></article>
+              <div className="hero-flow-link"><span/><ArrowDown/></div>
+              <article className="hero-flow-card"><span className="hero-flow-icon keyword"><Sparkles/></span><div><small>{tr("2 · SHART", "2 · УСЛОВИЕ", "2 · CONDITION")}</small><strong>{tr("Kalit so‘zni tekshirish", "Проверка ключевого слова", "Match a keyword")}</strong><p>{tr("Ixtiyoriy follow siyosati bilan", "С опциональной проверкой подписки", "With optional follow policy")}</p></div><span className="hero-flow-check"><Check/></span></article>
+              <div className="hero-flow-link"><span/><ArrowDown/></div>
+              <article className="hero-flow-card response"><span className="hero-flow-icon reply"><Send/></span><div><small>{tr("3 · JAVOBLAR", "3 · ОТВЕТЫ", "3 · REPLIES")}</small><strong>{tr("Private reply → public javob", "Личный ответ → публичный ответ", "Private reply → public reply")}</strong><p>{tr("Public muvaffaqiyat faqat tasdiqlangan DM’dan keyin", "Публичный success — только после подтверждённого DM", "Public success only after confirmed DM delivery")}</p></div></article>
+            </div>
+            <footer className="hero-board-footer"><span><ShieldCheck/>{tr("Rasmiy API", "Официальный API", "Official API")}</span><span>{tr("Boshqariladigan qoida", "Управляемое правило", "Owner-controlled rule")}</span></footer>
+          </section>
+          <div className="hero-orbit-caption"><span className="hero-orbit-dot"/><span>{tr("Aniq sozlama. Tushunarli natija.", "Прозрачная настройка. Понятный результат.", "Clear setup. Traceable outcomes.")}</span></div>
         </div>
       </section>
 
@@ -66,3 +68,4 @@ export default function LandingPage() {
     <footer className="public-footer"><Logo /><p>Instagram Comment-to-DM · Official Meta API</p><div><Link href="/setup">{tr("Instagram ulash", "Подключить Instagram", "Connect Instagram")}</Link><Link href="/terms">{tr("Shartlar", "Условия", "Terms")}</Link><span>© 2026 IDS Automate</span></div></footer>
   </div>;
 }
+
