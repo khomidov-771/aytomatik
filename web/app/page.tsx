@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, Check, MessageCircle, Send, ShieldCheck, UserCheck, Zap } from "lucide-react";
+import { ArrowRight, Check, Instagram, MessageCircle, Send, ShieldCheck, UserCheck, Zap } from "lucide-react";
 import { Logo } from "@/components/logo";
 import { PublicHeader } from "@/components/public-header";
 import { usePreferences } from "@/components/preferences-provider";
@@ -20,54 +20,35 @@ export default function LandingPage() {
     <MotionReveal />
     <PublicHeader />
     <main>
-      <section className="hero">
+      <section className="hero" id="product">
         <div className="hero-glow" />
         <div className="hero-copy" data-reveal="left">
-          <span className="hero-kicker">{tr("INSTAGRAM COMMENT-TO-DM", "АВТОМАТИЗАЦИЯ INSTAGRAM-КОММЕНТАРИЕВ", "INSTAGRAM COMMENT AUTOMATION")}</span>
-          <h1>{tr("Instagram izohlariga", "Автоматизируйте ответы на", "Automate replies to")} <span>{tr("tez javob bering", "комментарии Instagram", "Instagram comments")}</span></h1>
-          <p>{tr("Kalit so‘z va javob matnini bir marta belgilang. Yangi mos izoh kelganda IDS Automate tanlangan qoidani rasmiy Meta API orqali bajaradi.", "Один раз задайте ключевые слова и ответы. Когда появится подходящий комментарий, IDS Automate выполнит правило через официальный API Meta.", "Set keywords and replies once. When a matching comment arrives, IDS Automate runs the rule through Meta’s official API.")}</p>
-          <div className="hero-actions"><Link className="btn primary large" href="/register">{tr("Instagramni ulash", "Подключить Instagram", "Connect Instagram")} <ArrowRight size={18} /></Link><Link className="hero-secondary-link" href="/#guide">{tr("Qanday ishlaydi", "Как это работает", "How it works")}</Link></div>
-          <div className="hero-note"><ShieldCheck size={16} /> {tr("Instagram paroli so‘ralmaydi. Ulanish rasmiy Meta oynasida bo‘ladi.", "Пароль Instagram не запрашивается. Подключение проходит через официальный экран Meta.", "Your Instagram password is never requested. Connection uses Meta’s official sign-in.")}</div>
+          <span className="hero-kicker"><Instagram size={15}/>{tr("Instagram uchun comment avtomatizatsiyasi", "Автоматизация комментариев Instagram", "Instagram comment automation")}</span>
+          <h1>{tr("Kommentdan mijozgacha —", "От комментария до клиента —", "From comment to customer —")} <span>{tr("avtomatik ravishda", "автоматически", "automatically")}</span></h1>
+          <p>{tr("Reels va post kommentlariga avtomatik javob bering, Direct xabar yuboring va jarayonni bitta joydan boshqaring.", "Автоматически отвечайте на комментарии к Reels и публикациям, отправляйте сообщения в Direct и управляйте процессом из одного места.", "Reply to Reels and post comments automatically, send Direct messages, and manage the workflow in one place.")}</p>
+          <div className="hero-actions"><Link className="btn primary large" href="/register">{tr("Bepul boshlash", "Начать бесплатно", "Get started free")} <ArrowRight size={18} /></Link><Link className="btn secondary large" href="/#guide"><span className="play-icon"/> {tr("Qanday ishlaydi?", "Как это работает?", "How it works")}</Link></div>
+          <div className="hero-proof-list"><span><Check/>{tr("Tez sozlash", "Быстрая настройка", "Quick setup")}</span><span><Check/>{tr("Xavfsiz ulanish", "Безопасное подключение", "Secure connection")}</span><span><Check/>{tr("Rasmiy Meta API", "Официальный API Meta", "Official Meta API")}</span></div>
         </div>
-        <div className="hero-visual" data-reveal="scale" aria-label={tr("Comment-to-DM oqimining uch bosqichi", "Три шага Comment-to-DM", "Three steps in the Comment-to-DM flow")}>
-          <section className="hero-sequence" aria-label={tr("Comment-to-DM jarayoni sxemasi", "Схема процесса Comment-to-DM", "Comment-to-DM workflow diagram")}>
-            <header className="hero-sequence-heading">
-              <div><span>{tr("COMMENT → DIRECT · OQIM SXEMASI", "COMMENT → DIRECT · СХЕМА", "COMMENT → DIRECT · WORKFLOW")}</span><h2>{tr("Izohdan Direct’gacha", "От комментария до Direct", "From comment to Direct")}</h2></div>
-              <span className="hero-sequence-index"><i />{tr("3 bosqich", "3 шага", "3 steps")}</span>
-            </header>
-            <div className="hero-flow-scene" role="img" aria-label={tr("Namunaviy izoh, kalit so‘z mosligi va Direct javobining ketma-ketlik sxemasi", "Схема: пример комментария, совпадение ключевого слова и ответ в Direct", "Illustrative sequence: sample comment, keyword match, and Direct reply")}>
-              <svg className="hero-flow-track" viewBox="0 0 560 430" fill="none" aria-hidden="true" preserveAspectRatio="none">
-                <path className="hero-flow-track-base" d="M375 104C485 126 438 174 363 190" />
-                <path className="hero-flow-track-base" d="M207 248C103 270 139 317 246 337" />
-                <path className="hero-flow-track-light" d="M375 104C485 126 438 174 363 190" />
-                <path className="hero-flow-track-light flow-track-second" d="M207 248C103 270 139 317 246 337" />
-                <circle r="5" className="hero-flow-particle"><animateMotion dur="3.6s" repeatCount="indefinite" path="M375 104C485 126 438 174 363 190" /></circle>
-                <circle r="5" className="hero-flow-particle particle-second"><animateMotion dur="3.6s" begin="1.8s" repeatCount="indefinite" path="M207 248C103 270 139 317 246 337" /></circle>
-              </svg>
-              <article className="hero-flow-card hero-flow-comment">
-                <div className="hero-flow-card-top"><span className="hero-flow-icon comment-icon"><MessageCircle /></span><span className="hero-flow-step">01 <i>/</i> COMMENT</span><span className="hero-flow-arrival"><i />{tr("Yangi izoh", "Новый комментарий", "New comment")}</span></div>
-                <div className="hero-flow-message"><small>{tr("IZOH NAMUNASI", "ПРИМЕР КОММЕНТАРИЯ", "SAMPLE COMMENT")}</small><strong>“{tr("Narxi qancha?", "Сколько стоит?", "How much does it cost?")}”</strong></div>
-              </article>
-              <article className="hero-flow-card hero-flow-match">
-                <div className="hero-flow-card-top"><span className="hero-flow-icon match-icon"><Zap /></span><span className="hero-flow-step">02 <i>/</i> MATCH</span><span className="hero-flow-match-label"><Check />{tr("Mos keldi", "Совпало", "Matched")}</span></div>
-                <div className="hero-flow-match-row"><span>{tr("Kalit so‘z", "Ключевое слово", "Keyword")}</span><strong>narx</strong><span className="hero-flow-match-rule">{tr("aniq moslik", "точное совпадение", "exact match")}</span></div>
-              </article>
-              <article className="hero-flow-card hero-flow-reply">
-                <div className="hero-flow-card-top"><span className="hero-flow-icon reply-icon"><Send /></span><span className="hero-flow-step">03 <i>/</i> PRIVATE REPLY</span></div>
-                <div className="hero-flow-reply-bubble">{tr("Assalomu alaykum! Batafsil ma’lumotni Direct orqali yuboramiz.", "Здравствуйте! Подробности отправим вам в Direct.", "Hello! We’ll send the details to your Direct messages.")}</div>
-                <div className="hero-flow-public"><span><Check /></span>{tr("DM tasdiqlansa, keyin public javob", "Публичный ответ — после успешного DM", "Public reply after DM is confirmed")}</div>
-              </article>
-            </div>
-            <footer className="hero-sequence-footer"><ShieldCheck/><span>{tr("Bu — qoida qanday ishlashini ko‘rsatuvchi sxema.", "Это схема последовательности работы правила.", "A diagram of the rule sequence, not a live event.")}</span></footer>
-          </section>
+        <div className="hero-visual" data-reveal="scale" aria-label={tr("Comment va Direct javobining ko‘rgazmali namunasi", "Иллюстрация комментария и ответа в Direct", "Illustration of a comment and Direct reply")}>
+          <div className="hero-phone-orbit"/>
+          <div className="hero-phone">
+            <div className="hero-phone-top"><span>9:41</span><i/><span>•••</span></div>
+            <div className="hero-phone-title"><Instagram size={15}/><strong>Reels</strong><span>•••</span></div>
+            <div className="hero-phone-art"><span className="hero-phone-art-play">▶</span><small>{tr("VIZUAL NAMUNA", "ВИЗУАЛЬНЫЙ ПРИМЕР", "VISUAL EXAMPLE")}</small></div>
+            <div className="hero-phone-caption"><strong>{tr("Post kommenti", "Комментарий к публикации", "Post comment")}</strong><p>{tr("Izohdan Direct javobigacha", "От комментария до ответа в Direct", "From comment to Direct reply")}</p></div>
+            <div className="hero-phone-comment"><MessageCircle/><span>{tr("Narxi qancha?", "Сколько стоит?", "How much does it cost?")}</span></div>
+            <div className="hero-phone-reply"><Send/><span><small>{tr("JAVOB SHABLONI", "ШАБЛОН ОТВЕТА", "REPLY TEMPLATE")}</small><strong>{tr("Batafsil ma’lumot — Direct’da", "Подробности — в Direct", "More details in Direct")}</strong></span></div>
+          </div>
+          <div className="hero-replio-orb" aria-hidden="true"><span>R</span></div>
+          <div className="hero-float-chip"><span><MessageCircle/></span><div><strong>{tr("Comment", "Комментарий", "Comment")}</strong><small>{tr("Kalit so‘z misoli: “narx”", "Пример ключевого слова: «цена»", "Keyword example: “price”")}</small></div></div>
+          <div className="hero-float-send"><span><Send/></span>{tr("Private reply → public javob", "Личный ответ → публичный", "Private reply → public reply")}</div>
         </div>
       </section>
 
-      <section className="trust-strip" aria-label={tr("Platforma tamoyillari", "Принципы платформы", "Platform principles")} id="safety">
-        <div data-reveal><strong>{tr("Rasmiy Meta API", "Официальный API Meta", "Official Meta API")}</strong><span>{tr("Ruxsat bilan ulanish", "Подключение с разрешением", "Permission-based connection")}</span></div>
-        <div data-reveal><strong>{tr("Parol saqlanmaydi", "Пароль не хранится", "Password is not stored")}</strong><span>{tr("Faqat OAuth token ishlatiladi", "Используется только OAuth-токен", "Only an OAuth token is used")}</span></div>
-        <div data-reveal><strong>{tr("Harakatlar jurnali", "Журнал действий", "Action history")}</strong><span>{tr("Natija va xatolar alohida", "Результаты и ошибки отдельно", "Outcomes and errors kept separate")}</span></div>
-        <div data-reveal><strong>{tr("Dublikatdan himoya", "Защита от дублей", "Duplicate protection")}</strong><span>{tr("Bir commentga takror javob yo‘q", "Без повторного ответа на комментарий", "No duplicate reply per comment")}</span></div>
+      <section className="trust-strip" aria-label={tr("Platforma afzalliklari", "Преимущества платформы", "Platform benefits")} id="safety">
+        <div data-reveal><strong>{tr("Tez sozlash", "Быстрая настройка", "Quick setup")}</strong><span>{tr("Post va javoblar bir oqimda", "Публикация и ответы в одном процессе", "Post and replies in one workflow")}</span></div>
+        <div data-reveal><strong>{tr("Xavfsiz ulanish", "Безопасное подключение", "Secure connection")}</strong><span>{tr("Parol saqlanmaydi", "Пароль не хранится", "Password is never stored")}</span></div>
+        <div data-reveal><strong>{tr("Rasmiy Meta API", "Официальный API Meta", "Official Meta API")}</strong><span>{tr("Faqat ruxsat berilgan amallar", "Только разрешённые действия", "Permission-based actions")}</span></div>
       </section>
 
       <section className="marketing-section" id="features">
@@ -83,8 +64,9 @@ export default function LandingPage() {
           <div><span className="outcome-status unknown">UNKNOWN</span><p>{tr("Oldindan tanlangan fallback ishlaydi; status taxmin qilinmaydi.", "Применяется выбранное действие; статус не угадывается.", "Use the selected fallback; never guess the status.")}</p></div>
         </div>
       </section>
-      <section className="cta-panel" data-reveal="scale"><div><span className="section-label">{tr("Boshlash", "Начать", "Get started")}</span><h2>{tr("Birinchi qoidangizni bugun sozlang.", "Настройте первое правило сегодня.", "Set up your first rule today.")}</h2><p>{tr("Instagramni ulang, postni tanlang va yuboriladigan javoblarni o‘zingiz belgilang.", "Подключите Instagram, выберите публикацию и задайте тексты ответов.", "Connect Instagram, select a post, and write the replies you want to send.")}</p></div><Link className="btn primary large" href="/register">{tr("Instagramni ulash", "Подключить Instagram", "Connect Instagram")} <ArrowRight /></Link></section>
+      <section className="cta-panel" id="help" data-reveal="scale"><div><span className="section-label">{tr("Boshlash", "Начать", "Get started")}</span><h2>{tr("Birinchi qoidangizni bugun sozlang.", "Настройте первое правило сегодня.", "Set up your first rule today.")}</h2><p>{tr("Instagramni ulang, postni tanlang va yuboriladigan javoblarni o‘zingiz belgilang.", "Подключите Instagram, выберите публикацию и задайте тексты ответов.", "Connect Instagram, select a post, and write the replies you want to send.")}</p></div><Link className="btn primary large" href="/register">{tr("Bepul boshlash", "Начать бесплатно", "Get started free")} <ArrowRight /></Link></section>
     </main>
-    <footer className="public-footer"><Logo /><p>Instagram Comment-to-DM · Official Meta API</p><div><Link href="/setup">{tr("Instagram ulash", "Подключить Instagram", "Connect Instagram")}</Link><Link href="/terms">{tr("Shartlar", "Условия", "Terms")}</Link><span>© 2026 IDS Automate</span></div></footer>
+    <footer className="public-footer"><Logo /><p>{tr("Har bir comment suhbatni boshlaydi.", "Каждый комментарий начинает диалог.", "Every comment starts a conversation.")}</p><div><Link href="/setup">{tr("Instagram ulash", "Подключить Instagram", "Connect Instagram")}</Link><Link href="/terms">{tr("Shartlar", "Условия", "Terms")}</Link><span>© 2026 REPLIO</span></div></footer>
   </div>;
 }
+
