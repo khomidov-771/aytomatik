@@ -13,9 +13,10 @@ export function PublicHeader() {
   return <header className="public-header"><div className="public-nav">
     <Logo />
     <nav id="public-menu" className={open ? "open" : ""} aria-label={tr("Asosiy navigatsiya", "Основная навигация", "Main navigation")}>
+      <Link href="/#product" onClick={() => setOpen(false)}>{tr("Mahsulot", "Продукт", "Product")}</Link>
       <Link href="/#features" onClick={() => setOpen(false)}>{tr("Imkoniyatlar", "Возможности", "Features")}</Link>
-      <Link href="/#guide" onClick={() => setOpen(false)}>{tr("Qanday ishlaydi", "Как это работает", "How it works")}</Link>
-      <Link href="/#safety" onClick={() => setOpen(false)}>{tr("Xavfsizlik", "Безопасность", "Security")}</Link>
+      <Link href="/#guide" onClick={() => setOpen(false)}>{tr("Qanday ishlaydi?", "Как это работает?", "How it works")}</Link>
+      <Link href="/#help" onClick={() => setOpen(false)}>{tr("Yordam", "Помощь", "Help")}</Link>
       <Link className="public-nav-auth mobile-auth-link" href="/login" onClick={() => setOpen(false)}>{tr("Kirish", "Войти", "Sign in")}</Link>
       <Link className="public-nav-auth mobile-auth-link" href="/register" onClick={() => setOpen(false)}>{tr("Ro‘yxatdan o‘tish", "Регистрация", "Create account")}</Link>
     </nav>
@@ -27,3 +28,4 @@ export function PublicHeader() {
     </div>
   </div></header>;
 }
+
