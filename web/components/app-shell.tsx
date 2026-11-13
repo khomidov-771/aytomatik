@@ -14,9 +14,9 @@ import { roleAtLeast, SessionProvider } from "./session-context";
 import { SelectMenu } from "./select-menu";
 
 const navigation = [
-  { href: "/app", label: ["Bosh sahifa", "Главная", "Dashboard"], icon: Home, minimumRole: "customer" as const },
-  { href: "/app/accounts", label: ["Instagram akkauntlar", "Аккаунты Instagram", "Instagram accounts"], icon: Instagram, minimumRole: "customer" as const },
-  { href: "/app/automations", label: ["Avtomatlashtirish", "Автоматизации", "Automations"], icon: Bot, minimumRole: "customer" as const },
+  { href: "/app", label: ["Dashboard", "Dashboard", "Dashboard"], icon: Home, minimumRole: "customer" as const },
+  { href: "/app/automations", label: ["Avtomatizatsiyalar", "Автоматизации", "Automations"], icon: Bot, minimumRole: "customer" as const },
+  { href: "/app/accounts", label: ["Akkauntlar", "Аккаунты", "Accounts"], icon: Instagram, minimumRole: "customer" as const },
   { href: "/app/inbox", label: ["Inbox (Direct)", "Входящие (Direct)", "Inbox (Direct)"], icon: MessageSquareText, minimumRole: "operator" as const },
   { href: "/app/analytics", label: ["Analitika", "Аналитика", "Analytics"], icon: BarChart3, minimumRole: "manager" as const },
   { href: "/app/team", label: ["Jamoa", "Команда", "Team"], icon: Users, minimumRole: "manager" as const },
@@ -48,7 +48,7 @@ function WorkspaceSwitcher({ session }: { session: Session }) {
   const workspaceOptions = (workspaces.data?.items ?? [{ id: session.user.workspace_id, name: session.user.workspace_name, role: session.user.role }]).map((workspace) => ({ value: workspace.id, label: workspace.name, description: workspace.role }));
 
   return <div className="workspace-switch">
-    <span className="workspace-icon">I</span>
+    <span className="workspace-icon">{session.user.workspace_name.trim().charAt(0).toUpperCase() || "R"}</span>
     <SelectMenu value={workspaces.data?.active_workspace_id ?? session.user.workspace_id} options={workspaceOptions} onChange={(workspaceID) => void switchWorkspace(workspaceID)} ariaLabel={tr("Workspace almashtirish", "Сменить рабочую область", "Switch workspace")} disabled={switching || workspaces.loading || !workspaces.data || workspaces.data.items.length < 2} className="workspace-select" />
   </div>;
 }
@@ -91,3 +91,4 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <nav className="mobile-bottom" aria-label={tr("Mobil navigatsiya", "Мобильная навигация", "Mobile navigation")}>{visibleNavigation.slice(0, 5).map((item) => { const Icon = item.icon; const active = item.href === "/app" ? path === item.href : path.startsWith(item.href); return <Link key={item.href} href={item.href} className={active ? "active" : ""}><Icon/><span>{item.translatedLabel.split(" ")[0]}</span></Link>; })}</nav>
   </div></SessionProvider>;
 }
+
