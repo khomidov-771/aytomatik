@@ -17,6 +17,7 @@ ENV NODE_ENV=production
 RUN addgroup -S nodejs && adduser -S nextjs -G nodejs
 COPY --from=build --chown=nextjs:nodejs /app/web/.next/standalone ./
 COPY --from=build --chown=nextjs:nodejs /app/web/.next/static ./web/.next/static
+COPY --from=build --chown=nextjs:nodejs /app/web/public ./web/public
 USER nextjs
 EXPOSE 3000
 ENV PORT=3000 HOSTNAME=0.0.0.0
