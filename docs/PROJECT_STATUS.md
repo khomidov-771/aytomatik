@@ -9,7 +9,7 @@
 - Deployed only the web service from the clean `78695c2` release. The previous web image is retained as `ids-automate-web:rollback-repleo-20261114`. API, PostgreSQL, Redis, Nginx, `.env.production`, production data, and the dirty `/opt/ids-automate` checkout were left untouched.
 - Production page returned HTTP 200 with title `REPLEO`; `/repleo-night-hero.jpg` returned HTTP 200 (`image/jpeg`). Web, API, PostgreSQL, and Redis containers were healthy after deploy. Production UI E2E passed (1 test); it used controlled auth/status responses, while live API status and OAuth-start were checked separately.
 - Local checks passed: frontend lint, 2 frontend unit tests, 22-route production build, E2E (1 flow), Go unit tests, `go vet`, Go build, and PostgreSQL store/API integration tests.
-- PII-free production DB aggregates show one connected Meta account, 25 processed `comment_created` events, 12 completed executions, 11 Meta private replies succeeded with provider result IDs, and 12 Meta public replies succeeded with result IDs. All 11 successful private replies completed before their public reply; one `UNKNOWN` follow-check failure took the configured skip-DM/neutral-public fallback. A follower/non-follower follow check is not verified.
+- PII-free production DB aggregates show one connected Meta account, 25 processed `comment_created` events, 12 completed executions, 11 Meta private replies succeeded with provider result IDs, and 12 Meta public replies succeeded with result IDs. All 11 successful private replies completed before their public reply; one `UNKNOWN` follow-check failure took the configured skip-DM/neutral-public fallback. Inbox history also has 8 inbound `received` and 12 outbound `sent` Meta messages, each with a provider result ID. A follower/non-follower follow check is not verified.
 - Production Instagram status is enabled and API-ready; `register` and `login` OAuth starts returned official `www.instagram.com` URLs. A full user consent/callback was not performed in this check. Full `npm audit` reports 7 moderate advisories in build/dev-only `typescript-eslint` → `minimatch`; `npm audit --omit=dev` found 0, and those tools are absent from the runtime image.
 - The product is **not 100% verified**: follow verification remains unproven, and fresh OAuth callback, inbound DM/manual Inbox reply, and a new post-deploy comment are not live-tested. Historical Meta action rows confirm the private/public delivery path worked for the recorded events.
 
@@ -59,6 +59,8 @@ Bu product completion foizi emas. Meta yoki Google’dagi real foydalanuvchi oqi
 | 15 | Live follow verification | NOT VERIFIED | One provider error mapped to `UNKNOWN`; configured fallback correctly skipped DM and completed a public reply. No live FOLLOWER/NOT_FOLLOWER proof |
 | 16 | Live private reply | PASS for recorded events | 11 Meta private-reply actions succeeded with provider result IDs |
 | 17 | Live public reply and ordering | PASS for recorded events | 12 Meta public replies succeeded with result IDs; 11 followed confirmed private success, one followed the UNKNOWN skip-DM policy |
+
+Production Inbox history also contains 8 inbound and 12 outbound Meta messages with provider IDs. This establishes historical message persistence/delivery records; a fresh UI/manual-reply acceptance was not performed in this checkpoint.
 
 ## Modul holati
 

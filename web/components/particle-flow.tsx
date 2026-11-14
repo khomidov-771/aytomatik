@@ -83,10 +83,10 @@ export function ParticleFlow({ accessibleLabel, commentLabel, keywordLabel, dire
       const endY = height * 0.45;
 
       const trail = context.createLinearGradient(startX, startY, endX, endY);
-      trail.addColorStop(0, "rgba(72, 227, 172, 0)");
-      trail.addColorStop(0.28, "rgba(73, 226, 172, .48)");
-      trail.addColorStop(0.72, "rgba(131, 255, 213, .82)");
-      trail.addColorStop(1, "rgba(118, 255, 211, .08)");
+      trail.addColorStop(0, "rgba(77, 118, 242, 0)");
+      trail.addColorStop(0.28, "rgba(81, 139, 255, .46)");
+      trail.addColorStop(0.72, "rgba(178, 131, 246, .78)");
+      trail.addColorStop(1, "rgba(104, 211, 237, .08)");
 
       for (let line = -1; line <= 1; line += 1) {
         const branch = line * height * 0.085;
@@ -96,7 +96,7 @@ export function ParticleFlow({ accessibleLabel, commentLabel, keywordLabel, dire
         context.strokeStyle = trail;
         context.lineWidth = line === 0 ? 1.3 : 0.65;
         context.globalAlpha = line === 0 ? 0.56 : 0.22;
-        context.shadowColor = "rgba(67, 236, 177, .38)";
+        context.shadowColor = "rgba(103, 144, 250, .4)";
         context.shadowBlur = line === 0 ? 16 : 9;
         context.stroke();
       }
@@ -108,7 +108,7 @@ export function ParticleFlow({ accessibleLabel, commentLabel, keywordLabel, dire
         const y = height * (0.2 + ((index * 23) % 66) / 100) + Math.sin(seconds * 0.35 + seed) * 2.2;
         const radius = index % 9 === 0 ? 1.2 : 0.55;
         context.globalAlpha = 0.14 + (Math.sin(seconds * 0.6 + seed) + 1) * 0.14;
-        context.fillStyle = index % 7 === 0 ? "#f6c783" : "#9ef9d5";
+        context.fillStyle = index % 7 === 0 ? "#d9c9ff" : "#82dfff";
         context.beginPath();
         context.arc(x, y, radius, 0, Math.PI * 2);
         context.fill();
@@ -124,8 +124,8 @@ export function ParticleFlow({ accessibleLabel, commentLabel, keywordLabel, dire
         const alpha = particle.opacity * (0.42 + (Math.sin(seconds * 1.3 + particle.phase) + 1) * 0.26);
 
         context.globalAlpha = alpha;
-        context.fillStyle = particle.phase % 4 < 1 ? "#f4c47c" : "#8ff6cf";
-        context.shadowColor = "rgba(78, 245, 188, .88)";
+        context.fillStyle = particle.phase % 4 < 1 ? "#b69aff" : "#88c2ff";
+        context.shadowColor = "rgba(122, 151, 255, .86)";
         context.shadowBlur = particle.size * 7;
         context.beginPath();
         context.arc(x, y, particle.size, 0, Math.PI * 2);

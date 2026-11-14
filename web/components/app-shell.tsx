@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { BarChart3, Bell, Bot, ChevronDown, ClipboardList, Home, Instagram, LogOut, Menu, MessageSquareText, PanelLeftClose, Settings, Users, X } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import type { Session } from "@/lib/types";
 import { useApi } from "@/hooks/use-api";
@@ -14,7 +14,7 @@ import { roleAtLeast, SessionProvider } from "./session-context";
 import { SelectMenu } from "./select-menu";
 
 const navigation = [
-  { href: "/app", label: ["Dashboard", "Dashboard", "Dashboard"], icon: Home, minimumRole: "customer" as const },
+  { href: "/app", label: ["Boshqaruv", "Панель", "Dashboard"], icon: Home, minimumRole: "customer" as const },
   { href: "/app/automations", label: ["Avtomatizatsiyalar", "Автоматизации", "Automations"], icon: Bot, minimumRole: "customer" as const },
   { href: "/app/accounts", label: ["Akkauntlar", "Аккаунты", "Accounts"], icon: Instagram, minimumRole: "customer" as const },
   { href: "/app/inbox", label: ["Inbox (Direct)", "Входящие (Direct)", "Inbox (Direct)"], icon: MessageSquareText, minimumRole: "operator" as const },
@@ -61,6 +61,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
 
+  useEffect(() => {
+    if (!open) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpen(false);
+    };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [open]);
+
   async function logout() {
     await api("/auth/logout", { method: "POST" });
     router.push("/login");
@@ -72,7 +81,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const visibleNavigation = navigation.filter((item) => roleAtLeast(session.user.role, item.minimumRole)).map((item) => ({ ...item, translatedLabel: tr(item.label[0], item.label[1], item.label[2]) }));
 
   return <SessionProvider session={session}><div className={`app-shell ${collapsed ? "sidebar-collapsed" : ""}`}>
-    <aside className={`sidebar ${open ? "open" : ""}`}>
+    <aside id="workspace-sidebar" className={`sidebar ${open ? "open" : ""}`}>
       <div className="sidebar-brand"><Logo compact={collapsed}/><button className="icon-btn sidebar-close" aria-label={tr("Menyuni yopish", "Закрыть меню", "Close menu")} onClick={() => setOpen(false)}><X/></button></div>
       <nav aria-label={tr("Dashboard navigatsiyasi", "Навигация панели", "Dashboard navigation")}>{visibleNavigation.map((item) => { const Icon = item.icon; const active = item.href === "/app" ? path === item.href : path.startsWith(item.href); return <Link href={item.href} key={item.href} className={active ? "active" : ""} onClick={() => setOpen(false)} title={collapsed ? item.translatedLabel : undefined}><Icon/><span>{item.translatedLabel}</span></Link>; })}</nav>
       <div className="sidebar-bottom">
@@ -83,7 +92,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     {open && <button className="sidebar-overlay" aria-label={tr("Menyuni yopish", "Закрыть меню", "Close menu")} onClick={() => setOpen(false)}/>}
     <div className="app-main">
       <header className="topbar">
-        <div className="topbar-left"><button className="icon-btn mobile-menu" aria-label={tr("Menyuni ochish", "Открыть меню", "Open menu")} onClick={() => setOpen(true)}><Menu/></button><WorkspaceSwitcher session={session}/></div>
+        <div className="topbar-left"><button className="icon-btn mobile-menu" aria-label={tr("Menyuni ochish", "Открыть меню", "Open menu")} aria-controls="workspace-sidebar" aria-expanded={open} onClick={() => setOpen(true)}><Menu/></button><WorkspaceSwitcher session={session}/></div>
         <div className="topbar-actions"><PreferencesControls compact/><Link href="/app/settings#notifications" className="icon-btn" aria-label={tr("Bildirishnoma sozlamalari", "Настройки уведомлений", "Notification settings")} title={tr("Bildirishnoma sozlamalari", "Настройки уведомлений", "Notification settings")}><Bell/></Link><Link href="/app/profile" className="profile-chip"><span className="avatar">{initials}</span><span><strong>{session.user.name}</strong><small>{session.user.role}</small></span><ChevronDown/></Link><button className="icon-btn logout" aria-label={tr("Chiqish", "Выйти", "Sign out")} onClick={() => void logout()}><LogOut/></button></div>
       </header>
       <main className="app-content">{children}</main>

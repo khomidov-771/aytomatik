@@ -21,7 +21,7 @@ go test -tags=integration -v ./internal/store ./internal/httpapi PASS (embedded 
 - The E2E flow against the deployed UI passed (1 test); it stubs auth/status API responses and does not complete OAuth. Site title is `REPLEO` (HTTP 200); `/repleo-night-hero.jpg` is HTTP 200 `image/jpeg`. New web container is healthy; API, PostgreSQL, and Redis remained healthy.
 - `/healthz` and `/api/v1/auth/instagram/status` returned HTTP 200 (`status=ok`, Instagram login enabled and API-ready). Production OAuth-start returned HTTP 200 for both `register` and `login` intents with an official Instagram authorize URL. Missing terms returned 422, untrusted Origin 403. No browser consent/callback was completed.
 - Anonymous `/me`, account, automation, Inbox, analytics, and audit APIs returned 401. Invalid webhook verification returned 403; unsigned webhook POST returned 401.
-- PII-free production aggregates: 1 connected Meta account, 25 processed `comment_created` events, 12 completed executions, 11 successful Meta private-reply actions with provider result IDs, 12 successful Meta public-reply actions with result IDs. All 11 private successes completed before their public replies. One provider follow-check error became `UNKNOWN`; policy skipped the DM and a public reply succeeded. No follower/non-follower live result was established.
+- PII-free production aggregates: 1 connected Meta account, 25 processed `comment_created` events, 12 completed executions, 11 successful Meta private-reply actions with provider result IDs, 12 successful Meta public-reply actions with result IDs. All 11 private successes completed before their public replies. One provider follow-check error became `UNKNOWN`; policy skipped the DM and a public reply succeeded. Inbox history has 8 inbound `received` and 12 outbound `sent` Meta messages with provider IDs. No follower/non-follower live result was established.
 - No new comment or message was sent during these checks. The recorded Meta actions are historical production evidence; no fresh comment was triggered after deployment.
 
 ### Dependency audit
@@ -29,7 +29,7 @@ go test -tags=integration -v ./internal/store ./internal/httpapi PASS (embedded 
 - `npm audit --omit=dev`: 0 vulnerabilities.
 - Full `npm audit`: 7 moderate advisories in the build/lint-only `typescript-eslint` → `minimatch` dependency tree; no high/critical findings. The final standalone runtime image contains neither `@typescript-eslint` packages nor the vulnerable lint toolchain. Upstream `typescript-eslint@8.72.2` still resolves vulnerable `minimatch@10.2.6`; a forced major override was rejected as unverified and is not present in the release.
 
-These results do not establish 100% completion: follow verification, fresh OAuth callback acceptance, inbound DM/manual Inbox reply, and fresh post-deploy comment delivery remain unverified.
+These results do not establish 100% completion: follow verification, fresh OAuth callback acceptance, fresh Inbox UI/manual-reply acceptance, and a new post-deploy comment delivery remain unverified. Existing production records do show historical inbound/outbound Meta messages.
 
 Sana: 2026-11-10.
 

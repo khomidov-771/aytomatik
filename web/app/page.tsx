@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, Check, Instagram, MessageCircle, Send, ShieldCheck, UserCheck, Zap } from "lucide-react";
+import { ArrowRight, Check, Instagram, MessageCircle, ShieldCheck, UserCheck, Zap } from "lucide-react";
 import { Logo } from "@/components/logo";
 import { PublicHeader } from "@/components/public-header";
 import { usePreferences } from "@/components/preferences-provider";
