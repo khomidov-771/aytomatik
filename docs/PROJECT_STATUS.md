@@ -1,13 +1,17 @@
 # Project status
 
-## 2026-11-14 — REPLEO approved visual redesign (GitHub pushed; production pending)
+## 2026-11-14 — REPLEO deployed and verified
 
 - The visible product name is REPLEO; internal repository and service identifiers remain unchanged.
 - Implemented the approved cinematic landing direction: generated night landscape asset, canvas particle path for comment → keyword → Direct, updated marketing page, forest/emerald design layer, responsive rules, reduced-motion handling, and REPLEO metadata/wordmark.
 - Removed the prior `replio.css` stylesheet from the global import chain so its blue-violet theme cannot override the approved REPLEO visual direction. The file itself is preserved in the worktree.
-- `npm ci` completed and `npm run build:web` passed, including TypeScript and all 22 generated routes. Automated test suites were not run, per the user's instruction.
-- Commit `44910f3` was pushed to GitHub `main`.
-- Server deployment is **not done**: SSH public-key authentication was rejected and there is no private key in the local SSH directory. A read-only request to the public site still returned the previous `<title>REPLIO</title>`. No server files, containers, database, or production environment were changed. This visual update does not establish new live Meta verification.
+- Fixed `web/Dockerfile` to copy `web/public` into the standalone runtime image; this was why the approved hero image was absent. Commit `78695c2` is pushed to GitHub `main`.
+- Deployed only the web service from the clean `78695c2` release. The previous web image is retained as `ids-automate-web:rollback-repleo-20261114`. API, PostgreSQL, Redis, Nginx, `.env.production`, production data, and the dirty `/opt/ids-automate` checkout were left untouched.
+- Production page returned HTTP 200 with title `REPLEO`; `/repleo-night-hero.jpg` returned HTTP 200 (`image/jpeg`). Web, API, PostgreSQL, and Redis containers were healthy after deploy. Production UI E2E passed (1 test); it used controlled auth/status responses, while live API status and OAuth-start were checked separately.
+- Local checks passed: frontend lint, 2 frontend unit tests, 22-route production build, E2E (1 flow), Go unit tests, `go vet`, Go build, and PostgreSQL store/API integration tests.
+- PII-free production DB aggregates show one connected Meta account, 25 processed `comment_created` events, 12 completed executions, 11 Meta private replies succeeded with provider result IDs, and 12 Meta public replies succeeded with result IDs. All 11 successful private replies completed before their public reply; one `UNKNOWN` follow-check failure took the configured skip-DM/neutral-public fallback. A follower/non-follower follow check is not verified.
+- Production Instagram status is enabled and API-ready; `register` and `login` OAuth starts returned official `www.instagram.com` URLs. A full user consent/callback was not performed in this check. Full `npm audit` reports 7 moderate advisories in build/dev-only `typescript-eslint` → `minimatch`; `npm audit --omit=dev` found 0, and those tools are absent from the runtime image.
+- The product is **not 100% verified**: follow verification remains unproven, and fresh OAuth callback, inbound DM/manual Inbox reply, and a new post-deploy comment are not live-tested. Historical Meta action rows confirm the private/public delivery path worked for the recorded events.
 
 Tekshiruv: 2026-11-12. Branch main; audit hujjatlari commit 4218851, Google OAuth kod commit 8c15cde, frontend onboarding redesign commit e90505a. Holat repository kodi, bajarilgan testlar va production endpoint/container tekshiruvlariga asoslangan.
 
@@ -50,11 +54,11 @@ Bu product completion foizi emas. Meta yoki Google’dagi real foydalanuvchi oqi
 | 10 | OAuth/token/webhook request logic | PASS controlled | Provider/security tests; no live Meta |
 | 11 | Comment-to-DM decision matrix | PASS controlled | Worker tests cover disabled/follower/not-follower/UNKNOWN policies |
 | 12 | Action idempotency/history | PASS controlled | PostgreSQL action ledger retry/dedup/history test |
-| 13 | Live Meta OAuth/account discovery | PASS, bitta real account | 2026-11-12 production Unified Login callback muvaffaqiyatli; `@khomidov_771` ulangan |
-| 14 | Live signed webhook receive | NOT TESTED | Meta app subscription now lists `comments,messages,messaging_postbacks`; no signed live comment event received yet |
-| 15 | Live follow verification | BLOCKED | Eligible Instagram Login messaging context yo‘q |
-| 16 | Live private reply | BLOCKED | Account disconnected, active rule va real comment yo‘q |
-| 17 | Live public reply and ordering | BLOCKED | Real private-reply success event yo‘q |
+| 13 | Live Meta OAuth/account | PASS historically; start PASS now | Production DB has one Instagram OAuth identity and one connected Meta account; current status/start endpoints return ready/official URL. Fresh callback not run in this check |
+| 14 | Production comment event processing | PASS for recorded events | 25 `comment_created` rows processed for the Meta account; no new event after this web deploy. Raw signature was not logged for reinspection |
+| 15 | Live follow verification | NOT VERIFIED | One provider error mapped to `UNKNOWN`; configured fallback correctly skipped DM and completed a public reply. No live FOLLOWER/NOT_FOLLOWER proof |
+| 16 | Live private reply | PASS for recorded events | 11 Meta private-reply actions succeeded with provider result IDs |
+| 17 | Live public reply and ordering | PASS for recorded events | 12 Meta public replies succeeded with result IDs; 11 followed confirmed private success, one followed the UNKNOWN skip-DM policy |
 
 ## Modul holati
 

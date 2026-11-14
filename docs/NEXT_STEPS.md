@@ -1,11 +1,13 @@
 # Keyingi qadamlar
 
-## 2026-11-14 — REPLEO redesign handoff
+## 2026-11-14 — Post-deploy follow-up
 
-1. The approved design is implemented and pushed to GitHub `main` as commit `44910f3`. Frontend production build passed; automated test suites were intentionally not run.
-2. Production deploy remains pending because SSH public-key authentication was rejected. Once server access is available, deploy the web service only. Preserve PostgreSQL, API, `.env.production`, and existing production data.
-3. After deploy, check the REPLEO landing page on desktop/mobile and confirm that its title, background image, and particle effect are served. Update this file and `PROJECT_STATUS.md` with the observed result.
-4. Do not mark Meta OAuth, webhook, follow verification, or comment-to-DM behavior newly verified by this visual deploy.
+1. REPLEO web is deployed from GitHub `main` commit `78695c2`. Production `/` and `/repleo-night-hero.jpg` return HTTP 200; the web/API/PostgreSQL/Redis containers are healthy. The old web image is preserved as `ids-automate-web:rollback-repleo-20261114`.
+2. Do not pull into `/opt/ids-automate`: that checkout is 32 commits behind and has operator edits/untracked production files. Continue from a clean release worktree or build archive; keep the API, database, Nginx, `.env.production`, and existing production data unchanged for web-only releases.
+3. The production DB has 25 processed comment events, 11 successful Meta private replies, and 12 successful public replies with provider result IDs. The 11 private successes precede their public replies. One follow-check provider error became `UNKNOWN` and correctly used the skip-DM/neutral-public fallback.
+4. Remaining live acceptance: establish why follow-check returns a provider error and test a real eligible follower/non-follower only through official Meta APIs; complete a fresh user-authorized OAuth callback; exercise inbound DM/manual Inbox reply; and trigger one fresh comment from a second authorized test account after deploy. Never use or request an Instagram password.
+5. Full `npm audit` still reports 7 moderate advisories in build/dev-only `typescript-eslint` → `minimatch`; production dependency audit is clean (`npm audit --omit=dev`, 0 vulnerabilities), and the lint toolchain is absent from the runtime image. Revisit when upstream publishes a patched compatible dependency; avoid forcing the major minimatch version without tests.
+6. Remove the temporary SSH key after deployment checks and ask the owner to rotate the supplied root password. Do not print or store credentials in Git, logs, docs, or chat.
 
 2026-11-12 joriy holat: production Meta app webhook obunasida `comments,messages,messaging_postbacks` rasmiy Graph API orqali yozildi va qayta `GET` bilan tasdiqlandi. PostgreSQL’da real account hozir `disconnected`; faol qoida, webhook event va execution `0`. Oldingi real OAuth/media muvaffaqiyati tarixiy dalil, hozirgi faol ulanish emas.
 

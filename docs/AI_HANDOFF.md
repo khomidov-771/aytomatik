@@ -1,14 +1,19 @@
 # AI handoff
 
-## 2026-11-14 — Product identity and approved redesign
+## 2026-11-14 — REPLEO release and production verification
 
 - The user chose **REPLEO** as the product name and approved the cinematic night-landscape concept with an emerald particle flow before implementation.
 - Current implementation is a design-layer/front-page change: `web/app/page.tsx`, `web/app/repleo.css`, `web/components/particle-flow.tsx`, `web/components/logo.tsx`, `web/components/public-header.tsx`, and `web/app/layout.tsx`, plus `web/public/repleo-night-hero.jpg`.
 - The old `web/app/replio.css` is left on disk but no longer imported by the root layout; do not restore that import because it brings back the prior blue-violet visual layer.
 - Preserve the Go API, database, migrations, OAuth/token handling, webhook pipeline, and existing production data. This redesign does not verify or change live Meta behavior.
-- `npm ci` completed and `npm run build:web` passed (22 routes). Automated test suites were not run per the user's instruction.
-- Commit `44910f3` is on GitHub `main`. Production deploy is still pending: SSH key authentication was rejected, local `.ssh` has no private key, and the public site title still shows the previous REPLIO build. No server state was changed.
-- Continue from `NEXT_STEPS.md`. Do not put the previously shared server password into shell commands or logs; use an approved SSH key or another safe deployment channel. Preserve production API, database, and `.env.production`.
+- The first production image omitted `web/public`, so the hero asset was missing. `web/Dockerfile` now copies it into the standalone runtime; fix commit `78695c2` is pushed to GitHub `main`.
+- Only the web service was deployed from clean release `78695c2`; API, PostgreSQL, Redis, Nginx, `.env.production`, and the dirty production checkout were left untouched. Rollback image: `ids-automate-web:rollback-repleo-20261114`.
+- Production returns `REPLEO` and the hero image with HTTP 200; web/API/PostgreSQL/Redis are healthy. E2E against the deployed UI passed (1 test) with auth/status API responses stubbed; live status/OAuth-start checks were separate. Backend and frontend unit/integration/build gates passed locally.
+- PII-free production aggregates: one connected Meta account; 25 processed `comment_created` events; 11 successful Meta private replies and 12 successful Meta public replies with provider result IDs. Eleven public replies follow confirmed private success; one `UNKNOWN` branch used the configured skip-DM/neutral-public fallback. One follow-check `provider_error` remains; real FOLLOWER/NOT_FOLLOWER behavior is unverified.
+- Production Instagram Login status and OAuth start are enabled; register/login starts return official `www.instagram.com` authorization URLs. A fresh browser consent/callback was not completed. No new comment or DM was sent by this verification.
+- Full `npm audit` has 7 moderate build/dev-only `typescript-eslint`/`minimatch` advisories; `npm audit --omit=dev` reports 0, and those lint tools are absent from the runtime image. Wait for a compatible upstream fix rather than forcing a major dependency override.
+- The main local checkout (`a927da8`) is dirty and 29 commits behind GitHub; preserve it. The release worktree is clean at `78695c2`. The server checkout (`8c15cde`) is 32 commits behind with operator changes in API/provider/worker plus private env files; never pull/reset it. Use `NEXT_STEPS.md` for remaining live acceptance.
+- A temporary SSH key was used for this deployment and must be removed from `/root/.ssh/authorized_keys` after final checks. The owner said they will rotate the supplied root password after work; do not print it in logs/docs or reuse Instagram credentials.
 
 Yangilangan: 2026-11-12.
 
