@@ -1,21 +1,25 @@
 # AI handoff
 
-## 2026-11-14 — REPLEO release and production verification
+## 2026-11-14 — CSS/layout repair deployed (`787542e`)
 
-- The user chose **REPLEO** as the product name and approved the cinematic night-landscape concept with an emerald particle flow before implementation.
-- Current implementation is a design-layer/front-page change: `web/app/page.tsx`, `web/app/repleo.css`, `web/components/particle-flow.tsx`, `web/components/logo.tsx`, `web/components/public-header.tsx`, and `web/app/layout.tsx`, plus `web/public/repleo-night-hero.jpg`.
-- The old `web/app/replio.css` is left on disk but no longer imported by the root layout; do not restore that import because it brings back the prior blue-violet visual layer.
-- Preserve the Go API, database, migrations, OAuth/token handling, webhook pipeline, and existing production data. This redesign does not verify or change live Meta behavior.
-- The first production image omitted `web/public`, so the hero asset was missing. `web/Dockerfile` now copies it into the standalone runtime; fix commit `78695c2` is pushed to GitHub `main`.
+- Product name remains **REPLEO**. This release fixes the production rendering failure shown in the user's screenshot: `web/app/globals.css` at base commit `7644b30` was binary-corrupted, PostCSS could not parse it, and the emitted CSS omitted global reset and dashboard grid rules. The stylesheet is now valid text and parses in PostCSS; the production CSS asset is 147,649 bytes and has no Next `unparsable` marker.
+- `web/app/repleo.css` now applies one ink/navy/sapphire/violet visual system across the public site, setup/auth pages, and workspace. The retired forest-green hero and mixed button/card colors are overridden; `web/components/particle-flow.tsx` animates in the same palette. `web/components/app-shell.tsx` keeps navigation in one column, provides a responsive drawer with Escape handling, and exposes its state accessibly.
+- GitHub `main` is at `787542e`. Only the web service was rebuilt and deployed from `/opt/repleo-deploys/repleo-787542e`, using the existing `/opt/ids-automate/.env.production` via symlink. API, PostgreSQL, Redis, Nginx, production data, and the dirty `/opt/ids-automate` checkout were left untouched. Rollback image remains `ids-automate-web:rollback-repleo-20261114`.
+- Production web/API/PostgreSQL/Redis containers are healthy. Public `/` and the linked CSS asset return HTTP 200. Production CSS includes the `body` reset and `.stat-grid` rules and has no parse-error marker. Live homepage was opened in Edge at 1440px and 390px; both had document width equal to viewport and loaded both CSS assets with HTTP 200. API and PostgreSQL container start times remained unchanged through deploy.
+- Local checks for this release: `npm run lint:web` PASS; `npm run test:web` PASS (2 tests); `npm run build:web` PASS (22 routes). Playwright route sweep with schema-shaped API fixtures covered 13 main routes at desktop/mobile without browser errors or horizontal overflow; final post-change smoke covered `/`, `/setup`, `/app`, accounts, automation builder, Inbox, Analytics, and Settings at 1440px and 390px. These UI checks do not exercise real Meta behavior.
+- No fresh OAuth consent, comment, or DM was initiated during the UI deployment. Preserve the prior PII-free Meta evidence below as historical only: 25 processed comments, 11 successful private replies, 12 successful public replies, and 8 inbound/12 outbound persisted Inbox messages. A provider follow-check error remains; real `FOLLOWER`/`NOT_FOLLOWER` behavior is not verified.
+- The previous production full-stack checkpoint and 7 moderate build/dev-only `typescript-eslint`/`minimatch` advisories are documented below. Do not force a major dependency override without testing. The production dependency audit was previously clean with `npm audit --omit=dev`.
+- Preserve the dirty primary checkout and dirty server checkout; use the clean release worktree at `787542e`. Do not pull/reset `/opt/ids-automate`. The temporary deploy key and transfer archive were removed; password login remains available until the owner rotates the root password. Never print credentials or use Instagram passwords.
+
+## Historical checkpoint — REPLEO release and production verification (`78695c2`)
+
+- The user chose **REPLEO** as the product name. That earlier release changed the marketing design and ensured the hero asset was copied into the standalone runtime.
 - Only the web service was deployed from clean release `78695c2`; API, PostgreSQL, Redis, Nginx, `.env.production`, and the dirty production checkout were left untouched. Rollback image: `ids-automate-web:rollback-repleo-20261114`.
-- Production returns `REPLEO` and the hero image with HTTP 200; web/API/PostgreSQL/Redis are healthy. E2E against the deployed UI passed (1 test) with auth/status API responses stubbed; live status/OAuth-start checks were separate. Backend and frontend unit/integration/build gates passed locally.
-- PII-free production aggregates: one connected Meta account; 25 processed `comment_created` events; 11 successful Meta private replies and 12 successful Meta public replies with provider result IDs. Eleven public replies follow confirmed private success; one `UNKNOWN` branch used the configured skip-DM/neutral-public fallback. Inbox history has 8 inbound received and 12 outbound sent Meta messages with provider IDs. One follow-check `provider_error` remains; real FOLLOWER/NOT_FOLLOWER behavior is unverified.
-- Production Instagram Login status and OAuth start are enabled; register/login starts return official `www.instagram.com` authorization URLs. A fresh browser consent/callback was not completed. No new comment or DM was sent by this verification.
-- Full `npm audit` has 7 moderate build/dev-only `typescript-eslint`/`minimatch` advisories; `npm audit --omit=dev` reports 0, and those lint tools are absent from the runtime image. Wait for a compatible upstream fix rather than forcing a major dependency override.
-- The main local checkout (`a927da8`) is dirty and 29 commits behind GitHub; preserve it. The release worktree is clean at `78695c2`. The server checkout (`8c15cde`) is 32 commits behind with operator changes in API/provider/worker plus private env files; never pull/reset it. Use `NEXT_STEPS.md` for remaining live acceptance.
-- A temporary SSH key was used for this deployment and must be removed from `/root/.ssh/authorized_keys` after final checks. The owner said they will rotate the supplied root password after work; do not print it in logs/docs or reuse Instagram credentials.
+- At that checkpoint production returned the REPLEO page and hero image with HTTP 200; web/API/PostgreSQL/Redis were healthy. UI E2E used stubbed auth/status responses, with live status/OAuth-start checks separate. Backend, frontend, Go, and PostgreSQL test results recorded there remain historical, not a verification of this CSS repair.
+- PII-free production aggregates recorded one connected Meta account, 25 processed comments, 11 successful private replies, 12 successful public replies, and Inbox history of 8 inbound/12 outbound messages with provider IDs. A follow-check provider error remained; live `FOLLOWER`/`NOT_FOLLOWER` behavior was unverified. A fresh OAuth consent/callback and a new comment/DM were not performed at that checkpoint.
+- Full `npm audit` recorded 7 moderate build/dev-only `typescript-eslint`/`minimatch` advisories; `npm audit --omit=dev` reported 0. Do not force a major dependency override without testing.
 
-Yangilangan: 2026-11-12.
+Yangilangan: 2026-11-14.
 
 ## Joriy to‘siq va 2026-11-12 production tuzatishi
 

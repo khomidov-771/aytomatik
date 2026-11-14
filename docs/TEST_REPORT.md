@@ -1,6 +1,26 @@
 # Test report
 
-## 2026-11-14 — Full local and production checkpoint
+## 2026-11-14 — CSS repair and post-deploy UI verification (`787542e`)
+
+### Local release checks
+
+```text
+npm run lint:web      PASS
+npm run test:web      PASS (2 tests)
+npm run build:web     PASS (22 routes)
+PostCSS globals.css   PASS
+```
+
+- Browser route sweep used schema-shaped API fixtures; 13 public/setup/workspace routes passed at 1440px and 390px with no page errors or horizontal overflow. Final post-change smoke retested `/`, `/setup`, `/app`, accounts, automation builder, Inbox, Analytics, and Settings at both widths.
+- CSS bundle inspection found no `unparsable` marker and confirmed the global reset and dashboard grid rules. The production bundle was rebuilt after the final palette changes.
+
+### Live deployment smoke (no Meta actions)
+
+- GitHub `main` moved from `7644b30` to `787542e`. The clean archive SHA-256 matched on the server. Only `ids-automate-web-1` was recreated with `--no-deps`; API, PostgreSQL, Redis, Nginx, production environment values, and database were not restarted or changed.
+- Production `/` and `/_next/static/chunks/2d-19ue1mc7_2.css` returned HTTP 200. The asset includes reset/grid rules and no parse-error marker. Edge loaded both linked CSS assets at HTTP 200; live homepage document width matched the viewport at 1440px and 390px. All four REPLEO containers were healthy after deployment; API/PostgreSQL start times were unchanged. Rollback image `ids-automate-web:rollback-repleo-20261114` is present.
+- No Instagram OAuth consent, comment, DM, or public reply was triggered during this UI deployment. Historical Meta evidence below is not fresh acceptance.
+
+## 2026-11-14 — Previous full-stack checkpoint (`78695c2`)
 
 ### Local workspace
 

@@ -1,19 +1,16 @@
 # Project status
 
-## 2026-11-14 — REPLEO deployed and verified
+## 2026-11-14 — CSS/layout repair deployed (`787542e`)
 
-- The visible product name is REPLEO; internal repository and service identifiers remain unchanged.
-- Implemented the approved cinematic landing direction: generated night landscape asset, canvas particle path for comment → keyword → Direct, updated marketing page, forest/emerald design layer, responsive rules, reduced-motion handling, and REPLEO metadata/wordmark.
-- Removed the prior `replio.css` stylesheet from the global import chain so its blue-violet theme cannot override the approved REPLEO visual direction. The file itself is preserved in the worktree.
-- Fixed `web/Dockerfile` to copy `web/public` into the standalone runtime image; this was why the approved hero image was absent. Commit `78695c2` is pushed to GitHub `main`.
-- Deployed only the web service from the clean `78695c2` release. The previous web image is retained as `ids-automate-web:rollback-repleo-20261114`. API, PostgreSQL, Redis, Nginx, `.env.production`, production data, and the dirty `/opt/ids-automate` checkout were left untouched.
-- Production page returned HTTP 200 with title `REPLEO`; `/repleo-night-hero.jpg` returned HTTP 200 (`image/jpeg`). Web, API, PostgreSQL, and Redis containers were healthy after deploy. Production UI E2E passed (1 test); it used controlled auth/status responses, while live API status and OAuth-start were checked separately.
-- Local checks passed: frontend lint, 2 frontend unit tests, 22-route production build, E2E (1 flow), Go unit tests, `go vet`, Go build, and PostgreSQL store/API integration tests.
-- PII-free production DB aggregates show one connected Meta account, 25 processed `comment_created` events, 12 completed executions, 11 Meta private replies succeeded with provider result IDs, and 12 Meta public replies succeeded with result IDs. All 11 successful private replies completed before their public reply; one `UNKNOWN` follow-check failure took the configured skip-DM/neutral-public fallback. Inbox history also has 8 inbound `received` and 12 outbound `sent` Meta messages, each with a provider result ID. A follower/non-follower follow check is not verified.
-- Production Instagram status is enabled and API-ready; `register` and `login` OAuth starts returned official `www.instagram.com` URLs. A full user consent/callback was not performed in this check. Full `npm audit` reports 7 moderate advisories in build/dev-only `typescript-eslint` → `minimatch`; `npm audit --omit=dev` found 0, and those tools are absent from the runtime image.
-- The product is **not 100% verified**: follow verification remains unproven, and fresh OAuth callback, inbound DM/manual Inbox reply, and a new post-deploy comment are not live-tested. Historical Meta action rows confirm the private/public delivery path worked for the recorded events.
+- Root cause of the screenshot: `web/app/globals.css` in base commit `7644b30` was binary-corrupted and failed PostCSS parsing. Next emitted a CSS parse-error marker and dropped global reset/grid rules, causing dashboard controls and cards to overlap and overflow. The file is restored as valid CSS; production CSS has no parse-error marker and includes reset/grid rules.
+- Public site, setup/auth, and workspace styles now share a navy/sapphire/violet REPLEO palette. Responsive sidebar behavior, accessible mobile menu state, hero heading gradient, and particle colors were corrected. The prior `web/app/replio.css` remains on disk and is not imported.
+- GitHub `main` is at `787542e`. Only the web service was deployed from `/opt/repleo-deploys/repleo-787542e`; rollback image `ids-automate-web:rollback-repleo-20261114` remains available. API, PostgreSQL, Redis, Nginx, `.env.production`, production data, and the dirty `/opt/ids-automate` checkout were not changed.
+- Production web/API/PostgreSQL/Redis are healthy. Public `/` and both linked CSS assets return HTTP 200. Edge at 1440px and 390px showed no horizontal overflow. API and PostgreSQL container start times remained unchanged.
+- Local verification: frontend lint PASS; 2 frontend unit tests PASS; production build PASS (22 routes). Playwright used controlled API response fixtures; 13 main routes passed at desktop/mobile widths, and after the final CSS change the public/setup/dashboard/accounts/builder/Inbox/Analytics/Settings routes passed again. This does not verify Meta OAuth or message sending.
+- Historical production evidence: one connected Meta account in the recorded checkpoint, 25 processed comment events, 11 successful private replies, 12 successful public replies, and Inbox rows (8 inbound, 12 outbound) with provider IDs. No fresh Meta operations were triggered in this deployment. Follow status still has one provider error; no live FOLLOWER/NOT_FOLLOWER result is established.
+- Product is **not 100% verified**: fresh authorized OAuth, real follow-check outcomes, Inbox manual reply, and a new comment-to-DM still need live acceptance. The temporary deploy SSH key and transfer archive are removed; rotate the root password now that deployment work is complete.
 
-Tekshiruv: 2026-11-12. Branch main; audit hujjatlari commit 4218851, Google OAuth kod commit 8c15cde, frontend onboarding redesign commit e90505a. Holat repository kodi, bajarilgan testlar va production endpoint/container tekshiruvlariga asoslangan.
+Yangilangan: 2026-11-14. CSS/layout tuzatishi va deployment holati yuqorida; pastdagi 2026-11-12 yozuvlar tarixiy production tekshiruvi sifatida saqlangan.
 
 ## Eng so‘nggi production holati — 2026-11-12
 

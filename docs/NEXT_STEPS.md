@@ -1,13 +1,13 @@
 # Keyingi qadamlar
 
-## 2026-11-14 — Post-deploy follow-up
+## 2026-11-14 — Post-deploy follow-up (`787542e`)
 
-1. REPLEO web is deployed from GitHub `main` commit `78695c2`. Production `/` and `/repleo-night-hero.jpg` return HTTP 200; the web/API/PostgreSQL/Redis containers are healthy. The old web image is preserved as `ids-automate-web:rollback-repleo-20261114`.
+1. REPLEO web is deployed from GitHub `main` commit `787542e`. Production `/` and both linked CSS assets return HTTP 200; Edge at 1440px and 390px showed no horizontal overflow. The old web image is preserved as `ids-automate-web:rollback-repleo-20261114`.
 2. Do not pull into `/opt/ids-automate`: that checkout is 32 commits behind and has operator edits/untracked production files. Continue from a clean release worktree or build archive; keep the API, database, Nginx, `.env.production`, and existing production data unchanged for web-only releases.
 3. The production DB has 25 processed comment events, 11 successful Meta private replies, and 12 successful public replies with provider result IDs. The 11 private successes precede their public replies. One follow-check provider error became `UNKNOWN` and correctly used the skip-DM/neutral-public fallback.
 4. Remaining live acceptance: establish why follow-check returns a provider error and test a real eligible follower/non-follower only through official Meta APIs; complete a fresh user-authorized OAuth callback; verify Inbox UI/manual-reply behavior against an authorized conversation (DB already has 8 inbound/12 outbound Meta message rows with provider IDs); and trigger one fresh comment from a second authorized test account after deploy. Never use or request an Instagram password.
 5. Full `npm audit` still reports 7 moderate advisories in build/dev-only `typescript-eslint` → `minimatch`; production dependency audit is clean (`npm audit --omit=dev`, 0 vulnerabilities), and the lint toolchain is absent from the runtime image. Revisit when upstream publishes a patched compatible dependency; avoid forcing the major minimatch version without tests.
-6. Remove the temporary SSH key after deployment checks and ask the owner to rotate the supplied root password. Do not print or store credentials in Git, logs, docs, or chat.
+6. The temporary deploy SSH key and transfer archive were removed and verified. Rotate the root password now that deployment work is complete. Do not print or store credentials in Git, logs, docs, or chat.
 
 2026-11-12 joriy holat: production Meta app webhook obunasida `comments,messages,messaging_postbacks` rasmiy Graph API orqali yozildi va qayta `GET` bilan tasdiqlandi. PostgreSQL’da real account hozir `disconnected`; faol qoida, webhook event va execution `0`. Oldingi real OAuth/media muvaffaqiyati tarixiy dalil, hozirgi faol ulanish emas.
 
