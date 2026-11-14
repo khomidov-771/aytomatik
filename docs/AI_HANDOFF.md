@@ -6,7 +6,9 @@
 - Current implementation is a design-layer/front-page change: `web/app/page.tsx`, `web/app/repleo.css`, `web/components/particle-flow.tsx`, `web/components/logo.tsx`, `web/components/public-header.tsx`, and `web/app/layout.tsx`, plus `web/public/repleo-night-hero.jpg`.
 - The old `web/app/replio.css` is left on disk but no longer imported by the root layout; do not restore that import because it brings back the prior blue-violet visual layer.
 - Preserve the Go API, database, migrations, OAuth/token handling, webhook pipeline, and existing production data. This redesign does not verify or change live Meta behavior.
-- Automated tests were not run per the user's instruction. Follow the build/deploy steps in `NEXT_STEPS.md`, updating this handoff with evidence after each actual step.
+- `npm ci` completed and `npm run build:web` passed (22 routes). Automated test suites were not run per the user's instruction.
+- Commit `44910f3` is on GitHub `main`. Production deploy is still pending: SSH key authentication was rejected, local `.ssh` has no private key, and the public site title still shows the previous REPLIO build. No server state was changed.
+- Continue from `NEXT_STEPS.md`. Do not put the previously shared server password into shell commands or logs; use an approved SSH key or another safe deployment channel. Preserve production API, database, and `.env.production`.
 
 Yangilangan: 2026-11-12.
 
