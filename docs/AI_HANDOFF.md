@@ -1,5 +1,13 @@
 # AI handoff
 
+## 2026-11-14 — Product identity and approved redesign
+
+- The user chose **REPLEO** as the product name and approved the cinematic night-landscape concept with an emerald particle flow before implementation.
+- Current implementation is a design-layer/front-page change: `web/app/page.tsx`, `web/app/repleo.css`, `web/components/particle-flow.tsx`, `web/components/logo.tsx`, `web/components/public-header.tsx`, and `web/app/layout.tsx`, plus `web/public/repleo-night-hero.jpg`.
+- The old `web/app/replio.css` is left on disk but no longer imported by the root layout; do not restore that import because it brings back the prior blue-violet visual layer.
+- Preserve the Go API, database, migrations, OAuth/token handling, webhook pipeline, and existing production data. This redesign does not verify or change live Meta behavior.
+- Automated tests were not run per the user's instruction. Follow the build/deploy steps in `NEXT_STEPS.md`, updating this handoff with evidence after each actual step.
+
 Yangilangan: 2026-11-12.
 
 ## Joriy to‘siq va 2026-11-12 production tuzatishi

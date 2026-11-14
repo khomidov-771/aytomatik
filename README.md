@@ -1,6 +1,6 @@
-# IDS Automate
+# REPLEO
 
-IDS Automate — Instagram Professional akkauntlari uchun real Comment-to-DM avtomatlashtirish platformasi.
+REPLEO — Instagram Professional akkauntlari uchun real Comment-to-DM avtomatlashtirish platformasi. Git repository, API va ayrim ichki deployment identifikatorlarida oldingi IDS Automate nomi uchrashi mumkin; foydalanuvchiga ko‘rinadigan mahsulot nomi REPLEO.
 
 Asosiy oqim:
 

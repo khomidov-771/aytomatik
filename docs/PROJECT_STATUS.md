@@ -1,5 +1,12 @@
 # Project status
 
+## 2026-11-14 — REPLEO approved visual redesign (implementation in progress)
+
+- The visible product name is REPLEO; internal repository and service identifiers remain unchanged.
+- Implemented the approved cinematic landing direction: generated night landscape asset, canvas particle path for comment → keyword → Direct, updated marketing page, forest/emerald design layer, responsive rules, reduced-motion handling, and REPLEO metadata/wordmark.
+- Removed the prior `replio.css` stylesheet from the global import chain so its blue-violet theme cannot override the approved REPLEO visual direction. The file itself is preserved in the worktree.
+- Updated the design guide. No automated tests have been run for this redesign, per the user's instruction. Build/deployment status will be recorded after those steps; this entry does not claim production deployment or live Meta verification.
+
 Tekshiruv: 2026-11-12. Branch main; audit hujjatlari commit 4218851, Google OAuth kod commit 8c15cde, frontend onboarding redesign commit e90505a. Holat repository kodi, bajarilgan testlar va production endpoint/container tekshiruvlariga asoslangan.
 
 ## Eng so‘nggi production holati — 2026-11-12

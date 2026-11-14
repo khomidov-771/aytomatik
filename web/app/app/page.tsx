@@ -69,7 +69,7 @@ export default function DashboardPage() {
 
   return <>
     <PageHeader
-      eyebrow="REPLIO"
+      eyebrow="REPLEO"
       title={tr("Boshqaruv paneli", "Панель управления", "Dashboard")}
       description={tr(`${session.user.name}, Comment-to-DM oqimingizning real holati.`, `${session.user.name}, реальное состояние вашего Comment-to-DM.`, `${session.user.name}, here's the real status of your Comment-to-DM workflow.`)}
       action={<Link href="/app/automations/new" className="btn primary"><Plus /> {tr("Yangi avtomatlashtirish", "Новая автоматизация", "New automation")}</Link>}
@@ -79,7 +79,7 @@ export default function DashboardPage() {
       <div className="setup-copy">
         <span className="setup-kicker"><ShieldCheck /> {tr("3 qadamda ishga tushiring", "Запуск за 3 шага", "Launch in 3 steps")}</span>
         <h2>{setupStep === 1 ? tr("Instagram akkauntingizni ulang", "Подключите Instagram аккаунт", "Connect your Instagram account") : setupStep === 2 ? tr("Birinchi Comment-to-DM oqimini yarating", "Создайте первый Comment-to-DM поток", "Create your first Comment-to-DM flow") : tr("Avtomatlashtirish qabul qilishga tayyor", "Автоматизация готова принимать события", "Automation is ready for events")}</h2>
-        <p>{setupStep === 1 ? tr("Rasmiy Instagram/Meta oynasida Professional akkauntingiz bilan kiring. Parolingiz REPLIO’ga berilmaydi.", "Войдите в Professional аккаунт через официальное окно Instagram/Meta. REPLIO не получает ваш пароль.", "Sign in to your Professional account through the official Instagram/Meta window. REPLIO never receives your password.") : setupStep === 2 ? tr("Video yoki postni tanlang, kalit so‘z va yuboriladigan Direct xabarni yozing.", "Выберите видео или публикацию, ключевые слова и сообщение Direct.", "Choose a video or post, add keywords, and write the Direct message.") : tr("Yangi real commentlar webhook orqali kelganda natijalar shu dashboardda ko‘rinadi.", "Результаты новых реальных комментариев появятся здесь после webhook.", "Results from new real comments will appear here after the webhook arrives.")}</p>
+        <p>{setupStep === 1 ? tr("Rasmiy Instagram/Meta oynasida Professional akkauntingiz bilan kiring. Parolingiz REPLEO’ga berilmaydi.", "Войдите в Professional аккаунт через официальное окно Instagram/Meta. REPLEO не получает ваш пароль.", "Sign in to your Professional account through the official Instagram/Meta window. REPLEO never receives your password.") : setupStep === 2 ? tr("Video yoki postni tanlang, kalit so‘z va yuboriladigan Direct xabarni yozing.", "Выберите видео или публикацию, ключевые слова и сообщение Direct.", "Choose a video or post, add keywords, and write the Direct message.") : tr("Yangi real commentlar webhook orqali kelganda natijalar shu dashboardda ko‘rinadi.", "Результаты новых реальных комментариев появятся здесь после webhook.", "Results from new real comments will appear here after the webhook arrives.")}</p>
         <div className="setup-actions"><Link href={setupAction.href} className="btn primary large">{setupAction.label}<ArrowRight /></Link><Link href="/app/automations" className="btn secondary large">{tr("Qoidalar", "Правила", "Rules")}</Link></div>
       </div>
       <div className="setup-steps" aria-label={tr("Sozlash bosqichlari", "Этапы настройки", "Setup steps")}>

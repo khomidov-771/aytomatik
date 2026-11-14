@@ -1,5 +1,12 @@
 # Keyingi qadamlar
 
+## 2026-11-14 — REPLEO redesign handoff
+
+1. Review the visual changes in `web/app/page.tsx`, `web/app/repleo.css`, `web/components/particle-flow.tsx`, `web/components/logo.tsx`, and `web/components/public-header.tsx`. The currently approved reference is the cinematic night landscape with the emerald particle path.
+2. Build the frontend production bundle when the web dependencies are available. Automated test suites were intentionally not run at the user's request.
+3. Deploy the web image only after the build completes. Preserve PostgreSQL, API, server `.env.production`, and existing production data.
+4. After deployment, inspect the public page at desktop and mobile sizes. Record actual deploy/build evidence here; do not mark the backend, Meta OAuth, webhook, or DM path newly verified as part of this visual change.
+
 2026-11-12 joriy holat: production Meta app webhook obunasida `comments,messages,messaging_postbacks` rasmiy Graph API orqali yozildi va qayta `GET` bilan tasdiqlandi. PostgreSQL’da real account hozir `disconnected`; faol qoida, webhook event va execution `0`. Oldingi real OAuth/media muvaffaqiyati tarixiy dalil, hozirgi faol ulanish emas.
 
 ## P0 — xabar yuborish oqimini qayta tiklash

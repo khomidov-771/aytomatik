@@ -244,7 +244,7 @@ export function SetupWizard() {
     const oauthMessage = oauthCode === "cancelled"
       ? tr("Instagram ulash bekor qilindi. Istasangiz, qaytadan boshlang.", "Подключение Instagram отменено. Вы можете попробовать ещё раз.", "Instagram sign-in was cancelled. You can try again.")
       : oauthCode === "account_not_found"
-        ? tr("Bu Instagram hisobi REPLIO’da mavjud emas. Ro‘yxatdan o‘tish bo‘limini tanlang.", "Аккаунт Instagram ещё не зарегистрирован в REPLIO. Выберите регистрацию.", "This Instagram account is not registered with REPLIO yet. Choose Create account.")
+        ? tr("Bu Instagram hisobi REPLEO’da mavjud emas. Ro‘yxatdan o‘tish bo‘limini tanlang.", "Аккаунт Instagram ещё не зарегистрирован в REPLEO. Выберите регистрацию.", "This Instagram account is not registered with REPLEO yet. Choose Create account.")
         : oauthCode === "account_already_exists"
           ? tr("Bu Instagram hisobi allaqachon mavjud. Kirish bo‘limidan kiring.", "Этот аккаунт Instagram уже зарегистрирован. Перейдите ко входу.", "This Instagram account is already registered. Please use Sign in.")
       : oauthCode === "instagram_professional_account_required"
@@ -293,7 +293,7 @@ export function SetupWizard() {
   return <SetupShell>
     <main className="setup-main">
       <section className="setup-heading">
-        <span className="setup-eyebrow">{tr("REPLIO · COMMENT-TO-DM", "REPLIO · COMMENT-TO-DM", "REPLIO · COMMENT-TO-DM")}</span>
+        <span className="setup-eyebrow">{tr("REPLEO · COMMENT-TO-DM", "REPLEO · COMMENT-TO-DM", "REPLEO · COMMENT-TO-DM")}</span>
         <h1>{tr("Instagram automation’ni sozlang", "Настройте автоматизацию Instagram", "Set up your Instagram automation")}</h1>
         <p>{tr("Akkauntdan birinchi qoidagacha — sodda to‘rt qadam.", "От подключения аккаунта до первого правила — четыре шага.", "Go from account connection to your first rule in four clear steps.")}</p>
       </section>
@@ -310,7 +310,7 @@ export function SetupWizard() {
       {message && safeStep !== 4 && <div className="setup-inline-message" role="alert"><CircleHelp/><span>{message}</span><button type="button" aria-label={tr("Yopish", "Закрыть", "Dismiss")} onClick={() => setMessage("")}>×</button></div>}
 
       {safeStep === 1 && <section className="setup-card setup-account-step">
-        <div className="setup-card-heading"><div><span>{tr("1-QADAM", "ШАГ 1", "STEP 1")}</span><h2>{tr("Instagram akkauntingizni ulang", "Подключите Instagram аккаунт", "Connect your Instagram account")}</h2><p>{tr("Faqat rasmiy Meta login oynasi orqali. Parolingiz REPLIO’ga berilmaydi.", "Только через официальное окно Meta. Пароль не передаётся REPLIO.", "Only through Meta’s official login. REPLIO never receives your password.")}</p></div><span className="setup-card-icon"><Instagram/></span></div>
+        <div className="setup-card-heading"><div><span>{tr("1-QADAM", "ШАГ 1", "STEP 1")}</span><h2>{tr("Instagram akkauntingizni ulang", "Подключите Instagram аккаунт", "Connect your Instagram account")}</h2><p>{tr("Faqat rasmiy Meta login oynasi orqali. Parolingiz REPLEO’ga berilmaydi.", "Только через официальное окно Meta. Пароль не передаётся REPLEO.", "Only through Meta’s official login. REPLEO never receives your password.")}</p></div><span className="setup-card-icon"><Instagram/></span></div>
         {accounts.loading ? <div className="setup-state"><LoaderCircle className="setup-spinner"/><span>{tr("Ulangan akkauntlar yuklanmoqda…", "Загружаем подключённые аккаунты…", "Loading connected accounts…")}</span></div> : accounts.error ? <div className="setup-fetch-error"><AlertCircle/><span>{accounts.error}</span><button className="btn secondary small" onClick={() => void accounts.reload()} disabled={accounts.loading}><RefreshCw/>{tr("Qayta yuklash", "Повторить", "Retry")}</button></div> : <>
           {!accounts.data?.meta_configured && <div className="setup-notice warning"><AlertCircle/><span>{tr("Meta comment webhook sozlamalari to‘liq emas. Ulangan akkauntni sozlashingiz mumkin, ammo live comment avtomatizatsiyasi webhook tayyor bo‘lmaguncha ishlamaydi.", "Настройки Meta comment webhook заполнены не полностью. Можно настроить подключённый аккаунт, но live автоматизация комментариев не заработает до настройки webhook.", "Meta comment webhook settings are incomplete. You can configure the connected account, but live comment automation will not work until the webhook is ready.")}</span></div>}
           {connectedAccounts.length > 0 && <div className="setup-account-list" role="radiogroup" aria-label={tr("Instagram akkauntlari", "Аккаунты Instagram", "Instagram accounts")}>
