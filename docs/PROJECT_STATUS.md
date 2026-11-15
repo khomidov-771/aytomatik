@@ -1,5 +1,12 @@
 # Project status
 
+## 2026-11-15 — Meta Unified Login va callback (`c287c1c`)
+
+Meta Dashboard’da Unified Login Configuration ID hamda `https://instagram.schat.uz/api/v1/auth/instagram/callback` tanlangani ko‘rildi. Ilova endi konfiguratsiyadagi `META_LOGIN_MODE=unified` rejimini start, exchange va akkaunt ulashda ishlatadi. Serverga joylangan, API healthy. Meta beradigan facebook.com domenli dialogga foydalanuvchi Instagram bilan kira olishi dashboardda ko‘rsatilgan, haqiqiy tanlov va consent hozircha tasdiqlanmagan.
+
+Server preflight OAuth URL’dagi app/config ID va ro‘yxatdan o‘tgan callbackni runtime sozlamalariga solishtirdi. PostgreSQL testlari 57 asosiy va 127 test/subtestdan o‘tdi. Controlled callback testi cookie scope, session va state replay’ni tekshirdi. Admin ruxsat testi o‘tdi. Production release `/opt/repleo-deploys/repleo-c287c1c`, zaxira `/opt/repleo-backups/oauth-20261115T091904Z/database.dump`.
+
+
 ## 2026-11-15 — Super-admin (`9b3a7ba`)
 
 Serverga joylangan. Platforma egasi Instagram ID bilan bog‘langan va faqat shu Instagram loginidan yaratilgan yangi sessiyada admin bo‘limi ochiladi. Migratsiya `010_session_auth_provider.sql` qo‘llandi. Eski sessiyalardan qayta kirish kerak. API va web healthy, sessiyasiz admin endpoint 401 qaytardi.

@@ -1,5 +1,13 @@
 # Keyingi qadamlar
 
+## 2026-11-15 — Unified Login haqiqiy qabul sinovi
+
+1. Meta ruxsat oynasida foydalanuvchi Instagram hisobini o‘zi tanlaydi. Agar faqat Facebook login talab etilsa, buni bloklovchi shart sifatida qayd eting.
+2. Callback muvaffaqiyatini va hisob, sessiya, media listni tekshiring. Authorization code, access token va parollarni logga yoki chatga chiqarmang.
+3. Meta App Review va rol/ruxsatlar holatini tekshiring. Test natijalarini real yoki controlled sifatida aniq ajrating.
+4. Production Compose `/opt/repleo-deploys/repleo-c287c1c/.admin-override.yaml` admin ID hamda Meta Dashboard’da ro‘yxatdan o‘tgan callbackni saqlaydi. Compose’da override’ni olib tashlamang.
+
+
 ## 2026-11-15 — Super-admin
 
 1. Platforma egasi saytdan chiqib, `khomidov_771` orqali Instagram OAuth bilan qayta kiradi va chap paneldagi Super admin bo‘limini tekshiradi.

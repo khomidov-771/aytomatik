@@ -1,5 +1,13 @@
 # Test report
 
+## 2026-11-15 — Unified Login callback
+
+- Go unit suite, frontend lint va production build o‘tdi. Mahalliy va production manzilida Edge 7/7; browser API javoblari fixture bilan izolyatsiyalangan.
+- Ajratilgan Docker PostgreSQL bilan 57 asosiy test, 127 test va subtest o‘tdi. Bu controlled provider testi, real Meta emas.
+- Production API va web healthy. Authorization URL konfiguratsiya ID va ro‘yxatdan o‘tgan callbackga mos. Login state cookie callback uchun tekshirildi.
+- Haqiqiy Meta dialogi, consent va token exchange hali foydalanuvchi tomonidan tasdiqlanmagan.
+
+
 ## 2026-11-15 — Super-admin
 
 - Docker PostgreSQL to‘plamida 56 asosiy test, jami 126 test va subtest o‘tdi. Oddiy login, boshqa Instagram user va soxta session provider 403, to‘g‘ri test identity 200 qaytardi. Ko‘rish auditga yozildi.

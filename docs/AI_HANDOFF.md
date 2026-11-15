@@ -1,5 +1,12 @@
 # AI handoff
 
+## 2026-11-15 — Meta Unified Login
+
+Production release `c287c1c`. API/web `/opt/repleo-deploys/repleo-c287c1c` dan. Runtime `META_LOGIN_MODE=unified`, callback `https://instagram.schat.uz/api/v1/auth/instagram/callback`. Admin ID va callback `.admin-override.yaml` orqali saqlanadi. Database backup `/opt/repleo-backups/oauth-20261115T091904Z/database.dump`. Eski `/api/v1/instagram/callback` hali qabul qilinadi. OAuth state cookie ikkala yo‘l uchun `/api/v1` scope’da, eski cookie ham tozalanadi.
+
+Meta Dashboard skrinshoti Facebook domenli Unified Login URL’ga ega va Instagram Login Compatible belgisi ko‘rsatadi. Ilgari kiritilgan Meta App ID/Secret bir juft bo‘lishi bu setup uchun normal. Endi authorization va exchange Meta rejimiga mos. 57 Go integration asosiy test, 127 test/subtest o‘tgan, jumladan controlled callback va admin isolation. Real Instagram OAuth callback, token exchange va Meta ruxsatlari foydalanuvchi testini kutmoqda. Facebook hisobini majburiy deb ko‘rsatmang yoki Instagram orqali kirish ishlashini tasdiqlanmadi turib da’vo qilmang.
+
+
 ## 2026-11-15 — Super-admin deploy
 
 API/web `9b3a7ba` dan. Release `/opt/repleo-deploys/repleo-9b3a7ba`, Compose override `.admin-override.yaml`, backup `/opt/repleo-backups/admin-20261115T064525Z/database.dump`. `SUPER_ADMIN_INSTAGRAM_ID` override’da berilgan. Session migration 010 qo‘llangan. Admin faqat shu Instagram loginidan yaratilgan sessiyada ochiladi. Eski sessiyalar uchun qayta login kerak.
