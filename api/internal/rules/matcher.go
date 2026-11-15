@@ -1,23 +1,22 @@
 package rules
 
 import (
-	"regexp"
 	"strings"
 	"unicode"
 
+	"golang.org/x/text/cases"
 	"golang.org/x/text/unicode/norm"
 
 	"github.com/ids-automate/ids-automate/api/internal/domain"
 )
 
-var spaces = regexp.MustCompile(`\s+`)
-var apostrophes = strings.NewReplacer("’", "'", "‘", "'", "ʻ", "'", "ʼ", "'", "＇", "'", "ʹ", "'")
+var apostrophes = strings.NewReplacer("’", "'", "‘", "'", "ʻ", "'", "ʼ", "'", "＇", "'", "ʹ", "'", "`", "'", "´", "'")
 
 // Normalize produces one matching form for Uzbek Latin and Cyrillic text.
 // It never changes the stored or displayed source comment.
 func Normalize(value string) string {
-	value = norm.NFKC.String(value)
-	value = strings.ToLower(apostrophes.Replace(value))
+	value = norm.NFC.String(value)
+	value = cases.Fold().String(apostrophes.Replace(value))
 	value = transliterateCyrillic(value)
 	runes := []rune(value)
 	var out strings.Builder
@@ -26,17 +25,18 @@ func Normalize(value string) string {
 			out.WriteRune(r)
 			continue
 		}
-		if r == '\'' && i > 0 && i+1 < len(runes) && unicode.IsLetter(runes[i-1]) && unicode.IsLetter(runes[i+1]) {
+		if r == '\'' && i > 0 && (runes[i-1] == 'o' || runes[i-1] == 'g' || (i+1 < len(runes) && unicode.IsLetter(runes[i-1]) && unicode.IsLetter(runes[i+1]))) {
 			out.WriteRune(r)
 			continue
 		}
 		out.WriteByte(' ')
 	}
-	return strings.TrimSpace(spaces.ReplaceAllString(out.String(), " "))
+	return strings.Join(strings.Fields(out.String()), " ")
 }
 
 func transliterateCyrillic(value string) string {
 	var out strings.Builder
+	var previous rune
 	for _, r := range value {
 		switch r {
 		case 'а':
@@ -52,6 +52,9 @@ func transliterateCyrillic(value string) string {
 		case 'д':
 			out.WriteByte('d')
 		case 'е':
+			if !unicode.IsLetter(previous) || strings.ContainsRune("аеиоуыэюяёьъўaeiou", previous) {
+				out.WriteByte('y')
+			}
 			out.WriteByte('e')
 		case 'ё':
 			out.WriteString("yo")
@@ -105,6 +108,8 @@ func transliterateCyrillic(value string) string {
 			out.WriteByte('\'')
 		case 'ы':
 			out.WriteByte('i')
+		case 'ь':
+			// Russian soft sign has no independent Uzbek Latin sound.
 		case 'э':
 			out.WriteByte('e')
 		case 'ю':
@@ -114,11 +119,15 @@ func transliterateCyrillic(value string) string {
 		default:
 			out.WriteRune(r)
 		}
+		previous = r
 	}
 	return out.String()
 }
 
 func Matches(rule domain.AutomationRule, event domain.CommentEvent) bool {
+	if len(rule.KeywordGroups) > 0 {
+		return len(MatchGroups(rule, event, Normalize(event.Text))) > 0
+	}
 	_, matched := MatchKeyword(rule, event)
 	return matched
 }
@@ -127,21 +136,14 @@ func Matches(rule domain.AutomationRule, event domain.CommentEvent) bool {
 // Exact/keyword_list use whole-word or whole-phrase boundaries; contains is
 // available for owners who deliberately want partial-word matches.
 func MatchKeyword(rule domain.AutomationRule, event domain.CommentEvent) (string, bool) {
-	if !rule.IsActive || rule.TriggerType != "comment_created" {
+	matches := MatchGroups(rule, event, Normalize(event.Text))
+	if len(matches) == 0 {
 		return "", false
 	}
-	if rule.MediaScope == "selected" && !contains(rule.MediaIDs, event.MediaID) {
-		return "", false
-	}
-	text := Normalize(event.Text)
-	if text == "" {
-		return "", false
-	}
-	for _, exclusion := range rule.Exclusions {
-		if value := Normalize(exclusion); value != "" && strings.Contains(text, value) {
-			return "", false
-		}
-	}
+	return matches[0].Keyword, true
+}
+
+func flatKeyword(rule domain.AutomationRule, text string) (string, bool) {
 	best := ""
 	bestLength := 0
 	for _, configured := range rule.Keywords {

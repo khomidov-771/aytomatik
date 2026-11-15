@@ -1,13 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { Bot, ChevronRight, Copy, MoreVertical, Pause, Play, Plus, ShieldCheck, Trash2 } from "lucide-react";
+import { Bot, Copy, MoreVertical, Pause, Play, Plus, ShieldCheck, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { roleAtLeast, useSession } from "@/components/session-context";
 import { usePreferences } from "@/components/preferences-provider";
 import { EmptyState, ErrorState, LoadingState, PageHeader, StatusPill } from "@/components/ui";
 import { useApi } from "@/hooks/use-api";
 import { api, ApiError, jsonBody } from "@/lib/api";
+import { groupSummary } from "@/lib/keyword-groups";
 import type { Automation } from "@/lib/types";
 
 export default function AutomationsPage() {
@@ -57,7 +58,7 @@ export default function AutomationsPage() {
     <div className="automation-summary"><div><strong>{items.length}</strong><span>{tr("Jami qoida", "Всего правил", "Total rules")}</span></div><div><strong>{items.filter((item) => item.is_active).length}</strong><span>{tr("Faol", "Активные", "Active")}</span></div><div><strong>{items.filter((item) => !item.is_active).length}</strong><span>{tr("Pauzada", "На паузе", "Paused")}</span></div></div>
     {items.length === 0 ? <EmptyState title={tr("Hali qoida yaratilmagan", "Правил пока нет", "No rules yet")} text={canManage ? tr("Birinchi Comment-to-DM oqimini yarating.", "Создайте первый Comment-to-DM поток.", "Create your first Comment-to-DM flow.") : tr("Manager yoki Owner birinchi qoidani yaratishi mumkin.", "Первое правило может создать Manager или Owner.", "A Manager or Owner can create the first rule.")} action={canManage ? <Link href="/app/automations/new" className="btn primary"><Plus/>{tr("Birinchi qoida", "Первое правило", "First rule")}</Link> : undefined}/> : <div className="automation-list">{items.map((rule) => <article className="automation-row" key={rule.id}>
       <span className="automation-icon"><Bot/></span>
-      <div className="automation-main"><div><h3>{rule.name}</h3><StatusPill status={rule.is_active ? "active" : "paused"}/></div><p>@{rule.account_username} · {rule.match_mode} · <strong>{rule.keywords.join(", ")}</strong></p><div className="mini-flow"><span>Comment</span><ChevronRight/><span>Keyword</span>{rule.follow_verification_enabled && <><ChevronRight/><span>Follow check</span></>}<ChevronRight/><span>Private DM</span><ChevronRight/><span>Public reply</span></div></div>
+      <div className="automation-main"><div><h3>{rule.name}</h3><StatusPill status={rule.is_active ? "active" : "paused"}/></div><p>@{rule.account_username} · {rule.match_mode} · <strong>{groupSummary(rule)}</strong></p></div>
       {canManage && <div className="automation-actions"><button className="icon-btn" title={rule.is_active ? tr("Pauza", "Пауза", "Pause") : tr("Faollashtirish", "Активировать", "Activate")} disabled={busy === rule.id} onClick={() => void toggle(rule)}>{rule.is_active ? <Pause/> : <Play/>}</button><Link className="icon-btn" title={tr("Nusxa yaratish", "Создать копию", "Create a copy")} href={`/app/automations/${rule.id}?copy=1`}><Copy/></Link><button className="icon-btn danger" title={tr("O‘chirish", "Удалить", "Delete")} disabled={busy === rule.id} onClick={() => void remove(rule)}><Trash2/></button><Link className="icon-btn" title={tr("Tahrirlash", "Редактировать", "Edit")} href={`/app/automations/${rule.id}`}><MoreVertical/></Link></div>}
     </article>)}</div>}
   </>;

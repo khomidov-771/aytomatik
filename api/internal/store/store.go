@@ -11,6 +11,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/ids-automate/ids-automate/api/internal/domain"
+	"github.com/ids-automate/ids-automate/api/internal/rules"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -572,8 +573,8 @@ func googlePrincipalForUser(ctx context.Context, tx pgx.Tx, userID string) (doma
 
 type AccountInput struct {
 	InstagramUserID, Username, AccountType, AvatarURL, TokenCiphertext, Provider, LoginMode string
-	Scopes                                                                       []string
-	TokenExpiresAt                                                               *time.Time
+	Scopes                                                                                  []string
+	TokenExpiresAt                                                                          *time.Time
 }
 
 func (s *Store) UpsertInstagramAccount(ctx context.Context, workspaceID, userID string, in AccountInput) error {
@@ -647,7 +648,17 @@ func normalizeRule(r domain.AutomationRule) (domain.AutomationRule, error) {
 	r.PublicSuccessReplyText = strings.TrimSpace(r.PublicSuccessReplyText)
 	r.PublicNotFollowerReplyText = strings.TrimSpace(r.PublicNotFollowerReplyText)
 	r.PublicUnknownReplyText = strings.TrimSpace(r.PublicUnknownReplyText)
-	if utf8.RuneCountInString(r.Name) < 2 || utf8.RuneCountInString(r.Name) > 100 || len(r.Keywords) == 0 || r.PrivateReplyText == "" || r.PublicSuccessReplyText == "" {
+	if err := rules.ValidateGroups(r.KeywordGroups, false, r.CombineGroupReplies); err != nil {
+		return r, err
+	}
+	smart := len(r.KeywordGroups) > 0
+	if smart {
+		// Older workers must never deliver a stale flat reply for a grouped rule.
+		r.Keywords = []string{}
+		r.PrivateReplyText = ""
+		r.PublicSuccessReplyText = ""
+	}
+	if utf8.RuneCountInString(r.Name) < 2 || utf8.RuneCountInString(r.Name) > 100 || (!smart && (len(r.Keywords) == 0 || r.PrivateReplyText == "" || r.PublicSuccessReplyText == "")) {
 		return r, errors.New("name must be 2-100 characters; keywords, private reply and success public reply are required")
 	}
 	if r.MatchMode != "exact" && r.MatchMode != "contains" && r.MatchMode != "keyword_list" {
@@ -677,7 +688,7 @@ func normalizeRule(r domain.AutomationRule) (domain.AutomationRule, error) {
 	}
 	r.Keywords = cleanRuleList(r.Keywords, 80)
 	r.Exclusions = cleanRuleList(r.Exclusions, 80)
-	if len(r.Keywords) == 0 {
+	if !smart && len(r.Keywords) == 0 {
 		return r, errors.New("keywords are required")
 	}
 	if r.MediaScope != "all" && r.MediaScope != "selected" {
@@ -723,9 +734,14 @@ func cleanRuleList(values []string, maxRunes int) []string {
 func (s *Store) CreateRule(ctx context.Context, p domain.Principal, r domain.AutomationRule) (domain.AutomationRule, error) {
 	var err error
 	if r, err = normalizeRule(r); err != nil {
+		return r, fmt.Errorf("%w: %s", ErrInvalidRule, err)
+	}
+	tx, err := s.DB.Begin(ctx)
+	if err != nil {
 		return r, err
 	}
-	err = s.DB.QueryRow(ctx, `INSERT INTO automation_rules(workspace_id,instagram_account_id,name,trigger_type,match_mode,keywords,exclusions,media_scope,media_ids,reply_text,private_reply_text,public_success_reply_text,public_not_follower_reply_text,public_unknown_reply_text,follow_verification_enabled,unknown_fallback_policy,is_active,priority)
+	defer tx.Rollback(ctx)
+	err = tx.QueryRow(ctx, `INSERT INTO automation_rules(workspace_id,instagram_account_id,name,trigger_type,match_mode,keywords,exclusions,media_scope,media_ids,reply_text,private_reply_text,public_success_reply_text,public_not_follower_reply_text,public_unknown_reply_text,follow_verification_enabled,unknown_fallback_policy,is_active,priority)
 		SELECT $1,a.id,$3,'comment_created',$4,$5,$6,$7,$8,$9,$9,$10,$11,$12,$13,$14,$15,$16 FROM instagram_accounts a WHERE a.id=$2 AND a.workspace_id=$1 AND a.status='connected' AND a.provider<>'mock' RETURNING id,created_at,updated_at`, p.WorkspaceID, r.InstagramAccountID, r.Name, r.MatchMode, r.Keywords, r.Exclusions, r.MediaScope, r.MediaIDs, r.PrivateReplyText, r.PublicSuccessReplyText, r.PublicNotFollowerReplyText, r.PublicUnknownReplyText, r.FollowVerificationEnabled, r.UnknownFallbackPolicy, r.IsActive, r.Priority).Scan(&r.ID, &r.CreatedAt, &r.UpdatedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return r, ErrNotFound
@@ -733,44 +749,56 @@ func (s *Store) CreateRule(ctx context.Context, p domain.Principal, r domain.Aut
 	if err != nil {
 		return r, err
 	}
+	if err = saveRuleGroups(ctx, tx, p.WorkspaceID, &r); err != nil {
+		return r, err
+	}
+	if err = tx.Commit(ctx); err != nil {
+		return r, err
+	}
 	_ = s.Audit(ctx, p.WorkspaceID, p.UserID, "automation.created", "automation_rule", r.ID, nil)
 	return r, nil
 }
 
 func (s *Store) ListRules(ctx context.Context, workspaceID string) ([]domain.AutomationRule, error) {
-	rows, err := s.DB.Query(ctx, `SELECT r.id,r.instagram_account_id,a.username,r.name,r.trigger_type,r.match_mode,r.keywords,r.exclusions,r.media_scope,r.media_ids,r.private_reply_text,r.public_success_reply_text,r.public_not_follower_reply_text,r.public_unknown_reply_text,r.follow_verification_enabled,r.unknown_fallback_policy,r.is_active,r.priority,r.created_at,r.updated_at FROM automation_rules r JOIN instagram_accounts a ON a.id=r.instagram_account_id WHERE r.workspace_id=$1 AND a.provider<>'mock' ORDER BY r.priority,r.created_at DESC`, workspaceID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	items := []domain.AutomationRule{}
-	for rows.Next() {
-		var r domain.AutomationRule
-		if err = rows.Scan(&r.ID, &r.InstagramAccountID, &r.AccountUsername, &r.Name, &r.TriggerType, &r.MatchMode, &r.Keywords, &r.Exclusions, &r.MediaScope, &r.MediaIDs, &r.PrivateReplyText, &r.PublicSuccessReplyText, &r.PublicNotFollowerReplyText, &r.PublicUnknownReplyText, &r.FollowVerificationEnabled, &r.UnknownFallbackPolicy, &r.IsActive, &r.Priority, &r.CreatedAt, &r.UpdatedAt); err != nil {
-			return nil, err
-		}
-		items = append(items, r)
-	}
-	return items, rows.Err()
+	return s.readRules(ctx, workspaceID, false, " ORDER BY r.priority,r.created_at DESC", nil)
 }
-
 func (s *Store) GetRule(ctx context.Context, workspaceID, id string) (domain.AutomationRule, error) {
-	var r domain.AutomationRule
-	err := s.DB.QueryRow(ctx, `SELECT r.id,r.instagram_account_id,a.username,r.name,r.trigger_type,r.match_mode,r.keywords,r.exclusions,r.media_scope,r.media_ids,r.private_reply_text,r.public_success_reply_text,r.public_not_follower_reply_text,r.public_unknown_reply_text,r.follow_verification_enabled,r.unknown_fallback_policy,r.is_active,r.priority,r.created_at,r.updated_at FROM automation_rules r JOIN instagram_accounts a ON a.id=r.instagram_account_id WHERE r.workspace_id=$1 AND r.id=$2 AND a.provider<>'mock'`, workspaceID, id).Scan(&r.ID, &r.InstagramAccountID, &r.AccountUsername, &r.Name, &r.TriggerType, &r.MatchMode, &r.Keywords, &r.Exclusions, &r.MediaScope, &r.MediaIDs, &r.PrivateReplyText, &r.PublicSuccessReplyText, &r.PublicNotFollowerReplyText, &r.PublicUnknownReplyText, &r.FollowVerificationEnabled, &r.UnknownFallbackPolicy, &r.IsActive, &r.Priority, &r.CreatedAt, &r.UpdatedAt)
-	if errors.Is(err, pgx.ErrNoRows) {
-		err = ErrNotFound
+	items, err := s.readRules(ctx, workspaceID, true, " AND r.id=$3", []any{id})
+	if err != nil {
+		return domain.AutomationRule{}, err
 	}
-	return r, err
+	if len(items) == 0 {
+		return domain.AutomationRule{}, ErrNotFound
+	}
+	return items[0], nil
 }
 
 func (s *Store) UpdateRule(ctx context.Context, p domain.Principal, r domain.AutomationRule) (domain.AutomationRule, error) {
 	var err error
 	if r, err = normalizeRule(r); err != nil {
+		return r, fmt.Errorf("%w: %s", ErrInvalidRule, err)
+	}
+	tx, err := s.DB.Begin(ctx)
+	if err != nil {
 		return r, err
 	}
-	err = s.DB.QueryRow(ctx, `UPDATE automation_rules SET name=$3,match_mode=$4,keywords=$5,exclusions=$6,media_scope=$7,media_ids=$8,reply_text=$9,private_reply_text=$9,public_success_reply_text=$10,public_not_follower_reply_text=$11,public_unknown_reply_text=$12,follow_verification_enabled=$13,unknown_fallback_policy=$14,is_active=$15,priority=$16,updated_at=now() WHERE workspace_id=$1 AND id=$2 RETURNING updated_at`, p.WorkspaceID, r.ID, r.Name, r.MatchMode, r.Keywords, r.Exclusions, r.MediaScope, r.MediaIDs, r.PrivateReplyText, r.PublicSuccessReplyText, r.PublicNotFollowerReplyText, r.PublicUnknownReplyText, r.FollowVerificationEnabled, r.UnknownFallbackPolicy, r.IsActive, r.Priority).Scan(&r.UpdatedAt)
+	defer tx.Rollback(ctx)
+	err = tx.QueryRow(ctx, `UPDATE automation_rules SET name=$3,match_mode=$4,keywords=$5,exclusions=$6,media_scope=$7,media_ids=$8,reply_text=$9,private_reply_text=$9,public_success_reply_text=$10,public_not_follower_reply_text=$11,public_unknown_reply_text=$12,follow_verification_enabled=$13,unknown_fallback_policy=$14,is_active=$15,priority=$16,updated_at=now() WHERE workspace_id=$1 AND id=$2 AND ($17::timestamptz IS NULL OR updated_at=$17) RETURNING updated_at`, p.WorkspaceID, r.ID, r.Name, r.MatchMode, r.Keywords, r.Exclusions, r.MediaScope, r.MediaIDs, r.PrivateReplyText, r.PublicSuccessReplyText, r.PublicNotFollowerReplyText, r.PublicUnknownReplyText, r.FollowVerificationEnabled, r.UnknownFallbackPolicy, r.IsActive, r.Priority, previousVersion(r.UpdatedAt)).Scan(&r.UpdatedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
+		var exists bool
+		if err := tx.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM automation_rules WHERE workspace_id=$1 AND id=$2)", p.WorkspaceID, r.ID).Scan(&exists); err != nil {
+			return r, err
+		}
+		if exists {
+			return r, ErrRuleConflict
+		}
 		return r, ErrNotFound
+	}
+	if err == nil {
+		err = saveRuleGroups(ctx, tx, p.WorkspaceID, &r)
+	}
+	if err == nil {
+		err = tx.Commit(ctx)
 	}
 	if err == nil {
 		_ = s.Audit(ctx, p.WorkspaceID, p.UserID, "automation.updated", "automation_rule", r.ID, nil)
@@ -791,20 +819,7 @@ func (s *Store) DeleteRule(ctx context.Context, p domain.Principal, id string) e
 }
 
 func (s *Store) ActiveRules(ctx context.Context, workspaceID, accountID string) ([]domain.AutomationRule, error) {
-	rows, err := s.DB.Query(ctx, `SELECT id,instagram_account_id,name,trigger_type,match_mode,keywords,exclusions,media_scope,media_ids,private_reply_text,public_success_reply_text,public_not_follower_reply_text,public_unknown_reply_text,follow_verification_enabled,unknown_fallback_policy,is_active,priority,created_at,updated_at FROM automation_rules WHERE workspace_id=$1 AND instagram_account_id=$2 AND is_active=true ORDER BY priority,created_at`, workspaceID, accountID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	items := []domain.AutomationRule{}
-	for rows.Next() {
-		var r domain.AutomationRule
-		if err = rows.Scan(&r.ID, &r.InstagramAccountID, &r.Name, &r.TriggerType, &r.MatchMode, &r.Keywords, &r.Exclusions, &r.MediaScope, &r.MediaIDs, &r.PrivateReplyText, &r.PublicSuccessReplyText, &r.PublicNotFollowerReplyText, &r.PublicUnknownReplyText, &r.FollowVerificationEnabled, &r.UnknownFallbackPolicy, &r.IsActive, &r.Priority, &r.CreatedAt, &r.UpdatedAt); err != nil {
-			return nil, err
-		}
-		items = append(items, r)
-	}
-	return items, rows.Err()
+	return s.readRules(ctx, workspaceID, false, " AND r.instagram_account_id=$3 AND r.is_active ORDER BY r.priority,r.created_at,r.id", []any{accountID})
 }
 
 func (s *Store) EnqueueEvent(ctx context.Context, provider string, event domain.CommentEvent) (eventID, workspaceID, accountID string, inserted bool, err error) {
@@ -927,12 +942,12 @@ func (s *Store) EnsureExecution(ctx context.Context, eventID, workspaceID, ruleI
 // BeginAction commits an idempotency marker before an external side effect.
 // Only a public reply explicitly rejected with a retryable response may be
 // reacquired; private replies and ambiguous outcomes remain fail-closed.
-func (s *Store) BeginAction(ctx context.Context, workspaceID, executionID, actionType, messageText string, allowRetry bool) (ActionState, bool, error) {
+func (s *Store) BeginAction(ctx context.Context, workspaceID, executionID, actionType, messageText string, allowRetry bool, templateIDs ...string) (ActionState, bool, error) {
 	var state ActionState
-	err := s.DB.QueryRow(ctx, `INSERT INTO automation_execution_actions(workspace_id,execution_id,action_type,status,message_text)
-		SELECT $1,e.id,$3,'sending',NULLIF($4,'') FROM automation_executions e WHERE e.id=$2 AND e.workspace_id=$1
+	err := s.DB.QueryRow(ctx, `INSERT INTO automation_execution_actions(workspace_id,execution_id,action_type,status,message_text,template_ids)
+		SELECT $1,e.id,$3,'sending',NULLIF($4,''),COALESCE($5::text[],'{}') FROM automation_executions e WHERE e.id=$2 AND e.workspace_id=$1
 		ON CONFLICT(execution_id,action_type) DO NOTHING
-		RETURNING id,action_type,status,COALESCE(message_text,''),COALESCE(outcome,''),COALESCE(provider_result_id,''),COALESCE(error_code,''),COALESCE(error_message,''),attempt_count,started_at,completed_at`, workspaceID, executionID, actionType, messageText).Scan(
+		RETURNING id,action_type,status,COALESCE(message_text,''),COALESCE(outcome,''),COALESCE(provider_result_id,''),COALESCE(error_code,''),COALESCE(error_message,''),attempt_count,started_at,completed_at`, workspaceID, executionID, actionType, messageText, templateIDs).Scan(
 		&state.ID, &state.ActionType, &state.Status, &state.MessageText, &state.Outcome, &state.ProviderResultID, &state.ErrorCode, &state.ErrorMessage, &state.AttemptCount, &state.StartedAt, &state.CompletedAt,
 	)
 	if err == nil {
@@ -1101,7 +1116,7 @@ func (s *Store) ExecutionHistory(ctx context.Context, workspaceID, ruleID string
 	if limit < 1 || limit > 100 {
 		limit = 50
 	}
-	rows, err := s.DB.Query(ctx, `SELECT e.id,COALESCE(e.rule_id::text,''),COALESCE(w.payload_redacted->>'comment_id',''),COALESCE(w.payload_redacted->>'text',''),COALESCE(w.payload_redacted->>'username',''),e.status,e.follow_status,COALESCE(e.error_code,''),COALESCE(e.error_message,''),w.received_at,e.completed_at
+	rows, err := s.DB.Query(ctx, `SELECT e.id,COALESCE(e.rule_id::text,''),COALESCE(w.payload_redacted->>'comment_id',''),COALESCE(w.payload_redacted->>'text',''),COALESCE(w.payload_redacted->>'username',''),e.status,e.follow_status,COALESCE(e.error_code,''),COALESCE(e.error_message,''),w.received_at,e.completed_at,e.keyword_matches
 		FROM automation_executions e JOIN webhook_events w ON w.id=e.event_id
 		WHERE e.workspace_id=$1 AND e.rule_id=$2 ORDER BY w.received_at DESC LIMIT $3`, workspaceID, ruleID, limit)
 	if err != nil {
@@ -1111,18 +1126,18 @@ func (s *Store) ExecutionHistory(ctx context.Context, workspaceID, ruleID string
 	items := []domain.AutomationExecution{}
 	for rows.Next() {
 		var item domain.AutomationExecution
-		if err = rows.Scan(&item.ID, &item.RuleID, &item.CommentID, &item.CommentText, &item.Username, &item.Status, &item.FollowStatus, &item.ErrorCode, &item.ErrorMessage, &item.ReceivedAt, &item.CompletedAt); err != nil {
+		if err = rows.Scan(&item.ID, &item.RuleID, &item.CommentID, &item.CommentText, &item.Username, &item.Status, &item.FollowStatus, &item.ErrorCode, &item.ErrorMessage, &item.ReceivedAt, &item.CompletedAt, &item.Matches); err != nil {
 			return nil, err
 		}
 		item.Actions = []domain.ExecutionAction{}
-		actionRows, queryErr := s.DB.Query(ctx, `SELECT action_type,status,COALESCE(message_text,''),COALESCE(outcome,''),COALESCE(provider_result_id,''),COALESCE(error_code,''),COALESCE(error_message,''),attempt_count,started_at,completed_at
+		actionRows, queryErr := s.DB.Query(ctx, `SELECT action_type,status,COALESCE(message_text,''),COALESCE(outcome,''),COALESCE(provider_result_id,''),COALESCE(error_code,''),COALESCE(error_message,''),attempt_count,started_at,completed_at,template_ids
 			FROM automation_execution_actions WHERE workspace_id=$1 AND execution_id=$2 ORDER BY started_at`, workspaceID, item.ID)
 		if queryErr != nil {
 			return nil, queryErr
 		}
 		for actionRows.Next() {
 			var action domain.ExecutionAction
-			if queryErr = actionRows.Scan(&action.ActionType, &action.Status, &action.MessageText, &action.Outcome, &action.ProviderResultID, &action.ErrorCode, &action.ErrorMessage, &action.AttemptCount, &action.StartedAt, &action.CompletedAt); queryErr != nil {
+			if queryErr = actionRows.Scan(&action.ActionType, &action.Status, &action.MessageText, &action.Outcome, &action.ProviderResultID, &action.ErrorCode, &action.ErrorMessage, &action.AttemptCount, &action.StartedAt, &action.CompletedAt, &action.TemplateIDs); queryErr != nil {
 				actionRows.Close()
 				return nil, queryErr
 			}

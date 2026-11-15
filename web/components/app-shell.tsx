@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { BarChart3, Bell, Bot, ChevronDown, ClipboardList, Home, Instagram, LogOut, Menu, MessageSquareText, PanelLeftClose, Settings, Users, X } from "lucide-react";
+import { BarChart3, Bot, ChevronDown, ClipboardList, Home, Instagram, LogOut, Menu, MessageSquareText, PanelLeftClose, Settings, Users, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import type { Session } from "@/lib/types";
@@ -85,7 +85,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <div className="sidebar-brand"><Logo compact={collapsed}/><button className="icon-btn sidebar-close" aria-label={tr("Menyuni yopish", "Закрыть меню", "Close menu")} onClick={() => setOpen(false)}><X/></button></div>
       <nav aria-label={tr("Dashboard navigatsiyasi", "Навигация панели", "Dashboard navigation")}>{visibleNavigation.map((item) => { const Icon = item.icon; const active = item.href === "/app" ? path === item.href : path.startsWith(item.href); return <Link href={item.href} key={item.href} className={active ? "active" : ""} onClick={() => setOpen(false)} title={collapsed ? item.translatedLabel : undefined}><Icon/><span>{item.translatedLabel}</span></Link>; })}</nav>
       <div className="sidebar-bottom">
-        <div className="usage-card"><div><span>{tr("Asosiy oqim", "Основной поток", "Core flow")}</span><strong>Comment → DM</strong></div><Link href="/app/automations">{tr("Qoidalarni ko‘rish", "Посмотреть правила", "View rules")}</Link></div>
         <button className="sidebar-collapse" onClick={() => setCollapsed(!collapsed)}><PanelLeftClose/><span>{tr("Yon panelni yig‘ish", "Свернуть панель", "Collapse sidebar")}</span></button>
       </div>
     </aside>
@@ -93,7 +92,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <div className="app-main">
       <header className="topbar">
         <div className="topbar-left"><button className="icon-btn mobile-menu" aria-label={tr("Menyuni ochish", "Открыть меню", "Open menu")} aria-controls="workspace-sidebar" aria-expanded={open} onClick={() => setOpen(true)}><Menu/></button><WorkspaceSwitcher session={session}/></div>
-        <div className="topbar-actions"><PreferencesControls compact/><Link href="/app/settings#notifications" className="icon-btn" aria-label={tr("Bildirishnoma sozlamalari", "Настройки уведомлений", "Notification settings")} title={tr("Bildirishnoma sozlamalari", "Настройки уведомлений", "Notification settings")}><Bell/></Link><Link href="/app/profile" className="profile-chip"><span className="avatar">{initials}</span><span><strong>{session.user.name}</strong><small>{session.user.role}</small></span><ChevronDown/></Link><button className="icon-btn logout" aria-label={tr("Chiqish", "Выйти", "Sign out")} onClick={() => void logout()}><LogOut/></button></div>
+        <div className="topbar-actions"><PreferencesControls compact/><Link href="/app/profile" className="profile-chip"><span className="avatar">{initials}</span><span><strong>{session.user.name}</strong><small>{session.user.role}</small></span><ChevronDown/></Link><button className="icon-btn logout" aria-label={tr("Chiqish", "Выйти", "Sign out")} onClick={() => void logout()}><LogOut/></button></div>
       </header>
       <main className="app-content">{children}</main>
     </div>

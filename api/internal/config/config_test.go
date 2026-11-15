@@ -25,6 +25,7 @@ func validProductionEnv(t *testing.T) {
 	t.Setenv("APP_URL", "https://automate.example.com")
 	t.Setenv("API_URL", "https://automate.example.com")
 	t.Setenv("ALLOWED_ORIGINS", "https://automate.example.com")
+	t.Setenv("META_REDIRECT_URI", "https://automate.example.com/api/v1/instagram/callback")
 	t.Setenv("COOKIE_SECURE", "true")
 	t.Setenv("SESSION_SECRET", strings.Repeat("s", 32))
 	t.Setenv("TOKEN_ENCRYPTION_KEY", base64.StdEncoding.EncodeToString([]byte(strings.Repeat("k", 32))))

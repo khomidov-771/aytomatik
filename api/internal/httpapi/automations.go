@@ -1,12 +1,14 @@
 package httpapi
 
 import (
+	"errors"
 	"net/http"
 	"strings"
 	"unicode/utf8"
 
 	"github.com/ids-automate/ids-automate/api/internal/domain"
 	"github.com/ids-automate/ids-automate/api/internal/rules"
+	"github.com/ids-automate/ids-automate/api/internal/store"
 )
 
 func (s *Server) automations(w http.ResponseWriter, r *http.Request, p domain.Principal) {
@@ -37,7 +39,7 @@ func (s *Server) createAutomation(w http.ResponseWriter, r *http.Request, p doma
 	}
 	created, err := s.store.CreateRule(r.Context(), p, rule)
 	if err != nil {
-		if strings.Contains(err.Error(), "required") || strings.Contains(err.Error(), "invalid") || strings.Contains(err.Error(), "too long") {
+		if errors.Is(err, store.ErrInvalidRule) {
 			fail(w, 422, "validation_error", err.Error())
 			return
 		}
@@ -61,24 +63,37 @@ func (s *Server) updateAutomation(w http.ResponseWriter, r *http.Request, p doma
 		return
 	}
 	var input struct {
-		Name                       *string   `json:"name"`
-		MatchMode                  *string   `json:"match_mode"`
-		Keywords                   *[]string `json:"keywords"`
-		Exclusions                 *[]string `json:"exclusions"`
-		MediaScope                 *string   `json:"media_scope"`
-		MediaIDs                   *[]string `json:"media_ids"`
-		PrivateReplyText           *string   `json:"private_reply_text"`
-		PublicSuccessReplyText     *string   `json:"public_success_reply_text"`
-		PublicNotFollowerReplyText *string   `json:"public_not_follower_reply_text"`
-		PublicUnknownReplyText     *string   `json:"public_unknown_reply_text"`
-		FollowVerificationEnabled  *bool     `json:"follow_verification_enabled"`
-		UnknownFallbackPolicy      *string   `json:"unknown_fallback_policy"`
-		IsActive                   *bool     `json:"is_active"`
-		Priority                   *int      `json:"priority"`
+		InstagramAccountID         *string                `json:"instagram_account_id"`
+		KeywordGroups              *[]domain.KeywordGroup `json:"keyword_groups"`
+		CombineGroupReplies        *bool                  `json:"combine_group_replies"`
+		Name                       *string                `json:"name"`
+		MatchMode                  *string                `json:"match_mode"`
+		Keywords                   *[]string              `json:"keywords"`
+		Exclusions                 *[]string              `json:"exclusions"`
+		MediaScope                 *string                `json:"media_scope"`
+		MediaIDs                   *[]string              `json:"media_ids"`
+		PrivateReplyText           *string                `json:"private_reply_text"`
+		PublicSuccessReplyText     *string                `json:"public_success_reply_text"`
+		PublicNotFollowerReplyText *string                `json:"public_not_follower_reply_text"`
+		PublicUnknownReplyText     *string                `json:"public_unknown_reply_text"`
+		FollowVerificationEnabled  *bool                  `json:"follow_verification_enabled"`
+		UnknownFallbackPolicy      *string                `json:"unknown_fallback_policy"`
+		IsActive                   *bool                  `json:"is_active"`
+		Priority                   *int                   `json:"priority"`
 	}
 	if decode(r, &input) != nil {
 		fail(w, 400, "invalid_json", "Qoida formati noto‘g‘ri")
 		return
+	}
+	if input.InstagramAccountID != nil && *input.InstagramAccountID != existing.InstagramAccountID {
+		fail(w, 422, "validation_error", "Qoida akkauntini almashtirish uchun nusxa yarating")
+		return
+	}
+	if input.KeywordGroups != nil {
+		existing.KeywordGroups = *input.KeywordGroups
+	}
+	if input.CombineGroupReplies != nil {
+		existing.CombineGroupReplies = *input.CombineGroupReplies
 	}
 	if input.Name != nil {
 		existing.Name = *input.Name
@@ -123,8 +138,12 @@ func (s *Server) updateAutomation(w http.ResponseWriter, r *http.Request, p doma
 		existing.Priority = *input.Priority
 	}
 	updated, err := s.store.UpdateRule(r.Context(), p, existing)
+	if errors.Is(err, store.ErrRuleConflict) {
+		fail(w, 409, "rule_changed", "Qoida o‘zgardi. Qayta yuklang.")
+		return
+	}
 	if err != nil {
-		if strings.Contains(err.Error(), "required") || strings.Contains(err.Error(), "invalid") || strings.Contains(err.Error(), "too long") {
+		if errors.Is(err, store.ErrInvalidRule) {
 			fail(w, 422, "validation_error", err.Error())
 			return
 		}
@@ -156,11 +175,12 @@ func (s *Server) deleteAutomation(w http.ResponseWriter, r *http.Request, p doma
 
 func (s *Server) previewAutomationMatch(w http.ResponseWriter, r *http.Request, _ domain.Principal) {
 	var input struct {
-		Name       string   `json:"name"`
-		Text       string   `json:"text"`
-		MatchMode  string   `json:"match_mode"`
-		Keywords   []string `json:"keywords"`
-		Exclusions []string `json:"exclusions"`
+		KeywordGroups []domain.KeywordGroup `json:"keyword_groups"`
+		Name          string                `json:"name"`
+		Text          string                `json:"text"`
+		MatchMode     string                `json:"match_mode"`
+		Keywords      []string              `json:"keywords"`
+		Exclusions    []string              `json:"exclusions"`
 	}
 	if decode(r, &input) != nil {
 		fail(w, http.StatusBadRequest, "invalid_json", "Sinov matni formati noto‘g‘ri")
@@ -170,19 +190,39 @@ func (s *Server) previewAutomationMatch(w http.ResponseWriter, r *http.Request, 
 		fail(w, http.StatusUnprocessableEntity, "validation_error", "Moslik turi noto‘g‘ri")
 		return
 	}
-	if utf8.RuneCountInString(input.Text) > 1000 || len(input.Keywords) == 0 || len(input.Keywords) > 20 {
+	if utf8.RuneCountInString(input.Text) > 1000 || (len(input.KeywordGroups) == 0 && len(input.Keywords) == 0) || len(input.Keywords) > 20 || len(input.Exclusions) > 20 {
 		fail(w, http.StatusUnprocessableEntity, "validation_error", "Comment 1000 belgidan, kalit so‘zlar esa 20 tadan oshmasin")
 		return
 	}
-	rule := domain.AutomationRule{TriggerType: "comment_created", MatchMode: input.MatchMode, Keywords: input.Keywords, Exclusions: input.Exclusions, MediaScope: "all", IsActive: true}
-	keyword, matched := rules.MatchKeyword(rule, domain.CommentEvent{Text: input.Text, MediaID: "preview-only"})
+	for _, terms := range [][]string{input.Keywords, input.Exclusions} {
+		for _, term := range terms {
+			if utf8.RuneCountInString(term) > 80 {
+				fail(w, 422, "validation_error", "Kalit so‘z 80 belgidan oshmasin")
+				return
+			}
+		}
+	}
+	if err := rules.ValidateGroups(input.KeywordGroups, true, false); err != nil {
+		fail(w, 422, "validation_error", err.Error())
+		return
+	}
+	rule := domain.AutomationRule{KeywordGroups: input.KeywordGroups, TriggerType: "comment_created", MatchMode: input.MatchMode, Keywords: input.Keywords, Exclusions: input.Exclusions, MediaScope: "all", IsActive: true}
+	normalized := rules.Normalize(input.Text)
+	matches := rules.MatchGroups(rule, domain.CommentEvent{Text: input.Text, MediaID: "preview-only"}, normalized)
+	matched := len(matches) > 0
+	keyword := ""
+	if matched {
+		keyword = matches[0].Keyword
+	}
 	expectedAction := "none"
 	if matched {
 		expectedAction = "private_reply_then_public_reply"
 	}
 	respond(w, http.StatusOK, map[string]any{
 		"original_comment":    input.Text,
-		"normalized_comment":  rules.Normalize(input.Text),
+		"normalized_comment":  normalized,
+		"normalized_cyrillic": rules.ToCyrillic(normalized),
+		"keyword_matches":     matches,
 		"matched":             matched,
 		"matched_keyword":     keyword,
 		"normalized_keyword":  rules.Normalize(keyword),

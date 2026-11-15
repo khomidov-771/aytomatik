@@ -34,26 +34,28 @@ type InstagramAccount struct {
 }
 
 type AutomationRule struct {
-	ID                         string    `json:"id"`
-	InstagramAccountID         string    `json:"instagram_account_id"`
-	AccountUsername            string    `json:"account_username,omitempty"`
-	Name                       string    `json:"name"`
-	TriggerType                string    `json:"trigger_type"`
-	MatchMode                  string    `json:"match_mode"`
-	Keywords                   []string  `json:"keywords"`
-	Exclusions                 []string  `json:"exclusions"`
-	MediaScope                 string    `json:"media_scope"`
-	MediaIDs                   []string  `json:"media_ids"`
-	PrivateReplyText           string    `json:"private_reply_text"`
-	PublicSuccessReplyText     string    `json:"public_success_reply_text"`
-	PublicNotFollowerReplyText string    `json:"public_not_follower_reply_text"`
-	PublicUnknownReplyText     string    `json:"public_unknown_reply_text"`
-	FollowVerificationEnabled  bool      `json:"follow_verification_enabled"`
-	UnknownFallbackPolicy      string    `json:"unknown_fallback_policy"`
-	IsActive                   bool      `json:"is_active"`
-	Priority                   int       `json:"priority"`
-	CreatedAt                  time.Time `json:"created_at"`
-	UpdatedAt                  time.Time `json:"updated_at"`
+	KeywordGroups              []KeywordGroup `json:"keyword_groups"`
+	CombineGroupReplies        bool           `json:"combine_group_replies"`
+	ID                         string         `json:"id"`
+	InstagramAccountID         string         `json:"instagram_account_id"`
+	AccountUsername            string         `json:"account_username,omitempty"`
+	Name                       string         `json:"name"`
+	TriggerType                string         `json:"trigger_type"`
+	MatchMode                  string         `json:"match_mode"`
+	Keywords                   []string       `json:"keywords"`
+	Exclusions                 []string       `json:"exclusions"`
+	MediaScope                 string         `json:"media_scope"`
+	MediaIDs                   []string       `json:"media_ids"`
+	PrivateReplyText           string         `json:"private_reply_text"`
+	PublicSuccessReplyText     string         `json:"public_success_reply_text"`
+	PublicNotFollowerReplyText string         `json:"public_not_follower_reply_text"`
+	PublicUnknownReplyText     string         `json:"public_unknown_reply_text"`
+	FollowVerificationEnabled  bool           `json:"follow_verification_enabled"`
+	UnknownFallbackPolicy      string         `json:"unknown_fallback_policy"`
+	IsActive                   bool           `json:"is_active"`
+	Priority                   int            `json:"priority"`
+	CreatedAt                  time.Time      `json:"created_at"`
+	UpdatedAt                  time.Time      `json:"updated_at"`
 }
 
 type FollowerStatus string
@@ -66,6 +68,7 @@ const (
 )
 
 type ExecutionAction struct {
+	TemplateIDs      []string   `json:"template_ids"`
 	ActionType       string     `json:"action_type"`
 	Status           string     `json:"status"`
 	MessageText      string     `json:"message_text,omitempty"`
@@ -79,6 +82,7 @@ type ExecutionAction struct {
 }
 
 type AutomationExecution struct {
+	Matches      []KeywordMatch    `json:"keyword_matches"`
 	ID           string            `json:"id"`
 	RuleID       string            `json:"rule_id"`
 	CommentID    string            `json:"comment_id"`

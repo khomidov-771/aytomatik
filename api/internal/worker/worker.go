@@ -155,33 +155,16 @@ func (w *Worker) process(ctx context.Context, queued store.QueuedCommentEvent) {
 		_ = w.finish(ctx, job, nil, "skipped_policy", "live_state_unverified", "live broadcast state cannot be verified")
 		return
 	}
-	items, err := w.store.ActiveRules(ctx, job.WorkspaceID, job.AccountID)
+	plan, err := w.executionPlan(ctx, job)
 	if err != nil {
-		w.retryOrFail(ctx, queued, nil, "rules_unavailable", "automation rules could not be loaded")
+		w.retryOrFail(ctx, queued, nil, "rules_unavailable", "automation plan could not be loaded")
 		return
 	}
-	var match *domain.AutomationRule
-	bestSpecificity := -1
-	for i := range items {
-		keyword, matched := rules.MatchKeyword(items[i], job.Event)
-		if !matched {
-			continue
-		}
-		specificity := len([]rune(rules.Normalize(keyword)))
-		if match == nil || specificity > bestSpecificity {
-			match = &items[i]
-			bestSpecificity = specificity
-		}
-	}
-	if match == nil {
+	if plan.Rule == nil {
 		_ = w.finish(ctx, job, nil, "skipped_no_match", "", "")
 		return
 	}
-	executionID, followStatus, err := w.store.EnsureExecution(ctx, job.EventID, job.WorkspaceID, match.ID)
-	if err != nil {
-		w.retryOrFail(ctx, queued, match, "execution_unavailable", "execution state could not be created")
-		return
-	}
+	match, executionID, followStatus := plan.Rule, plan.ID, plan.FollowStatus
 	token, err := w.cipher.Decrypt(encrypted)
 	if err != nil {
 		_ = w.store.FinishExecution(ctx, job.WorkspaceID, executionID, "failed", "token_unavailable", "encrypted token could not be read", true)
@@ -245,13 +228,13 @@ func (w *Worker) process(ctx context.Context, queued store.QueuedCommentEvent) {
 
 	decision := decideWorkflow(*match, followStatus)
 	if decision.SendPrivate {
-		state, acquired, markerErr := w.store.BeginAction(ctx, job.WorkspaceID, executionID, "private_reply", match.PrivateReplyText, false)
+		state, acquired, markerErr := w.beginReply(ctx, job.WorkspaceID, plan, false, decision)
 		if markerErr != nil {
 			_ = w.store.FinishExecution(ctx, job.WorkspaceID, executionID, "failed", "private_reply_marker_unavailable", "private reply state could not be persisted", true)
 			return
 		}
 		if acquired {
-			delivery, deliveryErr := instagramProvider.SendPrivateReply(ctx, token, providerAccountID, job.Event.CommentID, match.PrivateReplyText)
+			delivery, deliveryErr := instagramProvider.SendPrivateReply(ctx, token, providerAccountID, job.Event.CommentID, state.MessageText)
 			if deliveryErr != nil {
 				actionStatus := "failed"
 				finalStatus := "failed"
@@ -268,7 +251,9 @@ func (w *Worker) process(ctx context.Context, queued store.QueuedCommentEvent) {
 				slog.Error("private reply result could not be stored", "event_id", job.EventID, "error", err)
 				return
 			}
-			if err = w.store.RecordPrivateReplyMessage(ctx, job.WorkspaceID, *match, job.Event, delivery.MessageID); err != nil {
+			deliveredRule := *match
+			deliveredRule.PrivateReplyText = state.MessageText
+			if err = w.store.RecordPrivateReplyMessage(ctx, job.WorkspaceID, deliveredRule, job.Event, delivery.MessageID); err != nil {
 				slog.Error("private reply inbox record could not be stored", "event_id", job.EventID, "error", err)
 			}
 		} else if state.Status != "succeeded" {
@@ -289,14 +274,13 @@ func (w *Worker) process(ctx context.Context, queued store.QueuedCommentEvent) {
 		}
 	}
 
-	publicText := decision.PublicText
-	state, acquired, markerErr := w.store.BeginAction(ctx, job.WorkspaceID, executionID, "public_reply", publicText, true)
+	state, acquired, markerErr := w.beginReply(ctx, job.WorkspaceID, plan, true, decision)
 	if markerErr != nil {
 		_ = w.store.FinishExecution(ctx, job.WorkspaceID, executionID, "failed", "public_reply_marker_unavailable", "public reply state could not be persisted", true)
 		return
 	}
 	if !acquired {
-		if state.Status == "succeeded" {
+		if state.Status == "succeeded" || state.Status == "skipped" {
 			_ = w.store.FinishExecution(ctx, job.WorkspaceID, executionID, "completed", "", "", true)
 			return
 		}
@@ -309,9 +293,13 @@ func (w *Worker) process(ctx context.Context, queued store.QueuedCommentEvent) {
 		_ = w.store.FinishExecution(ctx, job.WorkspaceID, executionID, status, code, "public comment reply was not confirmed", true)
 		return
 	}
-	if state.MessageText != "" {
-		publicText = state.MessageText
+	if state.MessageText == "" {
+		if err = w.store.CompleteAction(ctx, job.WorkspaceID, executionID, "public_reply", "skipped", "no_enabled_template", "", "", ""); err == nil {
+			_ = w.store.FinishExecution(ctx, job.WorkspaceID, executionID, "completed", "", "", true)
+		}
+		return
 	}
+	publicText := state.MessageText
 	publicDelivery, publicErr := instagramProvider.SendPublicCommentReply(ctx, token, job.Event.CommentID, publicText)
 	if publicErr != nil {
 		code := provider.ErrorCode(publicErr)
@@ -341,6 +329,102 @@ func (w *Worker) process(ctx context.Context, queued store.QueuedCommentEvent) {
 		return
 	}
 	_ = w.store.FinishExecution(ctx, job.WorkspaceID, executionID, "completed", "", "", true)
+}
+
+// Retries resume against the original snapshot, even if a rule was edited
+// while a confirmed DM was waiting for a public-reply retry.
+func (w *Worker) executionPlan(ctx context.Context, job Job) (store.ExecutionPlan, error) {
+	plan, err := w.store.ExecutionPlan(ctx, job.WorkspaceID, job.EventID)
+	if err != nil && !errors.Is(err, store.ErrNotFound) {
+		return plan, err
+	}
+	if plan.Rule != nil {
+		return plan, nil
+	}
+	text := rules.Normalize(job.Event.Text)
+	var winner *domain.AutomationRule
+	var matches []domain.KeywordMatch
+	if plan.RuleID != "" {
+		rule, err := w.store.GetRule(ctx, job.WorkspaceID, plan.RuleID)
+		if err != nil {
+			return plan, err
+		}
+		// Legacy in-flight execution predates snapshots and has already matched.
+		winner = &rule
+		matches = rules.MatchGroups(rule, job.Event, text)
+		if len(rule.KeywordGroups) > 0 && len(matches) == 0 {
+			return plan, errors.New("legacy execution no longer matches edited groups")
+		}
+	} else {
+		items, err := w.store.ActiveRules(ctx, job.WorkspaceID, job.AccountID)
+		if err != nil {
+			return plan, err
+		}
+		for i := range items {
+			candidate := rules.MatchGroups(items[i], job.Event, text)
+			if len(candidate) == 0 {
+				continue
+			}
+			if len(matches) == 0 || (candidate[0].MatchType == "exact" && matches[0].MatchType != "exact") || (candidate[0].MatchType == matches[0].MatchType && len([]rune(candidate[0].Normalized)) > len([]rune(matches[0].Normalized))) {
+				winner = &items[i]
+				matches = candidate
+			}
+		}
+		if winner == nil {
+			return plan, nil
+		}
+		if len(winner.KeywordGroups) > 0 {
+			full, err := w.store.GetRule(ctx, job.WorkspaceID, winner.ID)
+			if err != nil {
+				return plan, err
+			}
+			if !full.UpdatedAt.Equal(winner.UpdatedAt) {
+				return plan, store.ErrRuleConflict
+			}
+			winner = &full
+			selected := map[string]bool{}
+			for _, m := range matches {
+				selected[m.GroupID] = true
+			}
+			relevant := []domain.KeywordGroup{}
+			for _, g := range full.KeywordGroups {
+				if selected[g.ID] {
+					relevant = append(relevant, g)
+				}
+			}
+			winner.KeywordGroups = relevant
+		}
+	}
+	return w.store.SaveExecutionPlan(ctx, job.WorkspaceID, job.EventID, *winner, matches)
+}
+
+func (w *Worker) beginReply(ctx context.Context, workspace string, plan store.ExecutionPlan, public bool, decision workflowDecision) (store.ActionState, bool, error) {
+	channel := "private_reply"
+	if public {
+		channel = "public_reply"
+	}
+	state, err := w.store.ActionState(ctx, workspace, plan.ID, channel)
+	if err == nil {
+		if public && state.Status == "failed_retryable" {
+			return w.store.BeginAction(ctx, workspace, plan.ID, channel, state.MessageText, true)
+		}
+		return state, false, nil
+	}
+	if !errors.Is(err, store.ErrNotFound) {
+		return state, false, err
+	}
+	text := decision.PublicText
+	var ids []string
+	if !public || decision.SendPrivate {
+		text, ids, err = rules.SelectReply(*plan.Rule, plan.Matches, public)
+		if err != nil {
+			return state, false, err
+		}
+		if !public && text == "" {
+			return state, false, errors.New("empty private reply")
+		}
+	}
+	return w.store.BeginAction(ctx, workspace, plan.ID, channel, text, public, ids...)
 }
 
 type workflowDecision struct {
