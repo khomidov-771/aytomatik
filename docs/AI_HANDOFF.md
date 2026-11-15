@@ -1,5 +1,9 @@
 # AI handoff
 
+## 2026-11-15 — Login o‘zgarishi rollback
+
+9351542 deployidan keyin foydalanuvchi Meta’da login vaqtincha mavjud emasligi xabarini ko‘rdi. Sabab tasdiqlanmagan, shu sabab production `repleo-api:c287c1c` imagega qaytarildi va container healthy. Joriy compose `.rollback-override.yaml` ishlatadi. Instagram-only login hali tasdiqlanmagan. Pastdagi prompt deploy haqidagi tarixiy yozuvlar endi joriy holat emas.
+
 ## 2026-11-15 — Meta login tanlovini ko‘rsatish
 
 Meta Unified Login uchun `prompt=login` qo‘shildi: mavjud Facebook sessiyasi sabab variant tanlovi ko‘rinmasligi rasmiy troubleshooting hujjatida qayd etilgan. `api/internal/provider/provider.go` va testini ko‘ring. Bu ikki variantni ko‘rsatishni so‘raydi, Instagram-only majburlamaydi. Foydalanuvchi bilan real Instagram login va callback tekshirilmaguncha buni muvaffaqiyatli deb belgilamang. https://developers.facebook.com/documentation/instagram-platform/instagram-api-with-unified-login/eligibility-and-troubleshooting

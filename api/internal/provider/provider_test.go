@@ -86,8 +86,8 @@ func TestUnifiedAuthorizationURLUsesConfigurationID(t *testing.T) {
 	if query.Has("scope") {
 		t.Fatal("Unified configuration owns the permission scopes")
 	}
-	if query.Get("override_default_response_type") != "true" || query.Get("response_type") != "code" || query.Get("display") != "popup" || query.Get("prompt") != "login" {
-		t.Fatal("Unified authorization must offer Meta's Instagram and Facebook login choices")
+	if query.Get("override_default_response_type") != "true" || query.Get("response_type") != "code" || query.Get("display") != "popup" || query.Has("prompt") {
+		t.Fatal("Unified authorization must match Meta's generated login format")
 	}
 }
 

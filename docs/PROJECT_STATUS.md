@@ -1,5 +1,9 @@
 # Project status
 
+## 2026-11-15 — OAuth rollback
+
+`prompt=login` deployidan keyin foydalanuvchi Meta sahifasida Facebook login hozircha mavjud emasligi haqidagi xabarni ko‘rdi. Sabab hali tasdiqlanmagan. Avval ishlagan `repleo-api:c287c1c` productionga qaytarildi, container healthy. Instagram-only login qabul sinovi o‘tmagan. Meta holati va eski oqim foydalanuvchining yangi urinishida qayta tekshirilishi kerak.
+
 ## 2026-11-15 — Unified Login tanlovi
 
 Meta rasmiy hujjatlariga ko‘ra, `prompt=login` mavjud Facebook sessiyasini avtomatik tanlash o‘rniga Instagram va Facebook kirish variantlarini ko‘rsatishga xizmat qiladi. Unified authorization URL ga parametr qo‘shildi; Instagram orqali haqiqiy OAuth consent va callback hali alohida jonli sinovni talab qiladi. Manba: https://developers.facebook.com/documentation/instagram-platform/instagram-api-with-unified-login/get-started

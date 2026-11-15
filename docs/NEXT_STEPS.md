@@ -1,5 +1,9 @@
 # Keyingi qadamlar
 
+## 2026-11-15 — Login rollbackdan keyin
+
+Production hozir `repleo-api:c287c1c` orqali `prompt` parametrini yubormaydi. Foydalanuvchi qayta login qilib Meta xatosi davom etishini tekshirsin; Meta app mode, App Review va cheklovlar tekshirilsin. `prompt=login`ni Meta va ilova holatining sababini tasdiqlamasdan yana productionga qo‘ymang.
+
 ## 2026-11-15 — Instagram orqali kirish
 
 `prompt=login` bilan production Meta oynasida Instagram tanlovini va haqiqiy Instagram consent → callback → sessiya zanjirini sinang. Shaxsiy ma’lumot, token, OAuth kod yoki parolni yozib olmang. Oynada Facebook tanlovi ham Meta tomonidan ko‘rsatilishi mumkin; faqat Instagram varianti majburlanmagani aniq. App Review va Advanced Access holatini boshqa mijozlar uchun tekshiring.
