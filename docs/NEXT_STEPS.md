@@ -1,5 +1,13 @@
 # Keyingi qadamlar
 
+## 2026-11-15 — Guruhli qoidani jonli qabul qilish
+
+1. Egasi rasmiy Instagram ulanishi faol ekanini tekshiradi va mavjud postda guruhli qoidani ko‘rib chiqib saqlaydi.
+2. Egasi nazorat qiladigan boshqa Instagram hisobidan shu postga bir nechta guruhga mos comment yozadi. Bu real Direct va public javob yuboradi.
+3. Qoida tarixida topilgan guruhlar, tanlangan shablon ID’lari, Meta provider result va ikkala amal holatini tekshiring. Ixtiyoriy follow tekshiruvi alohida ruxsat va mos kontekstga bog‘liq.
+4. Kod `cefb6d6` dan deploy qilingan. Production sirlarini o‘zgartirmang, `/opt/ids-automate` ichidagi eski checkoutga pull qilmang.
+
+
 ## 2026-11-14 — Post-deploy follow-up (`787542e`)
 
 1. REPLEO web is deployed from GitHub `main` commit `787542e`. Production `/` and both linked CSS assets return HTTP 200; Edge at 1440px and 390px showed no horizontal overflow. The old web image is preserved as `ids-automate-web:rollback-repleo-20261114`.

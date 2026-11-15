@@ -2,6 +2,17 @@
 
 Tekshiruv sanasi: 2026-11-12.
 
+
+## Guruhli qoidalar va yuborish tarixi
+
+`POST /api/v1/automations` va `PATCH /api/v1/automations/{id}` mavjud JSON formatiga `keyword_groups` va `combine_group_replies` maydonlarini qo‘shadi. Har guruh `variants`, `dm_templates`, `public_templates`, `variables`, ustuvorlik va faollikni saqlaydi. Ro‘yxat va worker nomzodlari javob shablonlarini yuklamaydi. Tahrir uchun to‘liq qoida `GET /api/v1/automations/{id}` orqali qaytadi. Workspace va automation chegaralari ichki jadvallarning composite foreign key’larida ham tekshiriladi.
+
+`POST /api/v1/automations/match-preview` workerdagi matcher bilan bir xil normalizatsiyadan foydalanadi. Natija guruh, topilgan variant, matn bo‘lagi va imlo masofasini qaytaradi. Preview xabar yubormaydi.
+
+Worker imzolangan webhookdan saqlangan izohni oladi. Guruh va shablon tanloviga asos bo‘lgan qoida birinchi ishlovda execution ichiga yoziladi. DM tanlovi provider chaqiruvidan oldin action yozuvida saqlanadi. Tasdiqdan keyin public shablon tanlanadi. Qayta urinishda ilgari saqlangan matn va ID olinadi. Guruhsiz mavjud qoidalar tarixiy kalit so‘z va javob maydonlari bilan davom etadi.
+
+`GET /api/v1/automations/{id}/executions` mosliklar, kanal, shablon ID’lari, matn, provayder natijasi va urinish sonini chiqaradi. Migration `009_smart_keywords.sql` qo‘shgan jadvallar va indekslar [texnik hisobotda](SMART_KEYWORDS_REPORT.md) keltirilgan.
+
 ## Tizim oqimi
 
 ```text

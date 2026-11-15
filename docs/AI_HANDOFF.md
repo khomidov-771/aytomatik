@@ -1,5 +1,12 @@
 # AI handoff
 
+## 2026-11-15 — Smart keyword release
+
+Production API va web `cefb6d6` dan qurilgan. `009_smart_keywords.sql` qo‘llangan. Avvalgi ma’lumot ID’lari deploy oldi va keyin solishtirilgan. Backup `/opt/repleo-backups/smart-20261115T052835Z/database.dump`. Candidate release `/opt/repleo-deploys/repleo-cefb6d6`, production environment mavjud faylga bog‘langan. PostgreSQL va Redis qayta yaratilmagan.
+
+Batafsil dizayn, integratsiya, o‘zgargan fayllar va testlar `docs/SMART_KEYWORDS_REPORT.md`da. Mavjud flat qoidalarni saqlang. Private reply tasdiqlanmaguncha public success yubormang. Qayta urinishda saqlangan shablonni almashtirmang. Guruhli qoidaning yangi real Meta comment testi hali bajarilmagan. Oldingi 11 private va 12 public tasdiqlar tarixiy natijalar.
+
+
 ## 2026-11-14 — CSS/layout repair deployed (`787542e`)
 
 - Product name remains **REPLEO**. This release fixes the production rendering failure shown in the user's screenshot: `web/app/globals.css` at base commit `7644b30` was binary-corrupted, PostCSS could not parse it, and the emitted CSS omitted global reset and dashboard grid rules. The stylesheet is now valid text and parses in PostCSS; the production CSS asset is 147,649 bytes and has no Next `unparsable` marker.

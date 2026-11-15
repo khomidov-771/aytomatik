@@ -2,6 +2,15 @@
 
 REPLEO — Instagram Professional akkauntlari uchun real Comment-to-DM avtomatlashtirish platformasi. Git repository, API va ayrim ichki deployment identifikatorlarida oldingi IDS Automate nomi uchrashi mumkin; foydalanuvchiga ko‘rinadigan mahsulot nomi REPLEO.
 
+
+## Kalit so‘z guruhlari
+
+Ish maydonida **Avtomatizatsiyalar → Yangi qoida** orqali Instagram postingizni tanlang. Ikkinchi bosqichda bitta kalit so‘z yozing yoki **So‘zlarni guruhlarga ajratish** tugmasini bosing. Har bir guruh uchun asosiy so‘z, sinonim va kerak bo‘lsa imlo variantlarini kiriting. Uchinchi bosqichda Direct va ixtiyoriy izoh javoblarini yozing. To‘rtinchi bosqichda ko‘rib chiqib saqlang.
+
+Masalan, `Narx` guruhiga `narx, цена`, `Yetkazish` guruhiga `dostavka` kiritsangiz, **«НАРХ va dostavka?»** ikkala guruhga mos keladi. Oddiy sozlamada ustuvor guruhdan bitta Direct ketadi. Birlashtirish yoqilsa, ikkala matn bitta Direct ichida yuboriladi. Tarixda mos guruhlar, ishlatilgan shablonlar va har bir yuborish natijasini ko‘rasiz.
+
+[Release tekshiruvi va chegaralari](docs/SMART_KEYWORDS_REPORT.md)
+
 Asosiy oqim:
 
 ```text

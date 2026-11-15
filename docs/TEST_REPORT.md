@@ -1,5 +1,13 @@
 # Test report
 
+## 2026-11-15 — Smart keyword testlari
+
+- `go test -tags=integration -count=1 ./...` ajratilgan Docker PostgreSQL bilan 55 asosiy test va jami 125 test/subtestdan o‘tdi. Controlled provider tashqi Meta chaqiruvini imitatsiya qiladi.
+- Frontend lint va production build o‘tdi. Vitest 2/2. Mahalliy va production manzilida Edge 6/6 ssenariy, jumladan 360, 390, 768, 1440 piksel va yakuniy tasdiqlash.
+- Serverdan avval backup va ma’lumot ID’lari tekshirildi. Migration va healthy API/web tasdiqlandi. Tarixiy Meta javoblari real, yangi guruhli Meta acceptance testi bajarilmagan.
+- [Batafsil hisobot](SMART_KEYWORDS_REPORT.md).
+
+
 ## 2026-11-14 — CSS repair and post-deploy UI verification (`787542e`)
 
 ### Local release checks

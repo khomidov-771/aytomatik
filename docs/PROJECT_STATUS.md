@@ -1,5 +1,14 @@
 # Project status
 
+## 2026-11-15 — Smart keywords release (`cefb6d6`)
+
+- API va web production serverga joylandi. Additive `009_smart_keywords.sql` migration qo‘llandi. Deploymentdan oldin PostgreSQL backup tekshirildi va eski user, workspace, account, rule, event, execution, action va message ID’lari saqlangani solishtirildi.
+- Ajratilgan Docker PostgreSQL testlari 55 ta asosiy test, jami 125 ta test va subtestdan o‘tdi. Ular haqiqiy PostgreSQL, HTTP, imzolangan webhook va nazorat qilinadigan provider javoblaridan foydalanadi.
+- Frontend lint, 22 sahifali production build, 2 unit test va Edge’da 6 UI ssenariy o‘tdi. Muharrir yakuniy saqlashdan oldin qoida yaratmasligi tekshirildi.
+- Meta tarixida 11 ta tasdiqlangan private va 12 ta public javob qayd etilgan. Yangi guruhli funksiya uchun yangi jonli Meta comment yuborilmagan. Shuning uchun yangi funksiyaning real Meta’dagi yakuniy qabul testi hali ochiq.
+- [To‘liq texnik hisobot](SMART_KEYWORDS_REPORT.md).
+
+
 ## 2026-11-14 — CSS/layout repair deployed (`787542e`)
 
 - Root cause of the screenshot: `web/app/globals.css` in base commit `7644b30` was binary-corrupted and failed PostCSS parsing. Next emitted a CSS parse-error marker and dropped global reset/grid rules, causing dashboard controls and cards to overlap and overflow. The file is restored as valid CSS; production CSS has no parse-error marker and includes reset/grid rules.
