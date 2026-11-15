@@ -1,5 +1,12 @@
 # Keyingi qadamlar
 
+## 2026-11-15 — Ochiq Meta masalalari
+
+1. Foydalanuvchi Instagram orqali alohida kirish variantini talab qilmoqda. Mavjud Unified konfiguratsiya amalda Facebook orqali sessiya ochgan. Meta Dashboard configuration preview va rasmiy imkoniyatlarni tekshirish, Instagram login tanlovi Meta’da berilmasa mavjud holatni ochiq ko‘rsatish kerak.
+2. Real `@khomidov_771` media API 2 ta post qaytargan, 11:43 UTC real comment uchun private va public reply Meta tomonidan muvaffaqiyatli qabul qilingan.
+3. Follow verification UNKNOWN bo‘lib, `send_private_reply` fallback ishlagan. FOLLOWER va NOT_FOLLOWER yo‘llari Meta konteksti va ruxsatlari bilan tasdiqlanmagan.
+
+
 ## 2026-11-15 — Unified Login haqiqiy qabul sinovi
 
 1. Meta ruxsat oynasida foydalanuvchi Instagram hisobini o‘zi tanlaydi. Agar faqat Facebook login talab etilsa, buni bloklovchi shart sifatida qayd eting.

@@ -1,5 +1,12 @@
 # Test report
 
+## 2026-11-15 — Real Meta qabul sinovi
+
+- Facebook orqali Unified Login yordamida `@khomidov_771` ulandi, Meta media read HTTP muvaffaqiyatli, 2 post.
+- 11:43 UTC real webhook → keyword → private reply → public reply. Ikkala delivery `succeeded`, har ikkisida Meta provider result ID bor.
+- Follow check UNKNOWN va send_private_reply fallback qo‘llangan. Instagram-only login hamda follower statusini real aniqlash tasdiqlanmagan.
+
+
 ## 2026-11-15 — Unified Login callback
 
 - Go unit suite, frontend lint va production build o‘tdi. Mahalliy va production manzilida Edge 7/7; browser API javoblari fixture bilan izolyatsiyalangan.

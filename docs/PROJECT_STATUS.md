@@ -1,5 +1,12 @@
 # Project status
 
+## 2026-11-15 — Haqiqiy Unified Login va comment sinovi
+
+Foydalanuvchi Facebook orqali Meta Unified Login’dan o'tib `@khomidov_771` akkauntini uladi. Instagram-only tanlov ko‘rinmagan va bu talab ochiq qolgan. Meta akkaunt uchun comment va messaging ruxsatlarini qaytardi. 2026-11-15 server tekshiruvida Meta media API 2 ta postni qaytardi. Bitta faol qoida 2 ta tanlangan postga bog‘langan.
+
+Foydalanuvchi yuborgan real comment 11:43:21 UTC’da webhook orqali kelib moslandi. Private reply 11:43:21 UTC va public reply 11:43:24 UTC’da `succeeded` hamda Meta result ID bilan saqlandi. Public reply yaratgan self-comment xavfsiz skip qilingan. Follow check `UNKNOWN` bo‘ldi va qoidaning `send_private_reply` fallback’i ishladi. FOLLOWER yoki NOT_FOLLOWER tekshiruvi real ishlashi tasdiqlanmagan.
+
+
 ## 2026-11-15 — Meta Unified Login va callback (`c287c1c`)
 
 Meta Dashboard’da Unified Login Configuration ID hamda `https://instagram.schat.uz/api/v1/auth/instagram/callback` tanlangani ko‘rildi. Ilova endi konfiguratsiyadagi `META_LOGIN_MODE=unified` rejimini start, exchange va akkaunt ulashda ishlatadi. Serverga joylangan, API healthy. Meta beradigan facebook.com domenli dialogga foydalanuvchi Instagram bilan kira olishi dashboardda ko‘rsatilgan, haqiqiy tanlov va consent hozircha tasdiqlanmagan.

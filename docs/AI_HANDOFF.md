@@ -1,5 +1,10 @@
 # AI handoff
 
+## 2026-11-15 — Production real sinov
+
+`c287c1c` production. Foydalanuvchi Facebook orqali Unified Login bilan `@khomidov_771` hisobini ulagan, Instagram-only kirish talabi ochiq. Ruxsatlar `instagram_basic`, `instagram_manage_comments`, `instagram_manage_messages` va boshqa mavjud scope’lar. 2026-11-15 real API media read 2 post qaytardi. Real comment 11:43:21 UTC, private reply succeeded Meta result ID bilan, public reply 11:43:24 UTC succeeded Meta result ID bilan. Follow check UNKNOWN, fallback send_private_reply. Parol, token, shaxsiy xabar yoki raw webhook payloadlarni log/commit qilmang.
+
+
 ## 2026-11-15 — Meta Unified Login
 
 Production release `c287c1c`. API/web `/opt/repleo-deploys/repleo-c287c1c` dan. Runtime `META_LOGIN_MODE=unified`, callback `https://instagram.schat.uz/api/v1/auth/instagram/callback`. Admin ID va callback `.admin-override.yaml` orqali saqlanadi. Database backup `/opt/repleo-backups/oauth-20261115T091904Z/database.dump`. Eski `/api/v1/instagram/callback` hali qabul qilinadi. OAuth state cookie ikkala yo‘l uchun `/api/v1` scope’da, eski cookie ham tozalanadi.
