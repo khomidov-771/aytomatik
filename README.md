@@ -1,5 +1,12 @@
 # REPLEO
 
+## Meta Unified Login
+
+`META_LOGIN_MODE=unified` bo‘lsa sayt Meta ilovasidagi Configuration ID yordamida rasmiy Unified Login oqimini ochadi. Meta bu konfiguratsiyani Instagram Login bilan mos deb belgilagan. Login dialogi Meta domenida ochiladi. Amalda aynan qaysi tanlovlar ko‘rsatilishi Meta sozlamasi va akkauntga bog‘liq.
+
+Meta Dashboard’da tanlangan redirect URI va `META_REDIRECT_URI` aynan bir xil bo‘lsin. Server `/api/v1/instagram/callback` va `/api/v1/auth/instagram/callback` yo‘llarini qabul qiladi. Kod, state va cookie himoyasi saqlanadi. `META_LOGIN_MODE=instagram` alohida Instagram Login ilovasi uchun davom etadi. Haqiqiy OAuth consent va xabar yuborish alohida sinov talab qiladi.
+
+
 ## Super-admin
 
 `SUPER_ADMIN_INSTAGRAM_ID` serverda rasmiy Meta OAuth orqali tasdiqlangan platforma egasining Instagram ID’siga o‘rnatiladi. Bo‘sh bo‘lsa panel o‘chirilgan. Egasi Instagram orqali qayta kirgach chap panelda Super admin bo‘limi paydo bo‘ladi. Har bir so‘rov serverda sessiya orqali tekshiriladi. Akkountlar, ularning ruxsatlari, qoidalar, kalit so‘zlar va saqlangan suhbatlar sahifalab ko‘rinadi. Kalitlar faqat sozlanganlik holati sifatida ko‘rsatiladi. Har bir admin o‘qishi audit jurnaliga yoziladi.

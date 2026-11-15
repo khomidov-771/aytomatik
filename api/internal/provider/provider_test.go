@@ -84,7 +84,10 @@ func TestUnifiedAuthorizationURLUsesConfigurationID(t *testing.T) {
 		t.Fatalf("unexpected unified authorization URL: %s", raw)
 	}
 	if query.Has("scope") {
-		t.Fatalf("unified configuration must own scopes, got explicit scope in %s", raw)
+		t.Fatal("Unified configuration owns the permission scopes")
+	}
+	if query.Get("override_default_response_type") != "true" || query.Get("response_type") != "code" || query.Get("display") != "popup" || query.Has("prompt") {
+		t.Fatal("Unified authorization must match Meta's generated login format")
 	}
 }
 

@@ -1,5 +1,10 @@
 # IDS Automate arxitekturasi
 
+## Meta OAuth yo‘li
+
+`META_LOGIN_MODE` authorization va code exchange uchun serverdagi konfiguratsiyani belgilaydi. Unified Login Meta App ID va Configuration ID ishlatadi. Instagram Login o‘zining App ID/Secret juftligini ishlatadi. Unified browser state cookie `/api/v1` scope’ida saqlanadi, shu bilan ikkala tasdiqlangan callback marshrutida ham tekshiriladi. Har bir eski `/api/v1/instagram` cookie ham tozalanadi. `login_mode` token bilan birga saqlanadi va provider operatsiyalari shu rejimda davom etadi.
+
+
 ## Platforma administratori
 
 `SUPER_ADMIN_INSTAGRAM_ID` platforma egasining tekshirilgan Instagram ID’siga bog‘lanadi. `010_session_auth_provider.sql` sessiya OAuth manbasini saqlaydi. `/api/v1/admin/overview` va `/api/v1/admin/conversations/{id}/messages` faqat belgilangan ID bilan Instagram orqali yaratilgan sessiya hamda shu userga biriktirilgan identity tasdiqlanganda ishlaydi. Eski sessiya super-admin huquqini olmaydi. Ro‘yxatlar sahifalangan va o‘qishlar auditlanadi. Token va maxfiy qiymatlar API’ga kiritilmaydi.

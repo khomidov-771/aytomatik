@@ -21,7 +21,7 @@ func (s *Server) instagramLoginStatus(w http.ResponseWriter, _ *http.Request) {
 	respond(w, http.StatusOK, map[string]any{
 		"enabled":    s.provider.Name() == "meta" && s.cfg.InstagramLoginOAuthReady(),
 		"provider":   s.provider.Name(),
-		"login_mode": "instagram",
+		"login_mode": s.cfg.MetaLoginMode,
 		"api_ready":  s.cfg.MetaWebhookReady(),
 	})
 }
@@ -70,10 +70,10 @@ func (s *Server) instagramLoginStart(w http.ResponseWriter, r *http.Request) {
 	}
 	http.SetCookie(w, &http.Cookie{
 		Name: instagramStateCookieName(state), Value: browserBinding,
-		Path: "/api/v1/instagram", MaxAge: 600, HttpOnly: true,
+		Path: "/api/v1", MaxAge: 600, HttpOnly: true,
 		Secure: s.cfg.CookieSecure, SameSite: http.SameSiteLaxMode,
 	})
-	instagramProvider := provider.InstagramLoginClient(s.provider)
+	instagramProvider := s.provider
 	authorizationURL, err := instagramProvider.AuthorizationURL(state)
 	if err != nil {
 		s.clearInstagramStateCookie(w, instagramStateCookieName(state))
@@ -122,7 +122,7 @@ func (s *Server) instagramLoginCallback(w http.ResponseWriter, r *http.Request) 
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 15*time.Second)
 	defer cancel()
-	instagramProvider := provider.InstagramLoginClient(s.provider)
+	instagramProvider := s.provider
 	account, err := instagramProvider.ExchangeCode(ctx, code)
 	if err != nil || account.ID == "" || account.AccessToken == "" {
 		failureCode := instagramOAuthFailureCode(err, account)
@@ -207,7 +207,9 @@ func instagramStateCookieName(state string) string {
 }
 
 func (s *Server) clearInstagramStateCookie(w http.ResponseWriter, name string) {
-	http.SetCookie(w, &http.Cookie{Name: name, Value: "", Path: "/api/v1/instagram", MaxAge: -1, HttpOnly: true, Secure: s.cfg.CookieSecure, SameSite: http.SameSiteLaxMode})
+	for _, path := range []string{"/api/v1", "/api/v1/instagram"} {
+		http.SetCookie(w, &http.Cookie{Name: name, Value: "", Path: path, MaxAge: -1, HttpOnly: true, Secure: s.cfg.CookieSecure, SameSite: http.SameSiteLaxMode})
+	}
 }
 
 func (s *Server) redirectInstagramLoginError(w http.ResponseWriter, code string, intent ...string) {
@@ -257,13 +259,13 @@ func (s *Server) instagramConnect(w http.ResponseWriter, r *http.Request, p doma
 		statusError(w, err)
 		return
 	}
-	instagramProvider := provider.InstagramLoginClient(s.provider)
+	instagramProvider := s.provider
 	authURL, err := instagramProvider.AuthorizationURL(state)
 	if err != nil {
 		fail(w, 503, "provider_not_configured", cleanError(err))
 		return
 	}
-	respond(w, 200, map[string]any{"authorization_url": authURL, "provider": s.provider.Name(), "login_mode": "instagram"})
+	respond(w, 200, map[string]any{"authorization_url": authURL, "provider": s.provider.Name(), "login_mode": s.cfg.MetaLoginMode})
 }
 func (s *Server) instagramCallback(w http.ResponseWriter, r *http.Request) {
 	state := r.URL.Query().Get("state")
@@ -283,7 +285,7 @@ func (s *Server) instagramCallback(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, redirect+"?error=invalid_state", http.StatusFound)
 		return
 	}
-	instagramProvider := provider.InstagramLoginClient(s.provider)
+	instagramProvider := s.provider
 	account, err := instagramProvider.ExchangeCode(r.Context(), code)
 	if err != nil || account.ID == "" || account.AccessToken == "" {
 		failureCode := instagramOAuthFailureCode(err, account)

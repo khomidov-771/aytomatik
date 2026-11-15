@@ -123,7 +123,7 @@ func TestProductionRequiresSecurePublicURLsAndCookie(t *testing.T) {
 
 func TestInstagramLoginDoesNotRequireLegacyUnifiedConfigurationID(t *testing.T) {
 	validProductionEnv(t)
-	t.Setenv("META_LOGIN_MODE", "unified")
+	t.Setenv("META_LOGIN_MODE", "instagram")
 	t.Setenv("META_LOGIN_CONFIG_ID", "")
 	if _, err := Load(); err != nil {
 		t.Fatalf("direct Instagram Login must not require a legacy Unified configuration id: %v", err)
@@ -153,8 +153,12 @@ func TestMetaConfigurationReadyRejectsPlaceholders(t *testing.T) {
 		t.Fatal("plausible Meta production configuration should be ready for live OAuth verification")
 	}
 	cfg.MetaLoginConfigID = "config-id"
+	if cfg.MetaConfigurationReady() {
+		t.Fatal("Unified Login requires a valid configuration ID")
+	}
+	cfg.MetaLoginMode = "instagram"
 	if !cfg.MetaConfigurationReady() {
-		t.Fatal("legacy Unified Login configuration must not affect direct Instagram readiness")
+		t.Fatal("direct Instagram readiness must not depend on a Unified configuration ID")
 	}
 }
 
@@ -172,6 +176,11 @@ func TestMetaOAuthReadyAcceptsInstagramCallbackAndRejectsOtherPaths(t *testing.T
 	}
 	if !cfg.MetaOAuthReady() {
 		t.Fatal("valid production Instagram callback must enable Meta OAuth")
+	}
+
+	cfg.MetaRedirectURI = "https://instagram.schat.uz/api/v1/auth/instagram/callback"
+	if !cfg.MetaOAuthReady() {
+		t.Fatal("registered Meta Unified callback must be accepted")
 	}
 
 	cfg.MetaRedirectURI = "https://instagram.schat.uz/api/v1/auth/google/callback"

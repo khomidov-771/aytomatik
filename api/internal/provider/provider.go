@@ -305,12 +305,13 @@ func (m *Meta) AuthorizationURL(state string) (string, error) {
 			return "", errors.New("Meta Unified Login configuration ID is not configured")
 		}
 		q := url.Values{
-			"client_id":     {m.cfg.MetaAppID},
-			"config_id":     {m.cfg.MetaLoginConfigID},
-			"redirect_uri":  {m.cfg.MetaRedirectURI},
-			"response_type": {"code"},
-			"prompt":        {"login"},
-			"state":         {state},
+			"client_id":                      {m.cfg.MetaAppID},
+			"config_id":                      {m.cfg.MetaLoginConfigID},
+			"redirect_uri":                   {m.cfg.MetaRedirectURI},
+			"response_type":                  {"code"},
+			"display":                        {"popup"},
+			"override_default_response_type": {"true"},
+			"state":                          {state},
 		}
 		return "https://www.facebook.com/dialog/oauth?" + q.Encode(), nil
 	}

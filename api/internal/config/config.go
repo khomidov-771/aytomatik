@@ -68,14 +68,16 @@ func (c Config) MetaWebhookReady() bool {
 		plausibleMetaSecret(c.WebhookAppSecret)
 }
 
-// InstagramLoginOAuthReady reports whether the Instagram Business Login flow
-// can be started. Instagram's OAuth credentials are separate from the Meta app
-// credentials used for webhook signatures and existing Unified Login accounts.
+// InstagramLoginOAuthReady checks the credentials for the configured Meta login flow.
+// Readiness does not confirm that Meta accepted the app or granted permissions.
 func (c Config) InstagramLoginOAuthReady() bool {
-	return c.InstagramProvider == "meta" &&
-		numericMetaID(c.InstagramLoginAppID) &&
-		plausibleMetaSecret(c.InstagramLoginAppSecret) &&
-		isMetaOAuthRedirectURL(c.MetaRedirectURI, c.Env == "production")
+	if c.InstagramProvider != "meta" || !isMetaOAuthRedirectURL(c.MetaRedirectURI, c.Env == "production") {
+		return false
+	}
+	if c.MetaLoginMode == "unified" {
+		return numericMetaID(c.MetaAppID) && plausibleMetaSecret(c.MetaAppSecret) && numericMetaID(c.MetaLoginConfigID)
+	}
+	return c.MetaLoginMode == "instagram" && numericMetaID(c.InstagramLoginAppID) && plausibleMetaSecret(c.InstagramLoginAppSecret)
 }
 
 // MetaOAuthReady indicates that the server can attempt the configured official
@@ -235,7 +237,7 @@ func isAbsoluteURL(value string, requireHTTPS bool) bool {
 
 func isMetaOAuthRedirectURL(value string, requireHTTPS bool) bool {
 	parsed, err := url.Parse(strings.TrimSpace(value))
-	if err != nil || parsed.Host == "" || (parsed.Scheme != "https" && parsed.Scheme != "http") || parsed.User != nil || parsed.Fragment != "" || parsed.RawQuery != "" || parsed.Path != "/api/v1/instagram/callback" {
+	if err != nil || parsed.Host == "" || (parsed.Scheme != "https" && parsed.Scheme != "http") || parsed.User != nil || parsed.Fragment != "" || parsed.RawQuery != "" || (parsed.Path != "/api/v1/instagram/callback" && parsed.Path != "/api/v1/auth/instagram/callback") {
 		return false
 	}
 	return !requireHTTPS || parsed.Scheme == "https"
