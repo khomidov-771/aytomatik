@@ -12,6 +12,7 @@ import (
 )
 
 type Config struct {
+	SuperAdminInstagramID   string
 	Env                     string
 	Port                    string
 	AppURL                  string
@@ -113,6 +114,7 @@ func Load() (Config, error) {
 	c := Config{
 		Env:                     appEnv,
 		Port:                    env("PORT", "8080"),
+		SuperAdminInstagramID:   strings.TrimSpace(os.Getenv("SUPER_ADMIN_INSTAGRAM_ID")),
 		AppURL:                  env("APP_URL", "http://localhost:3000"),
 		APIURL:                  apiURL,
 		DatabaseURL:             os.Getenv("DATABASE_URL"),

@@ -89,8 +89,8 @@ func (s *Store) LoginUser(ctx context.Context, email string) (id, name, normaliz
 }
 
 func (s *Store) CreateSession(ctx context.Context, principal domain.Principal, tokenHash []byte, csrf string, expires time.Time) error {
-	return s.DB.QueryRow(ctx, `INSERT INTO sessions(user_id,workspace_id,token_hash,csrf_token,expires_at) VALUES($1,$2,$3,$4,$5) RETURNING id`,
-		principal.UserID, principal.WorkspaceID, tokenHash, csrf, expires).Scan(&principal.SessionID)
+	return s.DB.QueryRow(ctx, `INSERT INTO sessions(user_id,workspace_id,token_hash,csrf_token,expires_at,auth_provider) VALUES($1,$2,$3,$4,$5,$6) RETURNING id`,
+		principal.UserID, principal.WorkspaceID, tokenHash, csrf, expires, principal.SessionAuth).Scan(&principal.SessionID)
 }
 
 func (s *Store) PrincipalBySession(ctx context.Context, tokenHash []byte) (domain.Principal, error) {
@@ -98,14 +98,14 @@ func (s *Store) PrincipalBySession(ctx context.Context, tokenHash []byte) (domai
 	var verified bool
 	err := s.DB.QueryRow(ctx, `SELECT u.id,u.name,
 		CASE WHEN u.email::text LIKE '%@instagram.ids.invalid' THEN '' ELSE u.email::text END,
-		w.id,w.name,wm.role,s.id,s.expires_at,s.csrf_token,
+		w.id,w.name,wm.role,s.id,s.expires_at,s.csrf_token,s.auth_provider,
 		(u.email_verified_at IS NOT NULL OR EXISTS(SELECT 1 FROM instagram_oauth_identities ii WHERE ii.user_id=u.id)),
 		CASE WHEN EXISTS(SELECT 1 FROM instagram_oauth_identities ii WHERE ii.user_id=u.id) THEN 'instagram'
 			WHEN EXISTS(SELECT 1 FROM oauth_identities oi WHERE oi.user_id=u.id AND oi.provider='google') THEN 'google' ELSE 'email' END
 		FROM sessions s JOIN users u ON u.id=s.user_id JOIN workspaces w ON w.id=s.workspace_id
 		JOIN workspace_members wm ON wm.workspace_id=w.id AND wm.user_id=u.id
 		WHERE s.token_hash=$1 AND s.expires_at>now()`, tokenHash).
-		Scan(&p.UserID, &p.Name, &p.Email, &p.WorkspaceID, &p.Workspace, &p.Role, &p.SessionID, &p.SessionExpiresAt, &p.CSRFToken, &verified, &p.LoginProvider)
+		Scan(&p.UserID, &p.Name, &p.Email, &p.WorkspaceID, &p.Workspace, &p.Role, &p.SessionID, &p.SessionExpiresAt, &p.CSRFToken, &p.SessionAuth, &verified, &p.LoginProvider)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return p, ErrNotFound
 	}
@@ -200,10 +200,10 @@ func (s *Store) SwitchWorkspace(ctx context.Context, currentSessionID, userID, w
 	if err != nil {
 		return p, err
 	}
-	if _, err = tx.Exec(ctx, `DELETE FROM sessions WHERE id=$1 AND user_id=$2`, currentSessionID, userID); err != nil {
+	if err = tx.QueryRow(ctx, `DELETE FROM sessions WHERE id=$1 AND user_id=$2 RETURNING auth_provider`, currentSessionID, userID).Scan(&p.SessionAuth); err != nil {
 		return p, err
 	}
-	err = tx.QueryRow(ctx, `INSERT INTO sessions(user_id,workspace_id,token_hash,csrf_token,expires_at) VALUES($1,$2,$3,$4,$5) RETURNING id`, userID, workspaceID, tokenHash, csrf, expires).Scan(&p.SessionID)
+	err = tx.QueryRow(ctx, `INSERT INTO sessions(user_id,workspace_id,token_hash,csrf_token,expires_at,auth_provider) VALUES($1,$2,$3,$4,$5,$6) RETURNING id`, userID, workspaceID, tokenHash, csrf, expires, p.SessionAuth).Scan(&p.SessionID)
 	if err != nil {
 		return p, err
 	}

@@ -1,5 +1,10 @@
 # IDS Automate arxitekturasi
 
+## Platforma administratori
+
+`SUPER_ADMIN_INSTAGRAM_ID` platforma egasining tekshirilgan Instagram ID’siga bog‘lanadi. `010_session_auth_provider.sql` sessiya OAuth manbasini saqlaydi. `/api/v1/admin/overview` va `/api/v1/admin/conversations/{id}/messages` faqat belgilangan ID bilan Instagram orqali yaratilgan sessiya hamda shu userga biriktirilgan identity tasdiqlanganda ishlaydi. Eski sessiya super-admin huquqini olmaydi. Ro‘yxatlar sahifalangan va o‘qishlar auditlanadi. Token va maxfiy qiymatlar API’ga kiritilmaydi.
+
+
 Tekshiruv sanasi: 2026-11-12.
 
 

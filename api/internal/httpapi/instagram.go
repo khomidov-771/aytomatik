@@ -171,6 +171,7 @@ func (s *Server) instagramLoginCallback(w http.ResponseWriter, r *http.Request) 
 	if state.RememberMe {
 		ttl = s.cfg.SessionTTL
 	}
+	principal.SessionAuth = "instagram:" + account.ID
 	sessionToken, _, expiresAt, err := s.startSession(r, principal, ttl)
 	if err != nil {
 		s.redirectInstagramLoginError(w, "account_save_failed", intent)

@@ -1,5 +1,10 @@
 # REPLEO
 
+## Super-admin
+
+`SUPER_ADMIN_INSTAGRAM_ID` serverda rasmiy Meta OAuth orqali tasdiqlangan platforma egasining Instagram ID’siga o‘rnatiladi. Bo‘sh bo‘lsa panel o‘chirilgan. Egasi Instagram orqali qayta kirgach chap panelda Super admin bo‘limi paydo bo‘ladi. Har bir so‘rov serverda sessiya orqali tekshiriladi. Akkountlar, ularning ruxsatlari, qoidalar, kalit so‘zlar va saqlangan suhbatlar sahifalab ko‘rinadi. Kalitlar faqat sozlanganlik holati sifatida ko‘rsatiladi. Har bir admin o‘qishi audit jurnaliga yoziladi.
+
+
 REPLEO — Instagram Professional akkauntlari uchun real Comment-to-DM avtomatlashtirish platformasi. Git repository, API va ayrim ichki deployment identifikatorlarida oldingi IDS Automate nomi uchrashi mumkin; foydalanuvchiga ko‘rinadigan mahsulot nomi REPLEO.
 
 

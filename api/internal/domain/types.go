@@ -14,6 +14,8 @@ type Principal struct {
 	Role             string    `json:"role"`
 	LoginProvider    string    `json:"login_provider,omitempty"`
 	SessionID        string    `json:"-"`
+	SessionAuth      string    `json:"-"`
+	IsSuperAdmin     bool      `json:"is_super_admin"`
 	SessionExpiresAt time.Time `json:"-"`
 	CSRFToken        string    `json:"csrf_token"`
 }

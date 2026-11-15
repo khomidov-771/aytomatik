@@ -110,3 +110,23 @@ test("builder posts grouped replies and previews the message",async({page})=>{
   expect(body.keyword_groups[0].variants.map((v:{text:string})=>v.text)).toEqual(["narx","qancha","цена"]);
   expect(errors).toEqual([]);
 });
+
+test("admin menu and access reflect server authorization",async({page})=>{
+  await workspace(page);
+  await page.goto("/app/admin");
+  await expect(page.getByText("You do not have access to this section.")).toBeVisible();
+  await expect(page.getByRole("link",{name:"Super admin"})).toHaveCount(0);
+  await page.route("**/api/v1/me",route=>route.fulfill({json:{user:{user_id:"admin",workspace_id:"workspace",workspace_name:"Owner",name:"Owner",role:"owner",email:"",is_super_admin:true},csrf_token:"csrf"}}));
+  await page.route("**/api/v1/admin/overview?*",route=>{
+    const kind=new URL(route.request().url()).searchParams.get("kind");
+    const items=kind==="accounts"?[{id:"account",workspace:"Studio",username:"shop",status:"connected",account_type:"BUSINESS",scopes:["comments"],token_configured:true}]:kind==="keys"?[{name:"Meta App Secret",configured:true}]:[];
+    return route.fulfill({json:{items}});
+  });
+  await page.reload();
+  await expect(page.getByRole("link",{name:"Super admin"})).toBeVisible();
+  await expect(page.getByRole("heading",{name:"Platform administration"})).toBeVisible();
+  await expect(page.getByText("@shop")).toBeVisible();
+  await page.getByRole("button",{name:"API keys"}).click();
+  await expect(page.getByText("Meta App Secret")).toBeVisible();
+  await expect(page.getByText("Configured",{exact:true})).toBeVisible();
+});

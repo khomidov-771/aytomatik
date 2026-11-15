@@ -57,6 +57,8 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /api/v1/auth/verify-email", s.verifyEmail)
 	mux.HandleFunc("POST /api/v1/auth/resend-verification", s.rateLimit(s.resendVerification))
 	mux.HandleFunc("POST /api/v1/auth/logout", s.auth(true, "customer", s.logout))
+	mux.HandleFunc("GET /api/v1/admin/overview", s.auth(false, "customer", s.adminOverview))
+	mux.HandleFunc("GET /api/v1/admin/conversations/{id}/messages", s.auth(false, "customer", s.adminMessages))
 	mux.HandleFunc("GET /api/v1/me", s.auth(false, "customer", s.me))
 	mux.HandleFunc("GET /api/v1/workspaces", s.auth(false, "customer", s.workspaces))
 	mux.HandleFunc("POST /api/v1/workspaces/{id}/switch", s.auth(true, "customer", s.switchWorkspace))
@@ -108,6 +110,14 @@ func (s *Server) auth(csrf bool, minRole string, next func(http.ResponseWriter, 
 			}
 			fail(w, http.StatusUnauthorized, "unauthorized", "Sessiya tugagan")
 			return
+		}
+		if s.cfg.SuperAdminInstagramID != "" && p.SessionAuth == "instagram:"+s.cfg.SuperAdminInstagramID {
+			var adminErr error
+			p.IsSuperAdmin, adminErr = s.store.IsInstagramIdentity(r.Context(), p.UserID, s.cfg.SuperAdminInstagramID)
+			if adminErr != nil {
+				statusError(w, adminErr)
+				return
+			}
 		}
 		if !roleAtLeast(p.Role, minRole) {
 			fail(w, http.StatusForbidden, "forbidden", "Bu amal uchun ruxsat yetarli emas")

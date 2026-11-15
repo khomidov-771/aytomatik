@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { BarChart3, Bot, ChevronDown, ClipboardList, Home, Instagram, LogOut, Menu, MessageSquareText, PanelLeftClose, Settings, Users, X } from "lucide-react";
+import { BarChart3, Bot, ChevronDown, ClipboardList, Home, Instagram, LogOut, Menu, MessageSquareText, ShieldCheck, PanelLeftClose, Settings, Users, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import type { Session } from "@/lib/types";
@@ -79,6 +79,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   if (error || !session) return <div className="center-screen"><ErrorState message={error || tr("Sessiya topilmadi", "Сессия не найдена", "Session not found")} retry={() => { if (error.includes("Kirish") || error.includes("Sessiya")) router.push("/login"); else void reload(); }}/></div>;
   const initials = session.user.name.split(" ").map((value) => value[0]).join("").slice(0, 2).toUpperCase();
   const visibleNavigation = navigation.filter((item) => roleAtLeast(session.user.role, item.minimumRole)).map((item) => ({ ...item, translatedLabel: tr(item.label[0], item.label[1], item.label[2]) }));
+
+  if (session.user.is_super_admin) visibleNavigation.push({href:"/app/admin",label:["Super admin","Суперадмин","Super admin"],translatedLabel:tr("Super admin","Суперадмин","Super admin"),icon:ShieldCheck,minimumRole:"customer"});
 
   return <SessionProvider session={session}><div className={`app-shell ${collapsed ? "sidebar-collapsed" : ""}`}>
     <aside id="workspace-sidebar" className={`sidebar ${open ? "open" : ""}`}>
