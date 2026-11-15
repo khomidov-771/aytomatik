@@ -19,36 +19,19 @@ import (
 	"time"
 
 	"github.com/coreos/go-oidc/v3/oidc"
-	"github.com/fergusstrange/embedded-postgres/v2"
-	"github.com/fergusstrange/embedded-postgres/v2/eptest"
 	"github.com/ids-automate/ids-automate/api/internal/config"
 	"github.com/ids-automate/ids-automate/api/internal/mailer"
-	"github.com/ids-automate/ids-automate/api/internal/migrations"
 	"github.com/ids-automate/ids-automate/api/internal/provider"
 	"github.com/ids-automate/ids-automate/api/internal/security"
 	"github.com/ids-automate/ids-automate/api/internal/store"
+	"github.com/ids-automate/ids-automate/api/internal/testdb"
 	"github.com/ids-automate/ids-automate/api/internal/worker"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"golang.org/x/oauth2"
 )
 
 func TestGoogleOAuthCallbackControlledProvider(t *testing.T) {
 	ctx := context.Background()
-	cacheDir := t.TempDir()
-	pgConfig := embeddedpostgres.DefaultConfig().Port(0).Database("ids_google_test").StartTimeout(10 * time.Minute).Storage(embeddedpostgres.Storage{
-		CacheDir: cacheDir,
-		WorkDir:  t.TempDir(),
-	}).Provider(embeddedpostgres.DownloadProvider{CacheDir: cacheDir, Client: &http.Client{Timeout: 10 * time.Minute}})
-	dsn := eptest.Start(t, pgConfig).ConnectionURL()
-	db, err := pgxpool.New(ctx, dsn)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(db.Close)
-	if err = migrations.Up(ctx, db); err != nil {
-		t.Fatal(err)
-	}
-	applicationStore := &store.Store{DB: db}
+	applicationStore := &store.Store{DB: testdb.Open(t)}
 
 	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {

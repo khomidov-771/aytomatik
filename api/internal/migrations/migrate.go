@@ -27,7 +27,7 @@ func Up(ctx context.Context, db *pgxpool.Pool) error {
 	sort.Strings(names)
 	for _, name := range names {
 		var exists bool
-		err = db.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM information_schema.tables WHERE table_name='schema_migrations')").Scan(&exists)
+		err = db.QueryRow(ctx, "SELECT to_regclass('schema_migrations') IS NOT NULL").Scan(&exists)
 		if err != nil {
 			return err
 		}

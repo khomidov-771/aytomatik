@@ -47,7 +47,7 @@ test("public registration and returning sign-in use Instagram", async ({page}) =
   }
 });
 
-for (const mode of [{width:1440,height:900,theme:"dark"},{width:390,height:844,theme:"light"}]) {
+for (const mode of [{width:1440,height:900,theme:"dark"},{width:390,height:844,theme:"light"},{width:360,height:800,theme:"dark"},{width:768,height:1024,theme:"light"}]) {
   test("dashboard and settings · "+mode.width+" · "+mode.theme, async ({page}, info) => {
     const errors=await workspace(page);
     await page.setViewportSize({width:mode.width,height:mode.height});
@@ -57,13 +57,13 @@ for (const mode of [{width:1440,height:900,theme:"dark"},{width:390,height:844,t
     await expect(page.getByText("25%",{exact:true})).toBeVisible();
     await expect(page.locator(".overview-next")).toHaveCount(0);
     await expect(page.locator(".stat-card")).toHaveCount(4);
-    await info.attach("dashboard",{body:await page.screenshot(),contentType:"image/png"});
+    await page.screenshot({path:info.outputPath("dashboard.png")});
     await page.goto("/app/settings");
     await expect(page.getByText("owner@example.test",{exact:true})).toBeVisible();
     await expect(page.getByText("Failures in the last 24 hours")).not.toBeVisible();
     const toggle=page.getByRole("switch",{name:"Notifications"});
     await expect(toggle).toBeChecked();
-    await info.attach("settings",{body:await page.screenshot(),contentType:"image/png"});
+    await page.screenshot({path:info.outputPath("settings.png")});
     await toggle.uncheck();
     await page.getByRole("button",{name:"Save changes"}).click();
     await expect(page.getByRole("status").filter({hasText:"Settings saved"})).toBeVisible();
@@ -90,11 +90,18 @@ test("builder posts grouped replies and previews the message",async({page})=>{
   await page.getByLabel("Synonyms",{exact:true}).fill("qancha, цена");
   await next.click();
   await page.getByRole("textbox",{name:"Direct replies 1"}).fill("Price 42");
-  await page.getByText("Preview message",{exact:true}).click();
-  await expect(page.locator(".kg-preview p")).toHaveText("Price 42");
-  await page.locator(".kg-templates").filter({has:page.getByRole("heading",{name:"Public replies"})}).getByRole("button",{name:"Add reply"}).click();
+  const direct=page.locator(".kg-templates").filter({has:page.getByRole("heading",{name:"Direct replies"})});
+  await direct.getByText("Preview message",{exact:true}).click();
+  await expect(direct.locator(".kg-preview p")).toHaveText("Price 42");
+  const publicReplies=page.locator(".kg-templates").filter({has:page.getByRole("heading",{name:"Public replies"})});
+  await publicReplies.getByRole("button",{name:"Add reply"}).click();
+  await publicReplies.getByRole("button",{name:"Remove reply 1",exact:true}).click();
   await page.getByRole("textbox",{name:"Public replies 1"}).fill("Check your Direct");
+  let submitted=false;
+  page.on("request",r=>{if(new URL(r.url()).pathname==="/api/v1/automations" && r.method()==="POST") submitted=true;});
   await next.click();
+  await expect(page.getByRole("heading",{name:"Review your automation"})).toBeVisible();
+  expect(submitted).toBe(false);
   const sent=page.waitForRequest(r=>new URL(r.url()).pathname==="/api/v1/automations"&&r.method()==="POST");
   await page.getByRole("button",{name:"Save automation"}).click();
   const body=(await sent).postDataJSON();

@@ -86,3 +86,18 @@ html[data-theme=dark] .app-shell, html[data-theme=dark] .kg-editor { --action: #
  .overview-next {flex-wrap:wrap;}
 }
 @media(prefers-reduced-motion:reduce) { .preference-toggle i,.preference-toggle i::after,.kg-group > summary svg {transition:none;} }
+
+/* Keep controls and data legible from the first frame after navigation. */
+.app-shell .app-content > *,
+.app-shell .app-content .page-header,
+.app-shell .app-content .panel,
+.app-shell .app-content .stat-card:nth-child(n) {
+  animation: none;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .app-shell .app-content > * { animation: workspace-arrive .2s ease-out; }
+  @keyframes workspace-arrive {
+    from { transform: translateY(3px); }
+    to { transform: none; }
+  }
+}
