@@ -1,5 +1,11 @@
 # AI handoff
 
+## 2026-11-15 — Meta login tanlovini ko‘rsatish
+
+Meta Unified Login uchun `prompt=login` qo‘shildi: mavjud Facebook sessiyasi sabab variant tanlovi ko‘rinmasligi rasmiy troubleshooting hujjatida qayd etilgan. `api/internal/provider/provider.go` va testini ko‘ring. Bu ikki variantni ko‘rsatishni so‘raydi, Instagram-only majburlamaydi. Foydalanuvchi bilan real Instagram login va callback tekshirilmaguncha buni muvaffaqiyatli deb belgilamang. https://developers.facebook.com/documentation/instagram-platform/instagram-api-with-unified-login/eligibility-and-troubleshooting
+
+Production `/opt/repleo-deploys/repleo-unified-prompt`; compose `docker-compose.prod.yml`, `.admin-override.yaml`, `.prompt-override.yaml`; faqat API image `repleo-api:unified-prompt` yangilangan. Health va production login-start parametri tekshirildi. Oldingi image `repleo-api:c287c1c` rollback uchun saqlangan; ishga tushirishda production env va `IDS_DOMAIN` kerak. PostgreSQL va Redis o‘zgartirilmadi.
+
 ## 2026-11-15 — Production real sinov
 
 `c287c1c` production. Foydalanuvchi Facebook orqali Unified Login bilan `@khomidov_771` hisobini ulagan, Instagram-only kirish talabi ochiq. Ruxsatlar `instagram_basic`, `instagram_manage_comments`, `instagram_manage_messages` va boshqa mavjud scope’lar. 2026-11-15 real API media read 2 post qaytardi. Real comment 11:43:21 UTC, private reply succeeded Meta result ID bilan, public reply 11:43:24 UTC succeeded Meta result ID bilan. Follow check UNKNOWN, fallback send_private_reply. Parol, token, shaxsiy xabar yoki raw webhook payloadlarni log/commit qilmang.

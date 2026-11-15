@@ -1,5 +1,9 @@
 # Keyingi qadamlar
 
+## 2026-11-15 — Instagram orqali kirish
+
+`prompt=login` bilan production Meta oynasida Instagram tanlovini va haqiqiy Instagram consent → callback → sessiya zanjirini sinang. Shaxsiy ma’lumot, token, OAuth kod yoki parolni yozib olmang. Oynada Facebook tanlovi ham Meta tomonidan ko‘rsatilishi mumkin; faqat Instagram varianti majburlanmagani aniq. App Review va Advanced Access holatini boshqa mijozlar uchun tekshiring.
+
 ## 2026-11-15 — Ochiq Meta masalalari
 
 1. Foydalanuvchi Instagram orqali alohida kirish variantini talab qilmoqda. Mavjud Unified konfiguratsiya amalda Facebook orqali sessiya ochgan. Meta Dashboard configuration preview va rasmiy imkoniyatlarni tekshirish, Instagram login tanlovi Meta’da berilmasa mavjud holatni ochiq ko‘rsatish kerak.

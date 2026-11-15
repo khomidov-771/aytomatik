@@ -1,5 +1,11 @@
 # Project status
 
+## 2026-11-15 — Unified Login tanlovi
+
+Meta rasmiy hujjatlariga ko‘ra, `prompt=login` mavjud Facebook sessiyasini avtomatik tanlash o‘rniga Instagram va Facebook kirish variantlarini ko‘rsatishga xizmat qiladi. Unified authorization URL ga parametr qo‘shildi; Instagram orqali haqiqiy OAuth consent va callback hali alohida jonli sinovni talab qiladi. Manba: https://developers.facebook.com/documentation/instagram-platform/instagram-api-with-unified-login/get-started
+
+Production: `/opt/repleo-deploys/repleo-unified-prompt`, API image `repleo-api:unified-prompt`, container healthy. Production login-start HTTP 200 va URL query `prompt=login` tekshirildi. Lokal `go test ./...`, `go vet ./...`, `go build ./cmd/server ./cmd/migrate` muvaffaqiyatli. Meta’da haqiqiy Instagram login tanlovi va callback hali tekshirilmagan.
+
 ## 2026-11-15 — Haqiqiy Unified Login va comment sinovi
 
 Foydalanuvchi Facebook orqali Meta Unified Login’dan o'tib `@khomidov_771` akkauntini uladi. Instagram-only tanlov ko‘rinmagan va bu talab ochiq qolgan. Meta akkaunt uchun comment va messaging ruxsatlarini qaytardi. 2026-11-15 server tekshiruvida Meta media API 2 ta postni qaytardi. Bitta faol qoida 2 ta tanlangan postga bog‘langan.

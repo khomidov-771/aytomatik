@@ -310,6 +310,7 @@ func (m *Meta) AuthorizationURL(state string) (string, error) {
 			"redirect_uri":                   {m.cfg.MetaRedirectURI},
 			"response_type":                  {"code"},
 			"display":                        {"popup"},
+			"prompt":                         {"login"},
 			"override_default_response_type": {"true"},
 			"state":                          {state},
 		}
