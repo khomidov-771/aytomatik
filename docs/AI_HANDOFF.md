@@ -1,5 +1,12 @@
 # AI handoff
 
+## 2026-11-15 — Super-admin deploy
+
+API/web `9b3a7ba` dan. Release `/opt/repleo-deploys/repleo-9b3a7ba`, Compose override `.admin-override.yaml`, backup `/opt/repleo-backups/admin-20261115T064525Z/database.dump`. `SUPER_ADMIN_INSTAGRAM_ID` override’da berilgan. Session migration 010 qo‘llangan. Admin faqat shu Instagram loginidan yaratilgan sessiyada ochiladi. Eski sessiyalar uchun qayta login kerak.
+
+Boshqa tenantlar ma’lumotiga kirish maxsus admin handlerlarda cheklangan va auditlanadi. API kalit va tokenlarining faqat sozlanganlik holati qaytariladi. Controlled PostgreSQL testlari bilan ruxsatsiz sessiya 403, ruxsatli test identity 200 qaytargan. Production’da egasining yangi real OAuth sessiyasi bilan qabul testi ochiq.
+
+
 ## 2026-11-15 — Smart keyword release
 
 Production API va web `cefb6d6` dan qurilgan. `009_smart_keywords.sql` qo‘llangan. Avvalgi ma’lumot ID’lari deploy oldi va keyin solishtirilgan. Backup `/opt/repleo-backups/smart-20261115T052835Z/database.dump`. Candidate release `/opt/repleo-deploys/repleo-cefb6d6`, production environment mavjud faylga bog‘langan. PostgreSQL va Redis qayta yaratilmagan.

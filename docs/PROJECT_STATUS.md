@@ -1,5 +1,12 @@
 # Project status
 
+## 2026-11-15 — Super-admin (`9b3a7ba`)
+
+Serverga joylangan. Platforma egasi Instagram ID bilan bog‘langan va faqat shu Instagram loginidan yaratilgan yangi sessiyada admin bo‘limi ochiladi. Migratsiya `010_session_auth_provider.sql` qo‘llandi. Eski sessiyalardan qayta kirish kerak. API va web healthy, sessiyasiz admin endpoint 401 qaytardi.
+
+Docker PostgreSQL to‘plamida 56 asosiy, 126 ta test va subtest o‘tdi. Admin testi boshqa identity va boshqa login usulini rad etishni tekshiradi. Mahalliy build, lint va 7 ta Edge UI ssenariysi o‘tdi. Real admin login va boshqa workspace’dagi haqiqiy ma’lumotlar bilan test hali bajarilmagan.
+
+
 ## 2026-11-15 — Smart keywords release (`cefb6d6`)
 
 - API va web production serverga joylandi. Additive `009_smart_keywords.sql` migration qo‘llandi. Deploymentdan oldin PostgreSQL backup tekshirildi va eski user, workspace, account, rule, event, execution, action va message ID’lari saqlangani solishtirildi.

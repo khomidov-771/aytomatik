@@ -1,5 +1,12 @@
 # Test report
 
+## 2026-11-15 — Super-admin
+
+- Docker PostgreSQL to‘plamida 56 asosiy test, jami 126 test va subtest o‘tdi. Oddiy login, boshqa Instagram user va soxta session provider 403, to‘g‘ri test identity 200 qaytardi. Ko‘rish auditga yozildi.
+- Frontend lint va 23 route production build o‘tdi. Mahalliy va production manzilida Edge 7/7 fixture ssenariy o‘tdi.
+- Server API/web sog‘lom. Sessiyasiz admin API 401 qaytardi. Real egasi Instagram bilan qayta kirib test qilishi kerak.
+
+
 ## 2026-11-15 — Smart keyword testlari
 
 - `go test -tags=integration -count=1 ./...` ajratilgan Docker PostgreSQL bilan 55 asosiy test va jami 125 test/subtestdan o‘tdi. Controlled provider tashqi Meta chaqiruvini imitatsiya qiladi.

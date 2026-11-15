@@ -1,5 +1,12 @@
 # Keyingi qadamlar
 
+## 2026-11-15 — Super-admin
+
+1. Platforma egasi saytdan chiqib, `khomidov_771` orqali Instagram OAuth bilan qayta kiradi va chap paneldagi Super admin bo‘limini tekshiradi.
+2. Boshqa foydalanuvchi bilan jonli kirish tekshiruvi mavjud bo‘lsa, unga admin bo‘limi va API taqiqlanganini tasdiqlang.
+3. `/opt/repleo-deploys/repleo-9b3a7ba/.admin-override.yaml` production Compose konfiguratsiyasi tarkibida saqlansin. Unda admin Instagram ID berilgan. Uni tashlab Compose’ni qayta yaratish admin panelni o‘chiradi.
+
+
 ## 2026-11-15 — Guruhli qoidani jonli qabul qilish
 
 1. Egasi rasmiy Instagram ulanishi faol ekanini tekshiradi va mavjud postda guruhli qoidani ko‘rib chiqib saqlaydi.
